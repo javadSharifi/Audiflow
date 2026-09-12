@@ -134,14 +134,16 @@ export function MiniPlayer(): React.JSX.Element | null {
     void playNextTrack();
   };
 
+  const isFa = lang === "fa";
+
   return (
-    <div className="fixed bottom-[4.75rem] left-1/2 -translate-x-1/2 z-35 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
+    <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-35 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
       <div
         onClick={() => setFullscreenOpen(true)}
         className="group relative flex items-center justify-between gap-3 p-3 pt-3.5 rounded-3xl bg-white/95 dark:bg-zinc-900/95 hover:bg-white dark:hover:bg-zinc-900 border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl cursor-pointer transition-all duration-200 active:scale-98"
       >
         {/* ============================================================= */}
-        {/* Interactive Scrubbable Top Progress Bar (Strictly LTR)        */}
+        {/* Interactive Scrubbable Top Progress Bar (Strictly LTR for visual) */}
         {/* ============================================================= */}
         <div
           dir="ltr"
@@ -149,7 +151,7 @@ export function MiniPlayer(): React.JSX.Element | null {
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
           onClick={(e) => e.stopPropagation()}
-          className="absolute -top-2.5 inset-x-3 h-6 flex items-center cursor-pointer group/bar touch-none z-20"
+          className="absolute top-0 -translate-y-1/2 inset-x-4 h-3 flex items-center cursor-pointer group/bar touch-none z-20"
           title={`${formatTime(displayTime)} / ${formatTime(duration)}`}
         >
           {/* Track Bar Background */}
@@ -197,12 +199,11 @@ export function MiniPlayer(): React.JSX.Element | null {
           </div>
         </div>
 
-        {/* Right: Controls (Previous, Play/Pause, Next) + Close Button.
-            Kept LTR so prev/next never swap places in RTL (fa) mode. */}
+        {/* Right: Controls (Previous, Play/Pause, Next) + Close Button */}
         <div
           dir="ltr"
           data-testid="mini-transport-controls"
-          className="flex items-center gap-0.5 sm:gap-1 shrink-0"
+          className="relative z-30 flex items-center gap-0.5 sm:gap-1 shrink-0 pointer-events-auto"
         >
           {/* Previous Track Button */}
           <button
@@ -212,7 +213,7 @@ export function MiniPlayer(): React.JSX.Element | null {
             aria-label={translate(lang, "previousSong")}
             className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
           >
-            <SkipBack className="h-4 w-4" />
+            {isFa ? <SkipForward className="h-4 w-4" /> : <SkipBack className="h-4 w-4" />}
           </button>
 
           {/* Play / Pause Toggle Button */}
@@ -238,7 +239,7 @@ export function MiniPlayer(): React.JSX.Element | null {
             aria-label={translate(lang, "nextSong")}
             className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
           >
-            <SkipForward className="h-4 w-4" />
+            {isFa ? <SkipBack className="h-4 w-4" /> : <SkipForward className="h-4 w-4" />}
           </button>
 
           {/* Close / Dismiss MiniPlayer Button */}

@@ -138,8 +138,10 @@ export function NowPlayingView(): React.JSX.Element | null {
     setActiveTool("converter");
   };
 
+  const isFa = lang === "fa";
+
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300">
+    <div className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1.75rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300">
       {/* Top Ambient Glow */}
       <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-orange-500/15 via-amber-500/5 to-transparent pointer-events-none" />
       {/* Bottom Ambient Glow (mirrors top so the lower half never looks flat/black) */}
@@ -154,7 +156,7 @@ export function NowPlayingView(): React.JSX.Element | null {
           {/* =============================================================== */}
           {/* 1. TOP HEADER BAR                                               */}
           {/* =============================================================== */}
-          <div className="relative z-10 flex items-center justify-between pb-2 shrink-0">
+          <div className="relative z-10 flex items-center justify-between h-12 mb-2 pb-1 shrink-0">
             {/* Collapse / Minimize / Back Button */}
             <button
               type="button"
@@ -365,13 +367,11 @@ export function NowPlayingView(): React.JSX.Element | null {
 
           {/* =============================================================== */}
           {/* 6. HALO PLAYBACK CONTROLS (Prev / Halo Play / Next)              */}
-          {/* Transport buttons stay LTR in every language (Namida pattern):  */}
-          {/* in RTL the flex order would otherwise swap prev/next visually.  */}
           {/* =============================================================== */}
           <div
             dir="ltr"
             data-testid="transport-controls"
-            className="relative z-10 flex items-center justify-center gap-6 sm:gap-8 pt-2 pb-4 shrink-0 overflow-visible"
+            className="relative z-10 flex items-center justify-center gap-6 sm:gap-8 pt-3 pb-8 shrink-0 overflow-visible"
           >
             {/* Previous Track */}
             <button
@@ -380,11 +380,15 @@ export function NowPlayingView(): React.JSX.Element | null {
               title={translate(lang, "previousSong")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
             >
-              <SkipBack className="h-6 w-6 stroke-[2]" />
+              {isFa ? (
+                <SkipForward className="h-6 w-6 stroke-[2]" />
+              ) : (
+                <SkipBack className="h-6 w-6 stroke-[2]" />
+              )}
             </button>
 
             {/* HALO PLAY / PAUSE BUTTON */}
-            <div className="relative flex items-center justify-center overflow-visible">
+            <div className="relative flex items-center justify-center overflow-visible p-2">
               {/* Pulsing ambient glowing rings when active */}
               {isPlaying && (
                 <>
@@ -397,7 +401,7 @@ export function NowPlayingView(): React.JSX.Element | null {
                 type="button"
                 onClick={handleTogglePlay}
                 title={translate(lang, isPlaying ? "pauseSong" : "playSong")}
-                className={`relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white shadow-xl transition-transform duration-200 cursor-pointer active:scale-90 hover:scale-105 ${
+                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white shadow-xl transition-transform duration-200 cursor-pointer active:scale-90 hover:scale-105 ${
                   isPlaying ? "shadow-orange-500/40" : "shadow-orange-500/20"
                 }`}
               >
@@ -416,7 +420,11 @@ export function NowPlayingView(): React.JSX.Element | null {
               title={translate(lang, "nextSong")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
             >
-              <SkipForward className="h-6 w-6 stroke-[2]" />
+              {isFa ? (
+                <SkipBack className="h-6 w-6 stroke-[2]" />
+              ) : (
+                <SkipForward className="h-6 w-6 stroke-[2]" />
+              )}
             </button>
           </div>
         </div>

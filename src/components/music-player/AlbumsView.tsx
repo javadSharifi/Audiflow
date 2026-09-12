@@ -126,15 +126,15 @@ export function AlbumsView(): React.JSX.Element {
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden">
       {/* Search Bar & Create Button */}
-      <div className="shrink-0 flex items-center gap-2 w-full pb-1">
-        <div className="relative flex-1 flex items-center">
-          <Search className="absolute left-3.5 rtl:left-auto rtl:right-3.5 h-4 w-4 text-zinc-400 pointer-events-none" />
+      <div className="shrink-0 flex items-center gap-2.5 w-full pt-1 pb-3 mb-2">
+        <div className="relative flex-1 flex items-center group">
+          <Search className="absolute left-3.5 rtl:left-auto rtl:right-3.5 h-4 w-4 text-zinc-400 group-focus-within:text-orange-500 transition-colors pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={translate(lang, "searchAlbumsPlaceholder")}
-            className="w-full h-11 pl-10 pr-9 rtl:pl-9 rtl:pr-10 rounded-2xl bg-white/80 dark:bg-zinc-800/80 border border-black/[0.08] dark:border-white/[0.08] text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-orange-500 dark:focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 shadow-sm transition-all"
+            className="w-full h-11 pl-10 pr-9 rtl:pl-9 rtl:pr-10 rounded-2xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-orange-500 dark:focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 shadow-sm transition-all"
           />
           {searchQuery && (
             <button
@@ -151,7 +151,7 @@ export function AlbumsView(): React.JSX.Element {
         <button
           type="button"
           onClick={() => setIsCreatingAlbum(true)}
-          className="flex items-center gap-1.5 h-11 px-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+          className="flex items-center gap-1.5 h-11 px-3.5 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:brightness-105 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">{translate(lang, "createAlbum")}</span>
@@ -280,10 +280,10 @@ export function AlbumsView(): React.JSX.Element {
               <h2 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100">
                 {translate(lang, "myAlbums")}
               </h2>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400">
+                {filteredCustom.length}
+              </span>
             </div>
-            <span className="text-xs text-zinc-400 font-medium">
-              {translate(lang, "totalTracksCount", { count: filteredCustom.length })}
-            </span>
           </div>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
@@ -325,10 +325,10 @@ export function AlbumsView(): React.JSX.Element {
               <h2 className="text-sm font-extrabold text-zinc-900 dark:text-zinc-100">
                 {translate(lang, "allArtistsAndAlbums")}
               </h2>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-600 dark:text-zinc-400">
+                {filteredAuto.length}
+              </span>
             </div>
-            <span className="text-xs text-zinc-400 font-medium">
-              {translate(lang, "totalTracksCount", { count: filteredAuto.length })}
-            </span>
           </div>
 
           {filteredAuto.length === 0 ? (

@@ -297,7 +297,9 @@ function applyNativeStateToStore(state: NativePlayerState): void {
         cur != null &&
         ((nt.id && cur.id === nt.id) ||
           (nt.uri && cur.uri === nt.uri));
-      if (!same) {
+      if (cur == null && !isPlaying) {
+        // Player was closed by user; do not resurrect track from idle state
+      } else if (!same) {
         const pool =
           currentStoreState.currentPlaylist.length > 0
             ? currentStoreState.currentPlaylist
