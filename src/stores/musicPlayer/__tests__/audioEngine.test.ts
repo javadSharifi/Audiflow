@@ -12,7 +12,13 @@ import {
   resolveAudioSource,
   applyGainPercent,
   boosterDbForPercent,
+  bindMusicStore,
+  noteUserSeek,
+  applyNativeStateToStore,
+  startSmoothTime,
+  stopSmoothTime,
 } from "../audioEngine";
+import { useMusicPlayerStore } from "../../useMusicPlayerStore";
 import * as api from "../../../utils/tauri";
 import * as platform from "../../../utils/platform";
 import type { AudioTrackInfo } from "../../../types";
@@ -141,6 +147,79 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
       const gainDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls[0][0];
       expect(gainDb).toBeCloseTo(6.02, 2);
+    });
+  });
+
+  describe("Seek settle guard (no snap-back to stale positions)", () => {
+    beforeEach(() => {
+      vi.spyOn(platform, "isAndroid").mockReturnValue(true);
+      // Clear any real-timer smooth interval leaked by earlier sync tests so
+      // fake-timer tests below own their clock. Also reset seek-guard state
+      // so each test starts outside any settle window.
+      stopSmoothTime();
+      noteUserSeek(0);
+      bindMusicStore(useMusicPlayerStore);
+      useMusicPlayerStore.setState({ currentTime: 30.31, duration: 117.2, isPlaying: true });
+    });
+
+    it("ignores a lagging native snapshot right after a user seek", () => {
+      noteUserSeek(30.31);
+      // Native still reports pre-seek/buffering position (0).
+      applyNativeStateToStore({ isPlaying: true, currentTimeMs: 0, durationMs: 117265 });
+      expect(useMusicPlayerStore.getState().currentTime).toBeCloseTo(30.31, 2);
+    });
+
+    it("adopts the native position once it catches up to the seek target", () => {
+      noteUserSeek(30.31);
+      applyNativeStateToStore({ isPlaying: true, currentTimeMs: 31500, durationMs: 117265 });
+      expect(useMusicPlayerStore.getState().currentTime).toBeCloseTo(31.5, 2);
+    });
+
+    it("adopts lagging positions again after the settle window expires", () => {
+      vi.useFakeTimers();
+      try {
+        noteUserSeek(30.31);
+        vi.setSystemTime(Date.now() + 5000);
+        applyNativeStateToStore({ isPlaying: true, currentTimeMs: 2000, durationMs: 117265 });
+        expect(useMusicPlayerStore.getState().currentTime).toBeCloseTo(2, 2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("advances currentTime smoothly between native polls while playing", () => {
+      // A real-timer smooth interval may leak from earlier sync tests.
+      stopSmoothTime();
+      vi.useFakeTimers();
+      try {
+        bindMusicStore(useMusicPlayerStore);
+        useMusicPlayerStore.setState({ currentTime: 10, duration: 100, isPlaying: true });
+        applyNativeStateToStore({ isPlaying: true, currentTimeMs: 10000, durationMs: 100000 });
+        startSmoothTime();
+        vi.advanceTimersByTime(1000);
+        const advanced = useMusicPlayerStore.getState().currentTime;
+        expect(advanced).toBeGreaterThan(10.5);
+        expect(advanced).toBeLessThan(11.5);
+      } finally {
+        stopSmoothTime();
+        vi.useRealTimers();
+      }
+    });
+
+    it("freezes smooth time while paused", () => {
+      stopSmoothTime();
+      vi.useFakeTimers();
+      try {
+        bindMusicStore(useMusicPlayerStore);
+        useMusicPlayerStore.setState({ currentTime: 10, duration: 100, isPlaying: false });
+        applyNativeStateToStore({ isPlaying: false, currentTimeMs: 10000, durationMs: 100000 });
+        startSmoothTime();
+        vi.advanceTimersByTime(2000);
+        expect(useMusicPlayerStore.getState().currentTime).toBeCloseTo(10, 2);
+      } finally {
+        stopSmoothTime();
+        vi.useRealTimers();
+      }
     });
   });
 

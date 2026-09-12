@@ -235,7 +235,7 @@ export function AlbumDetailView({ album, onBack }: AlbumDetailViewProps): React.
         </div>
 
         {/* Tracks List */}
-        <div className="flex flex-col gap-1 pb-24">
+        <div className="flex flex-col gap-1 pb-44">
           {album.tracks.length === 0 ? (
             <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
               {translate(lang, "emptyAlbum")}

@@ -71,13 +71,6 @@ export const createFileSlice: StateCreator<
           if (fresh.length === 0) return {};
           if (fresh.some((f) => f.error)) {
             get().pushToast("warning", "errSomeFilesInvalid");
-            // A permission-shaped stat failure → ask the user to grant access.
-            if (
-              isAndroid() &&
-              fresh.some((f) => (f.error ?? "").toLowerCase().includes("permission"))
-            ) {
-              window.dispatchEvent(new CustomEvent("ac:show-permission-modal"));
-            }
           }
           return { files: [...s.files, ...fresh] };
         });

@@ -160,7 +160,12 @@ class PlaybackService : MediaSessionService() {
       val builder = MediaSession.Builder(this, player!!)
         .setSessionActivity(sessionActivityPendingIntent)
 
-      mediaSession = builder.build()
+      val session = builder.build()
+      mediaSession = session
+      // CRITICAL: register with MediaSessionService. Without addSession(),
+      // MediaNotificationManager never tracks the session, so the early
+      // "Starting…" placeholder is never replaced by media controls.
+      addSession(session)
       Log.i(TAG, "MediaSession created successfully")
       drainPendingPlay()
     } catch (t: Throwable) {
@@ -239,6 +244,13 @@ class PlaybackService : MediaSessionService() {
     } catch (_: Throwable) {}
     try {
       mediaSession?.run {
+        try {
+          if (isSessionAdded(this)) {
+            removeSession(this)
+          }
+        } catch (t: Throwable) {
+          Log.w(TAG, "removeSession failed in onDestroy", t)
+        }
         try {
           player.release()
         } catch (t: Throwable) {
@@ -608,6 +620,20 @@ class PlaybackService : MediaSessionService() {
         } catch (_: Throwable) {}
       }
 
+      // Final fallback: bundled default artwork so the notification and
+      // lock-screen player always show an image even when the track has no
+      // embedded art and no coverUrl.
+      if (!artworkSet && coverUrl.isBlank()) {
+        try {
+          val context = MainActivity.appContext
+          if (context != null) {
+            metadataBuilder.setArtworkUri(
+              Uri.parse("android.resource://${context.packageName}/drawable/default_artwork")
+            )
+          }
+        } catch (_: Throwable) {}
+      }
+
       val extras = android.os.Bundle().apply {
         putString("track_id", id)
         putString("raw_uri", uriStr)
@@ -632,6 +658,11 @@ class PlaybackService : MediaSessionService() {
       val uri = extras?.getString("raw_uri") ?: mediaItem.requestMetadata.mediaUri?.toString() ?: ""
       val path = extras?.getString("raw_path") ?: ""
       val coverUrl = extras?.getString("cover_url") ?: meta.artworkUri?.toString() ?: ""
+      // Never leak the bundled default artwork URI to the WebView UI: the
+      // renderer <img> cannot load android.resource:// and the cover would
+      // break/flicker instead of showing the gradient fallback.
+      val safeCoverUrl =
+        if (coverUrl.startsWith("android.resource://")) "" else coverUrl
 
       val json = JSONObject().apply {
         put("id", id)
@@ -640,7 +671,7 @@ class PlaybackService : MediaSessionService() {
         put("title", meta.title?.toString() ?: "Unknown Title")
         put("artist", meta.artist?.toString() ?: "Unknown Artist")
         put("album", meta.albumTitle?.toString() ?: "Unknown Album")
-        put("coverUrl", if (coverUrl.isNotBlank()) coverUrl else JSONObject.NULL)
+        put("coverUrl", if (safeCoverUrl.isNotBlank()) safeCoverUrl else JSONObject.NULL)
       }
       return json.toString()
     }

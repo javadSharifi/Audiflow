@@ -134,58 +134,13 @@ export function MiniPlayer(): React.JSX.Element | null {
     void playNextTrack();
   };
 
-  const isFa = lang === "fa";
-
   return (
     <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-35 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
       <div
         onClick={() => setFullscreenOpen(true)}
-        className="group relative flex items-center justify-between gap-3 p-3 pt-3.5 rounded-3xl bg-white/95 dark:bg-zinc-900/95 hover:bg-white dark:hover:bg-zinc-900 border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl cursor-pointer transition-all duration-200 active:scale-98"
+        className="group relative flex flex-col gap-2 p-3 rounded-3xl bg-white/95 dark:bg-zinc-900/95 hover:bg-white dark:hover:bg-zinc-900 border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl cursor-pointer transition-all duration-200 active:scale-98"
       >
-        {/* ============================================================= */}
-        {/* Interactive Scrubbable Top Progress Bar (Strictly LTR for visual) */}
-        {/* ============================================================= */}
-        <div
-          dir="ltr"
-          ref={seekbarRef}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute top-0 -translate-y-1/2 inset-x-4 h-3 flex items-center cursor-pointer group/bar touch-none z-20"
-          title={`${formatTime(displayTime)} / ${formatTime(duration)}`}
-        >
-          {/* Track Bar Background */}
-          <div className="relative w-full h-[3px] group-hover/bar:h-[5px] bg-black/10 dark:bg-white/15 rounded-full overflow-hidden transition-all duration-150">
-            {/* Active Progress Fill - transition-none during drag for 0-lag tracking */}
-            <div
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-              className={`h-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.5)] ${
-                isDragging ? "transition-none" : "transition-all duration-100 ease-linear"
-              }`}
-            />
-          </div>
-
-          {/* Glowing Thumb Handle on hover/drag - transition-none during drag */}
-          <div
-            style={{ left: `${Math.min(100, Math.max(0, progress))}%` }}
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-white border-2 border-orange-500 shadow-md shadow-orange-500/50 pointer-events-none ${
-              isDragging
-                ? "scale-125 opacity-100 transition-none"
-                : "scale-0 group-hover/bar:scale-100 opacity-0 group-hover/bar:opacity-100 transition-transform duration-150"
-            }`}
-          />
-
-          {/* Time Tooltip while dragging */}
-          {isDragging && (
-            <div
-              style={{ left: `${Math.min(90, Math.max(10, progress))}%` }}
-              className="absolute -top-7 -translate-x-1/2 px-2 py-0.5 rounded-lg bg-zinc-900 text-white text-[10px] font-mono font-bold shadow-lg border border-white/10 pointer-events-none"
-            >
-              {formatTime(displayTime)}
-            </div>
-          )}
-        </div>
-
+        <div className="flex items-center justify-between gap-3 w-full">
         {/* Left: Artwork + Title & Artist */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <TrackCover track={currentTrack} size="sm" />
@@ -213,7 +168,7 @@ export function MiniPlayer(): React.JSX.Element | null {
             aria-label={translate(lang, "previousSong")}
             className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
           >
-            {isFa ? <SkipForward className="h-4 w-4" /> : <SkipBack className="h-4 w-4" />}
+            <SkipBack className="h-4 w-4" />
           </button>
 
           {/* Play / Pause Toggle Button */}
@@ -239,7 +194,7 @@ export function MiniPlayer(): React.JSX.Element | null {
             aria-label={translate(lang, "nextSong")}
             className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
           >
-            {isFa ? <SkipBack className="h-4 w-4" /> : <SkipForward className="h-4 w-4" />}
+            <SkipForward className="h-4 w-4" />
           </button>
 
           {/* Close / Dismiss MiniPlayer Button */}
@@ -255,6 +210,42 @@ export function MiniPlayer(): React.JSX.Element | null {
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+        </div>
+
+        {/* Bottom: elapsed time + scrubbable progress bar + duration */}
+        <div className="flex items-center gap-2 px-1 select-none" dir="ltr">
+          <span className="text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400 tabular-nums shrink-0 min-w-9">
+            {formatTime(displayTime)}
+          </span>
+          <div
+            ref={seekbarRef}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onClick={(e) => e.stopPropagation()}
+            className="relative h-5 flex-1 flex items-center cursor-pointer group/bar touch-none"
+            title={`${formatTime(displayTime)} / ${formatTime(duration)}`}
+          >
+            <div className="relative w-full h-1 group-hover/bar:h-1.5 bg-black/10 dark:bg-white/15 rounded-full transition-all duration-150">
+              <div
+                style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                className={`h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-400 ${
+                  isDragging ? "transition-none" : "transition-all duration-100 ease-linear"
+                }`}
+              />
+            </div>
+            <div
+              style={{ left: `${Math.min(100, Math.max(0, progress))}%` }}
+              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-orange-500 shadow shadow-orange-500/50 pointer-events-none ${
+                isDragging
+                  ? "scale-125 opacity-100 transition-none"
+                  : "scale-0 group-hover/bar:scale-100 opacity-0 group-hover/bar:opacity-100 transition-transform duration-150"
+              }`}
+            />
+          </div>
+          <span className="text-[10px] font-mono font-bold text-zinc-400 dark:text-zinc-500 tabular-nums shrink-0 min-w-9 text-right">
+            {formatTime(duration)}
+          </span>
         </div>
       </div>
     </div>

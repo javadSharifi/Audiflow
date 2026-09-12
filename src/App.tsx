@@ -5,6 +5,7 @@ import { FileList } from "./components/FileList";
 import { OptionsPanel } from "./components/OptionsPanel";
 import { JobsPanel } from "./components/JobsPanel";
 import { MusicPlayerView } from "./components/music-player/MusicPlayerView";
+import { PermissionGate } from "./components/music-player/PermissionGate";
 import { Toasts } from "./components/Toasts";
 import { useAppStore } from "./stores/useAppStore";
 import { useMusicPlayerStore } from "./stores/useMusicPlayerStore";
@@ -18,7 +19,7 @@ import * as api from "./utils/tauri";
 import { useNativeDragDrop } from "./hooks/useNativeDragDrop";
 import { handleIncomingFiles } from "./utils/openWith";
 import { ANDROID_BACK_EVENT, wasBackConsumed } from "./utils/androidBack";
-import { Loader2, Play, Lock } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import type { QueueItem } from "./types";
 
 function StartBar(): React.JSX.Element {
@@ -82,68 +83,47 @@ export default function App(): React.JSX.Element {
   const loadSettings = useAppStore((s) => s.loadSettings);
   const initEventListeners = useAppStore((s) => s.initEventListeners);
 
-  // Android permission gate — honors grant, clears session flag, handles focus
-  const [permOpen, setPermOpen] = useState(false);
-  useEffect(() => {
-    if (!isAndroid()) return;
-    let cancelled = false;
-    const check = () => {
-      void api.hasMediaPermissions().then((granted) => {
-        if (cancelled) return;
-        if (granted) {
-          try {
-            sessionStorage.removeItem("ac:perm-modal-shown");
-          } catch {}
-          setPermOpen(false);
-          return;
-        }
-        try {
-          if (sessionStorage.getItem("ac:perm-modal-shown")) return;
-          sessionStorage.setItem("ac:perm-modal-shown", "1");
-        } catch {}
-        setPermOpen(true);
-      });
-    };
-    check();
-    const onShow = () => {
-      try {
-        sessionStorage.removeItem("ac:perm-modal-shown");
-      } catch {}
-      check();
-    };
-    const onFocus = () => check();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") check();
-    };
-    window.addEventListener("ac:show-permission-modal", onShow);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("ac:show-permission-modal", onShow);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
+  // First-launch permission gate: while media access is denied and the
+  // library is empty, a dedicated screen asks for access BEFORE entering
+  // the app. Skipping is session-scoped (converter stays usable via the
+  // in-list banner); a fresh grant auto-scans and dismisses the gate.
+  const permStatus = useMusicPlayerStore((s) => s.permissionStatus);
+  const libTracksEmpty = useMusicPlayerStore((s) => s.tracks.length === 0);
+  const libHasScanned = useMusicPlayerStore((s) => s.hasScanned);
+  const libLoading = useMusicPlayerStore((s) => s.loading);
+  const [gateSkipped, setGateSkipped] = useState(() => {
+    try {
+      return sessionStorage.getItem("ac:perm-gate-skipped") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const skipGate = useCallback(() => {
+    try {
+      sessionStorage.setItem("ac:perm-gate-skipped", "1");
+    } catch {}
+    setGateSkipped(true);
   }, []);
+  // Gate on the settled scan (not the boot race): showing it mid-scan would
+  // flash it away seconds later, like the old banner-flash bug.
+  const showGate =
+    isAndroid() &&
+    (permStatus === "denied" || permStatus === "permanentlyDenied") &&
+    libTracksEmpty &&
+    libHasScanned &&
+    !libLoading &&
+    !gateSkipped;
+  const gateRef = useRef({ show: false, skip: () => {} });
+  gateRef.current = { show: showGate, skip: skipGate };
 
-  // Android hardware back: sheets/tabs/fullscreen are consumed by deeper
-  // views first (see androidBack helpers). Here we handle: dismiss permission
-  // modal → exit selection → double-press to exit with a toast on first
-  // press. The music player is a top-level destination like the converter:
-  // back never navigates player → converter.
+  // Android hardware back: exit selection → double-press to exit with a
+  // toast on first press. The music player is a top-level destination like
+  // the converter: back never navigates player → converter.
   const lastBackPress = useRef(0);
-  const permOpenRef = useRef(false);
-  permOpenRef.current = permOpen;
-  const dismissPermRef = useRef(() => {});
-  dismissPermRef.current = () => setPermOpen(false);
   useEffect(() => {
     if (!isAndroid()) return;
     const onAndroidBack = () => {
       if (wasBackConsumed()) return;
-      if (permOpenRef.current) {
-        dismissPermRef.current();
-        return;
-      }
       const appState = useAppStore.getState();
       const musicState = useMusicPlayerStore.getState();
 
@@ -154,6 +134,12 @@ export default function App(): React.JSX.Element {
       if (musicState.fullscreenOpen) {
         // Safety net (NowPlayingView normally consumes this first).
         musicState.setFullscreenOpen(false);
+        return;
+      }
+      if (gateRef.current.show) {
+        // Back on the permission gate = "later": enter the app, the
+        // in-list banner keeps offering the grant.
+        gateRef.current.skip();
         return;
       }
       // No player → converter navigation: music and converter are both
@@ -224,11 +210,64 @@ export default function App(): React.JSX.Element {
 
   useNativeDragDrop(handleNativeDrop);
 
+  // Cold-start gate: the static #boot-splash in index.html (already painted
+  // with the correct dir/theme by the blocking boot script) stays visible
+  // until settings + the initial library state settle — so the user never
+  // sees an LTR flash or an empty list. Failsafe timeout guarantees the app
+  // always appears even if a backend call hangs.
+  const [bootReady, setBootReady] = useState(false);
   useEffect(() => {
-    // Theme class is owned SOLELY by useTheme() (single writer). Writing it
-    // here too caused double style recalc per settings load; Rhythm similarly
-    // keeps one remembered color-scheme source to avoid recomposition storms.
-    void loadSettings().catch(() => {});
+    let cancelled = false;
+    const finishBoot = () => {
+      if (cancelled) return;
+      // The failsafe timer can outlive the JS environment (e.g. test
+      // teardown) — never touch window/document blindly from it.
+      if (typeof window === "undefined" || typeof document === "undefined") return;
+      try {
+        document.getElementById("boot-splash")?.remove();
+      } catch {}
+      setBootReady(true);
+    };
+    const boot = async () => {
+      // Theme class is owned SOLELY by useTheme() (single writer). Writing it
+      // here too caused double style recalc per settings load; Rhythm similarly
+      // keeps one remembered color-scheme source to avoid recomposition storms.
+      try {
+        await loadSettings();
+      } catch {}
+      if (cancelled) return;
+      // Library: cached tracks (if any) are already in the store and render
+      // instantly — refresh them in the background. Only a truly empty
+      // library blocks the splash on a live scan.
+      try {
+        const music = useMusicPlayerStore.getState();
+        await music.checkPermission().catch(() => {});
+        if (cancelled) return;
+        const cached = useMusicPlayerStore.getState().tracks.length;
+        if (cached > 0) {
+          void useMusicPlayerStore.getState().scanLibrary().catch(() => {});
+        } else {
+          await useMusicPlayerStore.getState().scanLibrary().catch(() => {});
+        }
+      } catch {}
+      finishBoot();
+    };
+    const failsafe =
+      typeof window !== "undefined" ? window.setTimeout(finishBoot, 8000) : 0;
+    const clearFailsafe = () => {
+      try {
+        if (typeof window !== "undefined") window.clearTimeout(failsafe);
+      } catch {}
+    };
+    void boot().finally(clearFailsafe);
+    return () => {
+      cancelled = true;
+      clearFailsafe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let cleanup: (() => void) | null = null;
     void initEventListeners().then((fn) => (cleanup = fn));
 
@@ -266,6 +305,11 @@ export default function App(): React.JSX.Element {
 
   const isConverter = activeTool === "converter";
 
+  // Until boot settles, render nothing: the static #boot-splash (correct
+  // dir/theme from the blocking boot script) covers the screen instead of a
+  // half-painted LTR layout.
+  if (!bootReady) return <></>;
+
   return (
     <div className="relative flex h-screen max-w-full flex-col overflow-hidden overflow-x-hidden bg-zinc-100/90 text-zinc-900 select-none dark:bg-[#09090b] dark:text-zinc-100">
       <HeaderBar />
@@ -300,45 +344,8 @@ export default function App(): React.JSX.Element {
 
       <Toasts />
 
-      {permOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="glass-panel w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-600 dark:text-orange-400">
-              <Lock className="h-7 w-7" strokeWidth={2.2} />
-            </div>
-            <h2 className="mb-2 text-base font-bold">{translate(lang, "permRequiredTitle")}</h2>
-            <p className="mb-5 text-xs font-medium leading-5 text-zinc-600 dark:text-zinc-300">
-              {translate(lang, "permRequiredBody")}
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  api.openAppSettings();
-                  setPermOpen(false);
-                }}
-                className="rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/25 active:scale-95 transition-all"
-              >
-                {translate(lang, "permGoSettings")}
-              </button>
-              <button
-                onClick={() => {
-                  api.requestMediaPermissions();
-                  setPermOpen(false);
-                }}
-                className="rounded-2xl border border-black/10 bg-white/60 px-5 py-2.5 text-xs font-bold text-zinc-700 dark:border-white/10 dark:bg-zinc-800/60 dark:text-zinc-200 active:scale-95 transition-all"
-              >
-                {translate(lang, "permGrantNow")}
-              </button>
-              <button
-                onClick={() => setPermOpen(false)}
-                className="px-5 py-2 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-              >
-                {translate(lang, "permLater")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* First-launch permission gate (Android, denied + empty library) */}
+      {showGate && <PermissionGate onSkip={skipGate} />}
     </div>
   );
 }

@@ -31,10 +31,11 @@ export function useTheme(): void {
   }, [theme]);
 }
 
-/** Keeps <html dir/lang> in sync with UI language (RTL for Persian). */
+/** Keeps <html lang> in sync with UI language. Layout stays locked to LTR
+ *  by design — only strings localize, styling never mirrors. */
 export function useDirection(lang: "en" | "fa"): void {
   useEffect(() => {
-    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.documentElement.dir = "ltr";
     document.documentElement.lang = lang;
   }, [lang]);
 }

@@ -173,15 +173,15 @@ export function MultiSelectActionBar({
               <Trash2 className="h-4 w-4" />
             </button>
 
-            {/* 5. Clean Cancel Button */}
+            {/* 5. Clean Cancel Button (icon only) */}
             <button
               type="button"
               onClick={exitSelectionMode}
               title={translate(lang, "exitSelection")}
-              className="flex items-center gap-1 h-8 px-2.5 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-zinc-600 dark:text-zinc-300 text-xs font-semibold transition-colors cursor-pointer active:scale-95"
+              aria-label={translate(lang, "exitSelection")}
+              className="flex items-center justify-center h-8 w-8 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer active:scale-95"
             >
               <X className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-bold">{translate(lang, "exitSelection")}</span>
             </button>
           </div>
         </div>

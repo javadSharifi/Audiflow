@@ -7,11 +7,19 @@ pub fn get_permission_status() -> LibraryPermissionStatus {
     // means "unknown", NOT "denied". Retry briefly before falling back, so a
     // transient empty bridge never surfaces as a permission warning that
     // vanishes seconds later once the bridge is up.
+    //
+    // checkMusicPermission() is a Kotlin no-arg method; calling it through
+    // the 1-arg String bridge throws NoSuchMethodError every time (observed
+    // in logcat as JNI spam) and the retry loop then burns 4x150ms per
+    // check. Use the no-arg bridge.
     let mut res = String::new();
     for _ in 0..4 {
-        res = crate::android_fs::call_static_string_quiet("checkMusicPermission", "");
-        if !res.is_empty() {
-            break;
+        match crate::android_fs::call_static_string_no_arg("checkMusicPermission") {
+            Ok(s) if !s.is_empty() => {
+                res = s;
+                break;
+            }
+            _ => {}
         }
         std::thread::sleep(std::time::Duration::from_millis(150));
     }
@@ -29,7 +37,15 @@ pub fn get_permission_status() -> LibraryPermissionStatus {
 
 #[cfg(target_os = "android")]
 pub fn scan_media_store() -> Vec<AudioTrackInfo> {
-    let json_str = crate::android_fs::call_static_string_quiet("queryMediaStoreMusic", "");
+    // queryMediaStoreMusic() is a Kotlin no-arg method — must use the
+    // no-arg bridge (see get_permission_status above).
+    let json_str = match crate::android_fs::call_static_string_no_arg("queryMediaStoreMusic") {
+        Ok(s) => s,
+        Err(e) => {
+            crate::log_error!("queryMediaStoreMusic JNI call failed: {e}");
+            String::new()
+        }
+    };
     if json_str.is_empty() {
         return Vec::new();
     }

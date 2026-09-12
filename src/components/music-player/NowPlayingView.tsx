@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "../../stores/useAppStore";
-import { useMusicPlayerStore, isTrackLiked } from "../../stores/useMusicPlayerStore";
+import { useMusicPlayerStore, isTrackLiked, playbackModeOf, type PlaybackMode } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { TrackCover } from "./TrackCover";
+import { ConvertSongIcon } from "./ConvertSongIcon";
 import { WaveformSeekbar } from "./WaveformSeekbar";
 import { TrackOptionsSheet } from "./TrackOptionsSheet";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
 import { isAndroid } from "../../utils/platform";
 import {
-  ChevronDown,
+  ArrowLeft,
   MoreHorizontal,
   Heart,
   Play,
@@ -20,13 +22,14 @@ import {
   Shuffle,
   Gauge,
   Flame,
-  ArrowLeftRight,
   ListMusic,
   Search,
   X,
   Volume2,
   RotateCcw,
 } from "lucide-react";
+
+const PLAYBACK_MODE_ORDER: PlaybackMode[] = ["normal", "shuffle", "repeatAll", "repeatOne"];
 
 const SPEED_PRESETS = [0.5, 1.0, 1.5, 2.0, 2.5];
 const BOOST_PRESETS = [
@@ -49,6 +52,7 @@ export function NowPlayingView(): React.JSX.Element | null {
   const tracks = useMusicPlayerStore((s) => s.tracks);
   const repeatMode = useMusicPlayerStore((s) => s.repeatMode);
   const shuffleMode = useMusicPlayerStore((s) => s.shuffleMode);
+  const playbackMode = playbackModeOf(repeatMode, shuffleMode);
   const playbackRate = useMusicPlayerStore((s) => s.playbackRate);
   const volumeGainPercent = useMusicPlayerStore((s) => s.volumeGainPercent);
   const fullscreenOpen = useMusicPlayerStore((s) => s.fullscreenOpen);
@@ -59,8 +63,7 @@ export function NowPlayingView(): React.JSX.Element | null {
   const playNextTrack = useMusicPlayerStore((s) => s.playNextTrack);
   const playPreviousTrack = useMusicPlayerStore((s) => s.playPreviousTrack);
   const seekTo = useMusicPlayerStore((s) => s.seekTo);
-  const toggleRepeat = useMusicPlayerStore((s) => s.toggleRepeat);
-  const toggleShuffle = useMusicPlayerStore((s) => s.toggleShuffle);
+  const setPlaybackMode = useMusicPlayerStore((s) => s.setPlaybackMode);
   const setPlaybackRate = useMusicPlayerStore((s) => s.setPlaybackRate);
   const setVolumeGainPercent = useMusicPlayerStore((s) => s.setVolumeGainPercent);
   const likedPaths = useMusicPlayerStore((s) => s.likedPaths);
@@ -71,6 +74,20 @@ export function NowPlayingView(): React.JSX.Element | null {
   const [speedOpen, setSpeedOpen] = useState(false);
   const [boosterOpen, setBoosterOpen] = useState(false);
   const [desktopSearch, setDesktopSearch] = useState("");
+  // Tap ripple ids for the halo play button (removed on animation end).
+  const [ripples, setRipples] = useState<number[]>([]);
+  const rippleId = React.useRef(0);
+
+  const handlePlayPress = () => {
+    rippleId.current += 1;
+    const id = rippleId.current;
+    setRipples((prev) => [...prev.slice(-2), id]);
+    handleTogglePlay();
+  };
+
+  const removeRipple = (id: number) => {
+    setRipples((prev) => prev.filter((r) => r !== id));
+  };
 
   // Android back: sheets first, then fullscreen (deepest handler wins).
   useEffect(() => {
@@ -112,11 +129,6 @@ export function NowPlayingView(): React.JSX.Element | null {
 
   if (!fullscreenOpen || !currentTrack) return null;
 
-  const currentIndex = activeList.findIndex(
-    (t) => t.id === currentTrack.id || t.uri === currentTrack.uri,
-  );
-  const trackCounter = `${currentIndex >= 0 ? currentIndex + 1 : 1}/${activeList.length || 1}`;
-  const playlistName = currentTrack.album || translate(lang, "nowPlayingTitle");
   const isLiked = isTrackLiked(currentTrack, likedPaths);
 
   const handleTogglePlay = () => {
@@ -138,9 +150,7 @@ export function NowPlayingView(): React.JSX.Element | null {
     setActiveTool("converter");
   };
 
-  const isFa = lang === "fa";
-
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1.75rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300">
       {/* Top Ambient Glow */}
       <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-orange-500/15 via-amber-500/5 to-transparent pointer-events-none" />
@@ -162,21 +172,11 @@ export function NowPlayingView(): React.JSX.Element | null {
               type="button"
               onClick={() => setFullscreenOpen(false)}
               title={translate(lang, "collapsePlayer")}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.08] dark:hover:bg-white/15 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer active:scale-95 shadow-sm"
+              aria-label={translate(lang, "collapsePlayer")}
+              className="flex items-center justify-center h-9 w-9 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.08] dark:hover:bg-white/15 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer active:scale-95 shadow-sm"
             >
-              <ChevronDown className="h-4 w-4 stroke-[2.5]" />
-              <span className="text-xs font-bold">{lang === "fa" ? "بازگشت" : "Back"}</span>
+              <ArrowLeft className="h-4 w-4 stroke-[2.5]" />
             </button>
-
-            {/* Center Info */}
-            <div className="flex flex-col items-center text-center">
-              <span className="text-[11px] font-mono font-bold tracking-widest text-orange-600 dark:text-orange-400">
-                {trackCounter}
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight truncate max-w-[200px]">
-                {playlistName}
-              </span>
-            </div>
 
             {/* 3-Dots Options Button */}
             <button
@@ -207,10 +207,10 @@ export function NowPlayingView(): React.JSX.Element | null {
               type="button"
               onClick={handleOpenInConverter}
               title={translate(lang, "openInConverter")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              aria-label={translate(lang, "openInConverter")}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 transition-all cursor-pointer active:scale-90 shadow-sm"
             >
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              <span>{translate(lang, "converterTool")}</span>
+              <ConvertSongIcon className="h-5 w-5" />
             </button>
 
             {/* Right: Speed, Sound Booster, Repeat, Shuffle, Queue */}
@@ -263,43 +263,37 @@ export function NowPlayingView(): React.JSX.Element | null {
                 )}
               </div>
 
-              {/* Repeat Toggle */}
+              {/* Combined Playback Mode Toggle: normal → shuffle → repeat all → repeat one */}
               <button
                 type="button"
-                onClick={toggleRepeat}
+                onClick={() => {
+                  const idx = PLAYBACK_MODE_ORDER.indexOf(playbackMode);
+                  const next = PLAYBACK_MODE_ORDER[(idx + 1) % PLAYBACK_MODE_ORDER.length];
+                  setPlaybackMode(next);
+                }}
                 title={translate(
                   lang,
-                  repeatMode === "one"
-                    ? "repeatOne"
-                    : repeatMode === "all"
-                    ? "repeatAll"
-                    : "repeatOff",
+                  playbackMode === "shuffle"
+                    ? "playbackModeShuffle"
+                    : playbackMode === "repeatAll"
+                    ? "playbackModeRepeatAll"
+                    : playbackMode === "repeatOne"
+                    ? "playbackModeRepeatOne"
+                    : "playbackModeNormal",
                 )}
                 className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
-                  repeatMode !== "off"
+                  playbackMode !== "normal"
                     ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
                     : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                 }`}
               >
-                {repeatMode === "one" ? (
+                {playbackMode === "shuffle" ? (
+                  <Shuffle className="h-4 w-4" />
+                ) : playbackMode === "repeatOne" ? (
                   <Repeat1 className="h-4 w-4" />
                 ) : (
                   <Repeat className="h-4 w-4" />
                 )}
-              </button>
-
-              {/* Shuffle Toggle */}
-              <button
-                type="button"
-                onClick={toggleShuffle}
-                title={translate(lang, shuffleMode ? "shuffleOn" : "shuffleOff")}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
-                  shuffleMode
-                    ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
-                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <Shuffle className="h-4 w-4" />
               </button>
 
               {/* Mobile Queue Toggle (hidden on desktop where queue is side-by-side) */}
@@ -380,36 +374,41 @@ export function NowPlayingView(): React.JSX.Element | null {
               title={translate(lang, "previousSong")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
             >
-              {isFa ? (
-                <SkipForward className="h-6 w-6 stroke-[2]" />
-              ) : (
-                <SkipBack className="h-6 w-6 stroke-[2]" />
-              )}
+              <SkipBack className="h-6 w-6 stroke-[2]" />
             </button>
 
             {/* HALO PLAY / PAUSE BUTTON */}
             <div className="relative flex items-center justify-center overflow-visible p-2">
-              {/* Pulsing ambient glowing rings when active */}
+              {/* Soft ambient glow while playing (gentle breathing, no harsh shadow) */}
               {isPlaying && (
-                <>
-                  <div className="absolute -inset-2.5 rounded-full bg-orange-500/25 blur-md animate-pulse pointer-events-none" />
-                  <div className="absolute -inset-1 rounded-full bg-amber-500/40 blur-sm pointer-events-none" />
-                </>
+                <div className="absolute inset-0 rounded-full bg-orange-500/25 blur-xl animate-[breathe_2.6s_ease-in-out_infinite] pointer-events-none" />
               )}
+              {/* Tap ripples */}
+              {ripples.map((id) => (
+                <span
+                  key={id}
+                  onAnimationEnd={() => removeRipple(id)}
+                  className="absolute inset-2 rounded-full border-2 border-orange-400/70 animate-[play-ripple_0.6s_ease-out_forwards] pointer-events-none"
+                />
+              ))}
 
               <button
                 type="button"
-                onClick={handleTogglePlay}
+                onClick={handlePlayPress}
                 title={translate(lang, isPlaying ? "pauseSong" : "playSong")}
-                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white shadow-xl transition-transform duration-200 cursor-pointer active:scale-90 hover:scale-105 ${
-                  isPlaying ? "shadow-orange-500/40" : "shadow-orange-500/20"
+                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white shadow-lg transition-transform duration-200 cursor-pointer active:scale-90 hover:scale-105 ${
+                  isPlaying
+                    ? "shadow-orange-500/30 animate-[breathe_2.6s_ease-in-out_infinite]"
+                    : "shadow-orange-500/15"
                 }`}
               >
-                {isPlaying ? (
-                  <Pause className="h-7 w-7 fill-white" />
-                ) : (
-                  <Play className="h-7 w-7 fill-white translate-x-0.5" />
-                )}
+                <span key={isPlaying ? "pause" : "play"} className="flex animate-[icon-pop_0.25s_ease-out]">
+                  {isPlaying ? (
+                    <Pause className="h-7 w-7 fill-white" />
+                  ) : (
+                    <Play className="h-7 w-7 fill-white translate-x-0.5" />
+                  )}
+                </span>
               </button>
             </div>
 
@@ -420,11 +419,7 @@ export function NowPlayingView(): React.JSX.Element | null {
               title={translate(lang, "nextSong")}
               className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
             >
-              {isFa ? (
-                <SkipBack className="h-6 w-6 stroke-[2]" />
-              ) : (
-                <SkipForward className="h-6 w-6 stroke-[2]" />
-              )}
+              <SkipForward className="h-6 w-6 stroke-[2]" />
             </button>
           </div>
         </div>
@@ -778,6 +773,7 @@ export function NowPlayingView(): React.JSX.Element | null {
           onClose={() => setOptionsOpen(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

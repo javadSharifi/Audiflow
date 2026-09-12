@@ -47,6 +47,7 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --debug)
       BUILD_MODE="debug"
+      SKIP_SIGN=1
       shift
       ;;
     --release)
@@ -245,7 +246,7 @@ fi
 # 6. Verify APK Contents
 # ------------------------------------------------------------------------------
 echo -e "\n${BLUE}▶ Verifying APK structure...${NC}"
-RAW_APK=$(find "$ROOT/src-tauri/gen/android/app/build/outputs/apk" -name "*.apk" 2>/dev/null | sort | tail -n 1)
+RAW_APK=$(find "$ROOT/src-tauri/gen/android/app/build/outputs/apk" -path "*/$BUILD_MODE/*" -name "*.apk" 2>/dev/null | sort | tail -n 1)
 
 if [ -z "$RAW_APK" ] || [ ! -f "$RAW_APK" ]; then
   echo -e "${RED}✘ Error: No APK found in build/outputs/apk!${NC}"
@@ -254,11 +255,11 @@ fi
 
 echo "Inspecting $RAW_APK..."
 APK_CONTENTS=$(unzip -l "$RAW_APK")
-if ! echo "$APK_CONTENTS" | grep -q "lib/$JNI_DIR/libffmpeg.so"; then
+if ! echo "$APK_CONTENTS" | grep "lib/$JNI_DIR/libffmpeg.so" >/dev/null; then
   echo -e "${RED}✘ FATAL: lib/$JNI_DIR/libffmpeg.so is missing from the built APK!${NC}"
   exit 1
 fi
-if ! echo "$APK_CONTENTS" | grep -q "lib/$JNI_DIR/libffprobe.so"; then
+if ! echo "$APK_CONTENTS" | grep "lib/$JNI_DIR/libffprobe.so" >/dev/null; then
   echo -e "${RED}✘ FATAL: lib/$JNI_DIR/libffprobe.so is missing from the built APK!${NC}"
   exit 1
 fi
@@ -268,7 +269,7 @@ echo -e "${GREEN}✔ Verification passed: libffmpeg.so & libffprobe.so present i
 # without them silently fails to open any user-picked media file.
 AAPT2="$(find -L "$ANDROID_HOME/build-tools" \( -name aapt2 -o -name aapt2.exe \) 2>/dev/null | sort -V | tail -n 1)"
 if [ -n "$AAPT2" ]; then
-  if ! "$AAPT2" dump permissions "$RAW_APK" | grep -q "READ_MEDIA"; then
+  if ! "$AAPT2" dump permissions "$RAW_APK" | grep "READ_MEDIA" >/dev/null; then
     echo -e "${RED}✘ FATAL: READ_MEDIA_* permissions missing from built APK manifest!${NC}"
     exit 1
   fi
@@ -317,7 +318,7 @@ if [ $SKIP_SIGN -eq 0 ]; then
     fi
 
     # Find the unsigned or raw release APK to sign
-    UNSIGNED_APK=$(find "$ROOT/src-tauri/gen/android/app/build/outputs/apk" -type f -name "*unsigned.apk" 2>/dev/null | head -n 1)
+    UNSIGNED_APK=$(find "$ROOT/src-tauri/gen/android/app/build/outputs/apk" -path "*/$BUILD_MODE/*" -type f -name "*unsigned.apk" 2>/dev/null | head -n 1)
     if [ -z "$UNSIGNED_APK" ]; then
       UNSIGNED_APK="$RAW_APK"
     fi

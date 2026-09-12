@@ -134,16 +134,16 @@ describe("NowPlayingView Fullscreen Player", () => {
     useMusicPlayerStore.setState({ fullscreenOpen: true });
     render(<NowPlayingView />);
 
-    // Header counter and album name
-    expect(screen.getByText("1/2")).toBeTruthy();
-    expect(screen.getByText("Nightblue Music")).toBeTruthy();
+    // Header numeric track counter was removed.
+    expect(screen.queryByText("1/2")).toBeNull();
 
     // Track metadata
     expect(screen.getAllByText("DROELOE").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Strangers (feat. Iris Penning)").length).toBeGreaterThan(0);
 
-    // Converter button
-    expect(screen.getByText(/Converter/i)).toBeTruthy();
+    // Converter button is icon-only (title/aria-label, no visible text)
+    expect(screen.getByTitle(/Open in Converter/i)).toBeTruthy();
+    expect(screen.queryByText(/Converter/i)).toBeNull();
 
     // Speed button & Booster button
     expect(screen.getByTitle(/Playback Speed/i)).toBeTruthy();
@@ -189,19 +189,30 @@ describe("NowPlayingView Fullscreen Player", () => {
     expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(200);
   });
 
-  it("toggles repeat and shuffle modes", () => {
+  it("cycles combined playback mode: normal -> shuffle -> repeat all -> repeat one", () => {
     useMusicPlayerStore.setState({ fullscreenOpen: true });
     render(<NowPlayingView />);
 
-    // Repeat toggle
-    const repeatBtn = screen.getByTitle(/Repeat Off/i);
-    fireEvent.click(repeatBtn);
-    expect(useMusicPlayerStore.getState().repeatMode).toBe("all");
+    const modeBtn = screen.getByTitle(/Playback: Normal/i);
 
-    // Shuffle toggle
-    const shuffleBtn = screen.getByTitle(/Shuffle Off/i);
-    fireEvent.click(shuffleBtn);
+    // normal -> shuffle
+    fireEvent.click(modeBtn);
     expect(useMusicPlayerStore.getState().shuffleMode).toBe(true);
+    expect(useMusicPlayerStore.getState().repeatMode).toBe("off");
+
+    // shuffle -> repeat all
+    fireEvent.click(screen.getByTitle(/Playback: Shuffle/i));
+    expect(useMusicPlayerStore.getState().repeatMode).toBe("all");
+    expect(useMusicPlayerStore.getState().shuffleMode).toBe(false);
+
+    // repeat all -> repeat one
+    fireEvent.click(screen.getByTitle(/Playback: Repeat All/i));
+    expect(useMusicPlayerStore.getState().repeatMode).toBe("one");
+
+    // repeat one -> normal
+    fireEvent.click(screen.getByTitle(/Playback: Repeat One/i));
+    expect(useMusicPlayerStore.getState().repeatMode).toBe("off");
+    expect(useMusicPlayerStore.getState().shuffleMode).toBe(false);
   });
 
   it("keeps fullscreen transport controls LTR even in fa (RTL) mode", () => {

@@ -395,9 +395,12 @@ class MainActivity : TauriActivity() {
     @JvmStatic
     fun hasMediaPermissions(): Boolean {
       val ctx = appContext ?: instance?.applicationContext ?: return true
+      // Gate ONLY on audio: this is a music player first. READ_MEDIA_VIDEO is
+      // still requested (converter accepts video inputs) but must never block
+      // the app — on Android 14+ users routinely grant audio while denying
+      // video, which used to nag the "permission required" modal forever.
       return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED &&
-          ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
       } else {
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
       }

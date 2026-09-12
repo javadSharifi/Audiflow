@@ -128,20 +128,21 @@ export function AlbumsView(): React.JSX.Element {
       {/* Search Bar & Create Button */}
       <div className="shrink-0 flex items-center gap-2.5 w-full pt-1 pb-3 mb-2">
         <div className="relative flex-1 flex items-center group">
-          <Search className="absolute left-3.5 rtl:left-auto rtl:right-3.5 h-4 w-4 text-zinc-400 group-focus-within:text-orange-500 transition-colors pointer-events-none" />
+          <Search className="absolute left-3.5 h-4 w-4 text-zinc-400 group-focus-within:text-orange-500 transition-colors pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={translate(lang, "searchAlbumsPlaceholder")}
-            className="w-full h-11 pl-10 pr-9 rtl:pl-9 rtl:pr-10 rounded-2xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-orange-500 dark:focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 shadow-sm transition-all"
+            className="w-full h-11 pl-10 pr-9 rounded-2xl bg-white/80 dark:bg-zinc-800/80 border border-black/[0.08] dark:border-white/[0.08] text-xs font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 shadow-sm transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
               title={translate(lang, "searchClear")}
-              className="absolute right-3 rtl:right-auto rtl:left-3 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 transition-colors cursor-pointer"
+              aria-label={translate(lang, "searchClear")}
+              className="absolute right-3 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 transition-colors cursor-pointer"
             >
               <X className="h-3 w-3" />
             </button>
@@ -151,10 +152,11 @@ export function AlbumsView(): React.JSX.Element {
         <button
           type="button"
           onClick={() => setIsCreatingAlbum(true)}
-          className="flex items-center gap-1.5 h-11 px-3.5 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:brightness-105 text-white text-xs font-bold shadow-md shadow-orange-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+          title={translate(lang, "createAlbum")}
+          aria-label={translate(lang, "createAlbum")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-105 text-white shadow-md shadow-orange-500/25 transition-all cursor-pointer active:scale-95"
         >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">{translate(lang, "createAlbum")}</span>
+          <Plus className="h-5 w-5" />
         </button>
       </div>
 
@@ -174,7 +176,7 @@ export function AlbumsView(): React.JSX.Element {
               onChange={(e) => setNewAlbumName(e.target.value)}
               placeholder={translate(lang, "albumNamePlaceholder")}
               autoFocus
-              className="h-10 px-3.5 text-xs rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+              className="h-10 px-3.5 text-xs rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
             />
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -183,14 +185,14 @@ export function AlbumsView(): React.JSX.Element {
                   setIsCreatingAlbum(false);
                   setNewAlbumName("");
                 }}
-                className="flex-1 h-9 rounded-xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
               >
                 {translate(lang, "cancel")}
               </button>
               <button
                 type="submit"
                 disabled={!newAlbumName.trim()}
-                className="flex-1 h-9 rounded-xl bg-orange-500 hover:bg-orange-600 text-xs font-bold text-white shadow-md shadow-orange-500/20 disabled:opacity-50 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-orange-500 hover:bg-orange-600 text-xs font-bold text-white shadow-md shadow-orange-500/20 disabled:opacity-50 cursor-pointer"
               >
                 {translate(lang, "create")}
               </button>
@@ -216,20 +218,20 @@ export function AlbumsView(): React.JSX.Element {
                 setEditingAlbum({ ...editingAlbum, name: e.target.value })
               }
               autoFocus
-              className="h-10 px-3.5 text-xs rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+              className="h-10 px-3.5 text-xs rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
             />
             <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setEditingAlbum(null)}
-                className="flex-1 h-9 rounded-xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
               >
                 {translate(lang, "cancel")}
               </button>
               <button
                 type="submit"
                 disabled={!editingAlbum.name.trim()}
-                className="flex-1 h-9 rounded-xl bg-orange-500 hover:bg-orange-600 text-xs font-bold text-white shadow-md shadow-orange-500/20 disabled:opacity-50 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-orange-500 hover:bg-orange-600 text-xs font-bold text-white shadow-md shadow-orange-500/20 disabled:opacity-50 cursor-pointer"
               >
                 {translate(lang, "save")}
               </button>
@@ -252,14 +254,14 @@ export function AlbumsView(): React.JSX.Element {
               <button
                 type="button"
                 onClick={() => setDeletingAlbum(null)}
-                className="flex-1 h-9 rounded-xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.06] text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer"
               >
                 {translate(lang, "cancel")}
               </button>
               <button
                 type="button"
                 onClick={handleDeleteConfirm}
-                className="flex-1 h-9 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white shadow-md shadow-rose-600/25 cursor-pointer"
+                className="flex-1 h-9 rounded-2xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white shadow-md shadow-rose-600/25 cursor-pointer"
               >
                 {translate(lang, "delete")}
               </button>
@@ -269,7 +271,7 @@ export function AlbumsView(): React.JSX.Element {
       )}
 
       {/* Scrollable Container with Sections */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-24 flex flex-col gap-6">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-44 flex flex-col gap-6">
         {/* ================================================================= */}
         {/* SECTION 1: My Custom Albums (Row 1 / Priority)                   */}
         {/* ================================================================= */}

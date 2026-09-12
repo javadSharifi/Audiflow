@@ -1,11 +1,135 @@
 <!doctype html>
-<html lang="en">
+<html lang="fa" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Audio Converter</title>
+    <script>
+      // Boot prefs: applied synchronously BEFORE first paint so the app never
+      // flashes LTR/light. Mirrors the `ac:ui-prefs` cache written by the
+      // settings store (see src/utils/bootPrefs.ts). Static html defaults
+      // (fa/rtl) already match the most common case; this only corrects.
+      (function () {
+        try {
+          var raw = localStorage.getItem("ac:ui-prefs");
+          var prefs = raw ? JSON.parse(raw) : null;
+          var lang = prefs && (prefs.language === "en" || prefs.language === "fa") ? prefs.language : "fa";
+          var theme = prefs && (prefs.theme === "light" || prefs.theme === "dark" || prefs.theme === "system") ? prefs.theme : "system";
+          var resolved = theme;
+          if (resolved === "system") {
+            resolved = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          }
+          var html = document.documentElement;
+          html.lang = lang;
+          // Layout is intentionally locked to LTR — only strings localize.
+          html.dir = "ltr";
+          if (resolved === "dark") html.classList.add("dark");
+          else html.classList.remove("dark");
+          html.style.colorScheme = resolved;
+          try {
+            sessionStorage.setItem("ac:boot-lang", lang);
+          } catch (e2) {}
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background:
+          radial-gradient(60% 45% at 50% 30%, rgba(249, 115, 22, 0.22), transparent 70%),
+          radial-gradient(40% 30% at 50% 100%, rgba(245, 158, 11, 0.1), transparent 70%),
+          #0a0a0b;
+        color: #fafafa;
+        font-family: -apple-system, "Segoe UI", Roboto, "Vazirmatn", Tahoma, sans-serif;
+      }
+      #boot-splash .boot-mark {
+        width: 76px;
+        height: 76px;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f97316, #f59e0b);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+          0 12px 40px rgba(249, 115, 22, 0.45);
+        animation: boot-float 2.4s ease-in-out infinite;
+      }
+      #boot-splash .boot-mark svg {
+        width: 38px;
+        height: 38px;
+        fill: #fff;
+      }
+      #boot-splash .boot-name {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      #boot-splash .boot-name span {
+        background: linear-gradient(90deg, #fdba74, #fbbf24);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      #boot-splash .boot-bar {
+        width: 148px;
+        height: 4px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+      #boot-splash .boot-bar i {
+        display: block;
+        height: 100%;
+        width: 40%;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, #f97316, #fbbf24);
+        animation: boot-slide 1.1s ease-in-out infinite;
+      }
+      #boot-splash-text {
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.65;
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(380%); }
+      }
+      @keyframes boot-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash">
+      <div class="boot-mark">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+        </svg>
+      </div>
+      <div class="boot-name">Audio <span>Converter</span></div>
+      <div class="boot-bar"><i></i></div>
+      <div id="boot-splash-text">در حال بارگذاری…</div>
+    </div>
+    <script>
+      // Runs after the splash node exists (head script runs too early for it).
+      try {
+        var lang = document.documentElement.lang === "en" ? "en" : "fa";
+        try {
+          if (sessionStorage.getItem("ac:boot-lang") === "en") lang = "en";
+        } catch (e) {}
+        document.getElementById("boot-splash-text").textContent =
+          lang === "fa" ? "در حال بارگذاری…" : "Loading…";
+      } catch (e2) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

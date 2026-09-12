@@ -3,6 +3,7 @@ import type { AppSettings, ConversionOptions, AppTool } from "../../types";
 import type { Lang } from "../../i18n";
 import type { ToastSlice } from "./toastSlice";
 import { isAndroid } from "../../utils/platform";
+import { writeBootPrefs } from "../../utils/bootPrefs";
 import * as api from "../../utils/tauri";
 
 function getInitialActiveTool(): AppTool {
@@ -82,6 +83,9 @@ export const createSettingsSlice: StateCreator<
       isAndroid() && settings.defaultOutputMode === "custom_folder"
         ? "same_as_source"
         : settings.defaultOutputMode;
+    // Mirror to the sync boot cache so the next cold start paints the
+    // correct dir/theme before React even mounts (no LTR flash).
+    writeBootPrefs({ language: settings.language, theme: settings.theme });
     set({
       settings,
       lang: settings.language,
@@ -127,6 +131,13 @@ export const createSettingsSlice: StateCreator<
     });
     if (patch.language) set({ lang: patch.language as Lang });
     if (patch.theme) set({ theme: patch.theme as SettingsSlice["theme"] });
+    if (patch.language || patch.theme) {
+      const s = get();
+      writeBootPrefs({
+        language: (patch.language as Lang) ?? s.lang,
+        theme: (patch.theme as SettingsSlice["theme"]) ?? s.theme,
+      });
+    }
   },
 
   async persistSettings() {

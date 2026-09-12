@@ -3,7 +3,7 @@ import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore, filterAndSortTracks, isTrackLiked } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import type { MusicSortOption } from "../../types";
-import { requestMediaPermissions, openAppSettings, hasNotificationPermission } from "../../utils/tauri";
+import { openAppSettings, hasNotificationPermission } from "../../utils/tauri";
 import { isAndroid } from "../../utils/platform";
 import { TrackRow } from "./TrackRow";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
@@ -51,6 +51,7 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const permissionStatus = useMusicPlayerStore((s) => s.permissionStatus);
   const checkPermission = useMusicPlayerStore((s) => s.checkPermission);
   const scanLibrary = useMusicPlayerStore((s) => s.scanLibrary);
+  const requestMediaPermission = useMusicPlayerStore((s) => s.requestMediaPermission);
   const setSearchQuery = useMusicPlayerStore((s) => s.setSearchQuery);
   const setSortBy = useMusicPlayerStore((s) => s.setSortBy);
 
@@ -105,11 +106,46 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
     }
   }, [hasScanned, loading, scanLibrary, checkPermission]);
 
+  // Recover when the user grants media permission in system Settings and
+  // returns to the app: re-check on focus/visibility, and once granted with
+  // an empty library, trigger the scan that the original denied run skipped.
+  // Without this the list stays empty and the banner keeps showing even
+  // though Settings now reports the permission as granted.
+  useEffect(() => {
+    if (!isAndroid()) return;
+    let cancelled = false;
+    const recover = () => {
+      if (document.visibilityState === "hidden") return;
+      void (async () => {
+        try {
+          await checkPermission();
+          if (cancelled) return;
+          const state = useMusicPlayerStore.getState();
+          const granted =
+            state.permissionStatus === "granted" ||
+            state.permissionStatus === "notRequired";
+          if (granted && state.tracks.length === 0 && !state.loading) {
+            void scanLibrary();
+          }
+        } catch (err) {
+          console.warn("Permission recovery check failed:", err);
+        }
+      })();
+    };
+    window.addEventListener("focus", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", recover);
+      document.removeEventListener("visibilitychange", recover);
+    };
+  }, [checkPermission, scanLibrary]);
+
   const handleRequestPermission = async () => {
     try {
-      await requestMediaPermissions();
-      await checkPermission();
-      void scanLibrary();
+      // Polls until the system dialog is answered, then auto-scans — no
+      // second manual tap needed after granting.
+      await requestMediaPermission();
     } catch (err) {
       console.warn("Permission request failed:", err);
     }
@@ -384,7 +420,7 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-black/[0.04] dark:divide-white/[0.04] pr-1 pb-24">
+          <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-black/[0.04] dark:divide-white/[0.04] pr-1 pb-44">
             {filteredTracks.map((track) => (
               <TrackRow
                 key={track.id || track.uri}

@@ -253,7 +253,63 @@ export function getGlobalAudio(): HTMLAudioElement | null {
 
 type NativePlayerState = Record<string, unknown>;
 
-function applyNativeStateToStore(state: NativePlayerState): void {
+// Seek settle window: right after a user-initiated seek, ExoPlayer reports
+// the pre-seek (or 0 while buffering) position until the seek lands. Adopting
+// those stale snapshots clobbers the optimistic seekbar position — the
+// visible "jumps to 0 then snaps back" bug. Ignore lagging native positions
+// briefly after a seek; adopt once native catches up or the window expires.
+const SEEK_SETTLE_MS = 1500;
+let lastUserSeekAt = 0;
+let lastUserSeekTargetSecs = 0;
+
+/** Records a user-initiated seek so stale native snapshots are ignored briefly. */
+export function noteUserSeek(timeSecs: number): void {
+  if (Number.isFinite(timeSecs)) {
+    lastUserSeekAt = Date.now();
+    lastUserSeekTargetSecs = Math.max(0, timeSecs);
+    anchorSmoothTime(lastUserSeekTargetSecs);
+  }
+}
+
+// Smooth local time progression: native polls arrive only every ~2s, which
+// made the seekbar jump 2-4-6. Between polls the ticker advances currentTime
+// locally from the last anchored native position; each poll re-anchors, so
+// drift can never exceed the 0.3s adoption threshold (invisible).
+let smoothAnchorSecs = 0;
+let smoothAnchorAt = 0;
+let smoothTimer: ReturnType<typeof setInterval> | null = null;
+
+function anchorSmoothTime(secs: number): void {
+  smoothAnchorSecs = Math.max(0, secs);
+  smoothAnchorAt = Date.now();
+}
+
+export function startSmoothTime(): void {
+  if (smoothTimer || typeof window === "undefined") return;
+  smoothTimer = setInterval(() => {
+    try {
+      if (!boundStore) return;
+      const s = boundStore.getState();
+      if (!s.isPlaying) return;
+      const t = smoothAnchorSecs + (Date.now() - smoothAnchorAt) / 1000;
+      const capped = s.duration > 0 ? Math.min(t, s.duration) : t;
+      if (capped - s.currentTime > 0.05) {
+        boundStore.setState({ currentTime: capped });
+      }
+    } catch {}
+  }, 500);
+}
+
+export function stopSmoothTime(): void {
+  if (smoothTimer) {
+    try {
+      clearInterval(smoothTimer);
+    } catch {}
+    smoothTimer = null;
+  }
+}
+
+export function applyNativeStateToStore(state: NativePlayerState): void {
   if (!boundStore) return;
   const isPlaying = Boolean(state.isPlaying);
   const currentTimeMs = typeof state.currentTimeMs === "number" ? state.currentTimeMs : 0;
@@ -268,8 +324,17 @@ function applyNativeStateToStore(state: NativePlayerState): void {
   if (currentStoreState.isPlaying !== isPlaying) {
     patch.isPlaying = isPlaying;
   }
-  if (Math.abs(currentStoreState.currentTime - curSecs) > 0.3) {
+  const seekSettled =
+    Date.now() - lastUserSeekAt >= SEEK_SETTLE_MS ||
+    curSecs >= lastUserSeekTargetSecs - 0.3;
+  if (seekSettled && Math.abs(currentStoreState.currentTime - curSecs) > 0.3) {
     patch.currentTime = curSecs;
+  }
+  // Re-anchor the smooth ticker on every settled snapshot so local
+  // progression never drifts; while a seek is landing the anchor keeps
+  // holding the seek target (set by noteUserSeek).
+  if (seekSettled) {
+    anchorSmoothTime(patch.currentTime ?? currentStoreState.currentTime);
   }
   if (durSecs > 0 && Math.abs(currentStoreState.duration - durSecs) > 0.5) {
     patch.duration = durSecs;
@@ -376,6 +441,7 @@ function ensureAndroidPushSubscribed(): void {
 
 function startAndroidStateSync(): void {
   ensureAndroidPushSubscribed();
+  startSmoothTime();
   if (androidPollTimer) return;
   const syncOnce = async () => {
     if (!boundStore) return;
@@ -406,6 +472,7 @@ function startAndroidStateSync(): void {
 }
 
 function stopAndroidStateSync(): void {
+  stopSmoothTime();
   if (androidPollTimer) {
     clearInterval(androidPollTimer);
     androidPollTimer = null;
@@ -547,6 +614,9 @@ export async function unifiedResume(): Promise<void> {
 
 export async function unifiedSeekTo(timeSecs: number): Promise<void> {
   if (isAndroid()) {
+    // Arm the settle guard BEFORE the async bridge so a racing poll/push
+    // can't clobber the optimistic position with a pre-seek snapshot.
+    noteUserSeek(timeSecs);
     try {
       await api.androidPlayerSeekTo(timeSecs * 1000);
     } catch (err) {

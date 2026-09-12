@@ -37,6 +37,19 @@ import { getTrackKey, getTrackAliases, isTrackLiked } from "./musicPlayer/trackU
 import { isAndroid } from "../utils/platform";
 import { evictArtworkCache } from "../utils/artwork";
 
+/** Combined shuffle/repeat playback mode cycled by a single Now-Playing button. */
+export type PlaybackMode = "normal" | "shuffle" | "repeatAll" | "repeatOne";
+
+export function playbackModeOf(
+  repeatMode: "off" | "all" | "one",
+  shuffleMode: boolean,
+): PlaybackMode {
+  if (shuffleMode) return "shuffle";
+  if (repeatMode === "all") return "repeatAll";
+  if (repeatMode === "one") return "repeatOne";
+  return "normal";
+}
+
 export { getGlobalAudio, getGlobalGainNode } from "./musicPlayer/audioEngine";
 export {
   getTrackKey,
@@ -79,6 +92,14 @@ export interface MusicPlayerState {
 
   checkPermission: () => Promise<void>;
   scanLibrary: (customDirs?: string[]) => Promise<void>;
+  /**
+   * Fire the native runtime-permission dialog, then poll the permission
+   * status until the user answers (the native request is fire-and-forget —
+   * it resolves before the system dialog is answered, so a single
+   * check-then-scan always races it and scans empty). On grant with an
+   * empty library, triggers a scan. Resolves true when granted.
+   */
+  requestMediaPermission: () => Promise<boolean>;
   setSearchQuery: (query: string) => void;
   setSortBy: (sort: MusicSortOption) => void;
   toggleLike: (trackOrKey: AudioTrackInfo | string) => void;
@@ -98,6 +119,7 @@ export interface MusicPlayerState {
   seekTo: (timeSecs: number) => void;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
+  setPlaybackMode: (mode: PlaybackMode) => void;
   setFullscreenOpen: (open: boolean) => void;
   setPlaybackRate: (rate: number) => void;
   setVolumeGainPercent: (gain: number) => void;
@@ -155,6 +177,28 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
       set({ permissionStatus: status });
     } catch {
       set({ permissionStatus: "notRequired" });
+    }
+  },
+
+  async requestMediaPermission() {
+    try {
+      api.requestMediaPermissions();
+    } catch {}
+    // The native dialog answers asynchronously with no callback — poll the
+    // status so the grant is picked up without a second manual tap.
+    const deadline = Date.now() + 15000;
+    for (;;) {
+      await get().checkPermission();
+      const status = get().permissionStatus;
+      if (status === "granted" || status === "notRequired") {
+        const state = get();
+        if (state.tracks.length === 0 && !state.loading) {
+          void state.scanLibrary();
+        }
+        return true;
+      }
+      if (Date.now() >= deadline) return false;
+      await new Promise((resolve) => setTimeout(resolve, 750));
     }
   },
 
@@ -465,6 +509,14 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     const next = !get().shuffleMode;
     void unifiedSetShuffleMode(next);
     set({ shuffleMode: next });
+  },
+
+  setPlaybackMode(mode) {
+    const repeatMode = mode === "repeatAll" ? "all" : mode === "repeatOne" ? "one" : "off";
+    const shuffleMode = mode === "shuffle";
+    void unifiedSetRepeatMode(repeatMode);
+    void unifiedSetShuffleMode(shuffleMode);
+    set({ repeatMode, shuffleMode });
   },
 
   setFullscreenOpen(open) {

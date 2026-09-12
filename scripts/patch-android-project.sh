@@ -46,7 +46,7 @@ cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
     <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audio Converter → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
-    <string name="service_starting">Starting…</string>
+    <string name="service_starting">Starting… (v1.3.11)</string>
 </resources>
 EOF
 cat > "$GEN/app/src/main/res/drawable/ic_notification.xml" << 'EOF'

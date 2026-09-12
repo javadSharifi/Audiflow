@@ -60,4 +60,6 @@ bash "$ROOT/scripts/patch-android-project.sh" aarch64-linux-android
 echo -e "${GREEN}${BOLD}⚡ Starting Live-Reload Dev Server...${NC}"
 echo -e "${CYAN}Any changes in React/TypeScript/CSS will update instantly on the emulator!${NC}\n"
 
-pnpm tauri android dev "$@"
+TARGET_DEVICE="${1:-$AVD_NAME}"
+if [ $# -gt 0 ]; then shift; fi
+pnpm tauri android dev "$TARGET_DEVICE" "$@"

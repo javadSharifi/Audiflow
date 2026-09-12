@@ -68,6 +68,43 @@
                 <data android:mimeType="audio/*" />
                 <data android:mimeType="video/*" />
             </intent-filter>
+            <!-- tauri-file-associations. AUTO-GENERATED. DO NOT REMOVE. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="audio/*" />
+                <data android:pathPattern=".*\\.mp3" />
+                <data android:pathPattern=".*\\.flac" />
+                <data android:pathPattern=".*\\.wav" />
+                <data android:pathPattern=".*\\.m4a" />
+                <data android:pathPattern=".*\\.aac" />
+                <data android:pathPattern=".*\\.ogg" />
+                <data android:pathPattern=".*\\.opus" />
+                <data android:pathPattern=".*\\.aiff" />
+                <data android:pathPattern=".*\\.alac" />
+                <data android:pathPattern=".*\\.wma" />
+                <data android:pathPattern=".*\\.weba" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="video/*" />
+                <data android:pathPattern=".*\\.mp4" />
+                <data android:pathPattern=".*\\.mkv" />
+                <data android:pathPattern=".*\\.avi" />
+                <data android:pathPattern=".*\\.mov" />
+                <data android:pathPattern=".*\\.webm" />
+                <data android:pathPattern=".*\\.flv" />
+                <data android:pathPattern=".*\\.wmv" />
+            </intent-filter>
+            
+            <!-- tauri-file-associations. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>
 
         <!-- Media3 Foreground Playback Service -->

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
-import { AudioLines, Music, Sparkles, X } from "lucide-react";
+import { Music, Sparkles, X } from "lucide-react";
+import { ConvertSongIcon } from "./music-player/ConvertSongIcon";
 
 export function ToolSwitcher(): React.JSX.Element {
   const activeTool = useAppStore((s) => s.activeTool);
@@ -71,11 +72,10 @@ export function ToolSwitcher(): React.JSX.Element {
             </span>
           )}
 
-          <AudioLines
+          <ConvertSongIcon
             className={`h-3.5 w-3.5 transition-colors ${
               isConverter ? "text-orange-500" : "text-zinc-400 dark:text-zinc-500"
             }`}
-            strokeWidth={isConverter ? 2.5 : 2}
           />
           <span>{translate(lang, "toolConverter")}</span>
         </button>
@@ -127,7 +127,7 @@ export function ToolSwitcher(): React.JSX.Element {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500" />
             </span>
           )}
-          <AudioLines className="h-4 w-4" strokeWidth={isConverter ? 2.5 : 2} />
+          <ConvertSongIcon className="h-4 w-4" />
         </button>
 
         <button

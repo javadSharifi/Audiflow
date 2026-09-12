@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import App from "../App";
 import { useAppStore } from "../stores/useAppStore";
@@ -74,6 +74,12 @@ vi.mock("../utils/platform", async (importOriginal) => {
 function pressBack() {
   window.dispatchEvent(new CustomEvent(ANDROID_BACK_EVENT));
 }
+
+// Unmount after every test too: App schedules async boot work (failsafe
+// timer) that must be cancelled before the jsdom environment tears down.
+afterEach(() => {
+  cleanup();
+});
 
 beforeEach(() => {
   cleanup();
