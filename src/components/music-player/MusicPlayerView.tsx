@@ -1,21 +1,32 @@
 import { useEffect, useState } from "react";
-import { MusicPlayerNav, type PlayerTab } from "./MusicPlayerNav";
+import type { PlayerTab } from "./MusicPlayerNav";
 import { SongsView } from "./SongsView";
 import { LikedView } from "./LikedView";
 import { AlbumsView } from "./AlbumsView";
+import { BoosterView } from "./BoosterView";
 import { MiniPlayer } from "./MiniPlayer";
 import { NowPlayingView } from "./NowPlayingView";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
 import { isAndroid } from "../../utils/platform";
 
-export function MusicPlayerView(): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<PlayerTab>("songs");
+export interface MusicPlayerViewProps {
+  activeTab?: PlayerTab;
+  onSelectTab?: (tab: PlayerTab) => void;
+}
+
+export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element {
+  const [internalTab, setInternalTab] = useState<PlayerTab>("songs");
+  const activeTab = props?.activeTab ?? internalTab;
   const setFullscreenOpen = useMusicPlayerStore((s) => s.setFullscreenOpen);
   const fullscreenOpen = useMusicPlayerStore((s) => s.fullscreenOpen);
 
   const handleSelectTab = (tab: PlayerTab) => {
-    setActiveTab(tab);
+    if (props?.onSelectTab) {
+      props.onSelectTab(tab);
+    } else {
+      setInternalTab(tab);
+    }
     setFullscreenOpen(false);
   };
 
@@ -27,13 +38,13 @@ export function MusicPlayerView(): React.JSX.Element {
       if (wasBackConsumed()) return;
       if (fullscreenOpen) return; // NowPlayingView handles fullscreen/sheets.
       if (activeTab !== "songs") {
-        setActiveTab("songs");
-        setFullscreenOpen(false);
+        handleSelectTab("songs");
         markBackConsumed();
       }
     };
     window.addEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, fullscreenOpen, setFullscreenOpen]);
 
   return (
@@ -43,6 +54,8 @@ export function MusicPlayerView(): React.JSX.Element {
         <SongsView />
       ) : activeTab === "like" ? (
         <LikedView />
+      ) : activeTab === "boost" ? (
+        <BoosterView />
       ) : (
         <AlbumsView />
       )}
@@ -52,12 +65,6 @@ export function MusicPlayerView(): React.JSX.Element {
 
       {/* Floating Mini Player (hidden in fullscreen so it never covers popups) */}
       {!fullscreenOpen && <MiniPlayer />}
-
-      {/* Floating iOS Glossy Bottom Navigation Bar (hidden in fullscreen so
-          speed/booster/queue sheets sit on top without nav bleeding through) */}
-      {!fullscreenOpen && (
-        <MusicPlayerNav activeTab={activeTab} onSelectTab={handleSelectTab} />
-      )}
     </div>
   );
 }

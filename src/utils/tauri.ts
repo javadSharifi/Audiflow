@@ -456,6 +456,127 @@ export async function exitApp(): Promise<void> {
   }
 }
 
+// --- Transcribe Studio (Gemini cloud transcription) ---------------------------
+
+import type {
+  AppError,
+  GeminiErrorKind,
+  TranscriptionJob,
+  TranscriptionRequestConfig,
+  UsageStats,
+} from "../types/generated";
+
+/**
+ * Error carrying the structured backend failure. `geminiKind` is set for
+ * classified Gemini failures (drives the exact translated ErrorBanner copy);
+ * plain backend/transport failures surface via `message`.
+ */
+export class GeminiApiError extends Error {
+  readonly geminiKind: GeminiErrorKind | null;
+  constructor(readonly appError: AppError | unknown) {
+    super(formatAppError(appError));
+    const ae = appError as { kind?: unknown; message?: unknown } | null;
+    this.geminiKind =
+      typeof ae === "object" && ae !== null && ae.kind === "Gemini"
+        ? (ae.message as GeminiErrorKind)
+        : null;
+  }
+}
+
+function throwGemini(err: unknown): never {
+  if (err instanceof GeminiApiError) throw err;
+  throw new GeminiApiError(err);
+}
+
+/** Structured Gemini kind from any transcribe-call failure (null = plain error). */
+export function geminiKindOf(err: unknown): GeminiErrorKind | null {
+  if (err instanceof GeminiApiError) return err.geminiKind;
+  return null;
+}
+
+export async function saveGeminiApiKey(key: string): Promise<void> {
+  try {
+    const res = await commands.saveGeminiApiKey(key);
+    if (res.status === "error") throw new GeminiApiError(res.error);
+  } catch (err) {
+    throwGemini(err);
+  }
+}
+
+export async function validateGeminiApiKey(key: string): Promise<boolean> {
+  try {
+    const res = await commands.validateGeminiApiKey(key);
+    if (res.status === "error") throw new GeminiApiError(res.error);
+    return res.data;
+  } catch (err) {
+    throwGemini(err);
+  }
+}
+
+export async function hasGeminiApiKey(): Promise<boolean> {
+  try {
+    return await commands.hasGeminiApiKey();
+  } catch {
+    return false;
+  }
+}
+
+export async function clearGeminiApiKey(): Promise<void> {
+  try {
+    const res = await commands.clearGeminiApiKey();
+    if (res.status === "error") throw new GeminiApiError(res.error);
+  } catch (err) {
+    throwGemini(err);
+  }
+}
+
+export async function startTranscription(
+  filePath: string,
+  config: TranscriptionRequestConfig,
+): Promise<string> {
+  try {
+    const res = await commands.startTranscription(filePath, config);
+    if (res.status === "error") throw new GeminiApiError(res.error);
+    return res.data;
+  } catch (err) {
+    throwGemini(err);
+  }
+}
+
+export async function cancelTranscription(jobId: string): Promise<void> {
+  await commands.cancelTranscription(jobId).catch(() => {});
+}
+
+export async function getTranscriptionQueue(): Promise<TranscriptionJob[]> {
+  try {
+    return await commands.getTranscriptionQueue();
+  } catch {
+    return [];
+  }
+}
+
+export async function clearFinishedTranscriptions(): Promise<void> {
+  await commands.clearFinishedTranscriptions().catch(() => {});
+}
+
+export async function getUsageStats(): Promise<UsageStats | null> {
+  try {
+    return await commands.getUsageStats();
+  } catch {
+    return null;
+  }
+}
+
+export async function exportTranscript(jobId: string, format: "txt" | "srt" | "vtt"): Promise<string> {
+  try {
+    const res = await commands.exportTranscript(jobId, format);
+    if (res.status === "error") throw new GeminiApiError(res.error);
+    return res.data;
+  } catch (err) {
+    throwGemini(err);
+  }
+}
+
 
 
 

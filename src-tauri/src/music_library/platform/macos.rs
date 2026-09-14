@@ -5,13 +5,15 @@ pub fn get_music_directories() -> Vec<PathBuf> {
 
     #[cfg(target_os = "macos")]
     {
+        // One protected root on purpose: every extra folder (Desktop,
+        // Documents, Downloads, ...) costs its own macOS TCC permission
+        // prompt on first launch. Everything else is covered by user-picked
+        // custom folders, which arrive with a system-picker grant and
+        // trigger no prompt.
         if let Ok(home) = std::env::var("HOME") {
-            let home_path = PathBuf::from(home);
-            for sub in &["Music", "Downloads", "Desktop", "Documents"] {
-                let candidate = home_path.join(sub);
-                if candidate.is_dir() {
-                    dirs.push(candidate);
-                }
+            let candidate = PathBuf::from(home).join("Music");
+            if candidate.is_dir() {
+                dirs.push(candidate);
             }
         }
     }

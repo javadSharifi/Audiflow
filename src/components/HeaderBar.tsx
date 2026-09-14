@@ -5,7 +5,6 @@ import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages } 
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { resolveTheme } from "../hooks/useTheme";
-import { ToolSwitcher } from "./ToolSwitcher";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
@@ -44,7 +43,7 @@ export function HeaderBar(): React.JSX.Element {
   return (
     <header className="relative z-30 flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
       {/* Brand & App Title (Dynamic based on active tool) */}
-      <div className="flex items-center gap-2.5 min-w-0 max-w-[38%] sm:max-w-none">
+      <div className="flex items-center gap-2.5 min-w-0">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-md shadow-orange-500/20 transition-all duration-300">
           {activeTool === "player" ? (
             <Music className="h-5 w-5" strokeWidth={2.4} />
@@ -57,11 +56,6 @@ export function HeaderBar(): React.JSX.Element {
             ? translate(lang, "musicPlayerTitle")
             : translate(lang, "appTitle")}
         </h1>
-      </div>
-
-      {/* Responsive Tool Switcher (Strictly Centered) */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none [&>*]:pointer-events-auto">
-        <ToolSwitcher />
       </div>
 
       {/* Header Actions: Theme quick toggle + Settings */}

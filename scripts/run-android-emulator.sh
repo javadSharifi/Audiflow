@@ -145,7 +145,7 @@ echo -e "${GREEN}✔ Emulator booted successfully!${NC}"
 # ------------------------------------------------------------------------------
 # 4. Build APK (if requested or missing)
 # ------------------------------------------------------------------------------
-APK_FILE="$ROOT/src-tauri/gen/android/app/build/outputs/apk/universal/release/AudioConverter-android-aarch64.apk"
+APK_FILE="$ROOT/src-tauri/gen/android/app/build/outputs/apk/universal/release/Audiflow-android-aarch64.apk"
 
 if [ $REBUILD -eq 1 ] || [ ! -f "$APK_FILE" ]; then
   echo -e "\n${BLUE}▶ Building APK...${NC}"

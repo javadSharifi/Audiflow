@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BOOT_PREFS_KEY, readBootPrefs, writeBootPrefs } from "./bootPrefs";
 
-// In-memory localStorage mock (same pattern as ToolSwitcher.test.tsx).
+// In-memory localStorage mock (same pattern as HeaderBar.test.tsx).
 const storageMock = (() => {
   let store: Record<string, string> = {};
   return {

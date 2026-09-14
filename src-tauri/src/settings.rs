@@ -36,6 +36,52 @@ pub struct Settings {
     pub silence_min_duration_secs: f64,
     /// Advanced/debug only: override bundled ffmpeg location.
     pub ffmpeg_path_override: Option<String>,
+    /// Transcribe Studio defaults (added v1.5; `default` keeps old files loading).
+    #[serde(default)]
+    pub transcribe: TranscribeSettings,
+}
+
+/// Persisted Transcribe Studio preferences: default request options plus the
+/// one-time cloud-consent flag. The API key itself is NEVER stored here —
+/// it lives in the OS keychain via `secrets.rs`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscribeSettings {
+    /// BCP-47 code ("fa-IR"); empty string = auto-detect.
+    #[serde(default)]
+    pub default_language: String,
+    #[serde(default)]
+    pub default_mode: crate::processing::transcribe::types::TranscriptionMode,
+    #[serde(default)]
+    pub fast_mode_default: bool,
+    /// User accepted the "audio leaves the device" consent sheet.
+    #[serde(default)]
+    pub consent_accepted: bool,
+}
+
+impl Default for TranscribeSettings {
+    fn default() -> Self {
+        Self {
+            default_language: "fa-IR".into(),
+            default_mode: crate::processing::transcribe::types::TranscriptionMode::Verbatim,
+            fast_mode_default: false,
+            consent_accepted: false,
+        }
+    }
+}
+
+impl TranscribeSettings {
+    pub fn validate(&mut self) {        if !self.default_language.is_empty() {
+            let ok = self.default_language.len() <= 20
+                && self
+                    .default_language
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+            if !ok {
+                self.default_language = "fa-IR".into();
+            }
+        }
+    }
 }
 
 impl Default for Settings {
@@ -53,6 +99,7 @@ impl Default for Settings {
             silence_threshold_db: -30,
             silence_min_duration_secs: 2.0,
             ffmpeg_path_override: None,
+            transcribe: TranscribeSettings::default(),
         }
     }
 }
@@ -72,6 +119,7 @@ impl Settings {
         if !(-90..=-5).contains(&self.silence_threshold_db) {
             self.silence_threshold_db = -30;
         }
+        self.transcribe.validate();
         Ok(())
     }
 
@@ -213,5 +261,47 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
         std::env::remove_var("AUDIO_CONVERTER_DATA_DIR");
+    }
+
+    #[test]
+    fn old_settings_json_without_transcribe_still_loads() {
+        // Pre-1.5 files lack the `transcribe` key; they must keep loading
+        // with Transcribe defaults instead of resetting everything.
+        let json = serde_json::json!({
+            "language": "en",
+            "theme": "dark",
+            "defaultFormat": "mp3",
+            "defaultQuality": "medium",
+            "defaultOutputMode": "same_as_source",
+            "defaultOutputDir": null,
+            "autoOpenOutputFolder": false,
+            "concurrency": 2,
+            "removeSilenceDefault": false,
+            "silenceThresholdDb": -30,
+            "silenceMinDurationSecs": 2.0,
+            "ffmpegPathOverride": null
+        });
+        let s: Settings = serde_json::from_str(&json.to_string()).unwrap();
+        assert_eq!(s.language, "en");
+        assert_eq!(s.transcribe.default_language, "fa-IR");
+        assert!(!s.transcribe.consent_accepted);
+    }
+
+    #[test]
+    fn transcribe_defaults_and_clamp() {
+        let d = Settings::default();
+        assert_eq!(d.transcribe.default_language, "fa-IR");
+        let mut bad = TranscribeSettings {
+            default_language: "!!nope!!".into(),
+            ..Default::default()
+        };
+        bad.validate();
+        assert_eq!(bad.default_language, "fa-IR");
+        let mut auto = TranscribeSettings {
+            default_language: String::new(),
+            ..Default::default()
+        };
+        auto.validate();
+        assert_eq!(auto.default_language, "");
     }
 }

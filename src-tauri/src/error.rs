@@ -17,7 +17,45 @@ pub enum AppError {
     Cancelled,
     NotFound(String),
     Unsupported(String),
+    Gemini(GeminiErrorKind),
     Other(String),
+}
+
+/// Classified Gemini API failure. Each variant maps to a distinct,
+/// translated (en/fa) frontend message keyed by the serde `tag`.
+/// `RegionNotSupported` is the ONLY variant whose UI copy may suggest
+/// trying a VPN (with a neutral note that it may be subject to Google's
+/// terms) — never show that suggestion for the other 403 sub-cases.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+#[serde(tag = "kind", content = "detail")]
+pub enum GeminiErrorKind {
+    RegionNotSupported,
+    AccountFlagged,
+    InvalidKey,
+    MissingKey,
+    QuotaExceeded {
+        #[specta(type = String)]
+        metric: String,
+        #[specta(type = String)]
+        value: String,
+    },
+    ServerError,
+    Unknown,
+}
+
+impl GeminiErrorKind {
+    /// Stable i18n key consumed by `src/i18n/{en,fa}.ts`.
+    pub fn i18n_key(&self) -> &'static str {
+        match self {
+            GeminiErrorKind::RegionNotSupported => "transcribeErrorRegion",
+            GeminiErrorKind::AccountFlagged => "transcribeErrorFlagged",
+            GeminiErrorKind::InvalidKey => "transcribeErrorInvalidKey",
+            GeminiErrorKind::MissingKey => "transcribeErrorMissingKey",
+            GeminiErrorKind::QuotaExceeded { .. } => "transcribeErrorQuota",
+            GeminiErrorKind::ServerError => "transcribeErrorServer",
+            GeminiErrorKind::Unknown => "transcribeErrorUnknown",
+        }
+    }
 }
 
 impl std::fmt::Display for AppError {
@@ -39,6 +77,25 @@ impl std::fmt::Display for AppError {
             AppError::Cancelled => write!(f, "Cancelled"),
             AppError::NotFound(m) => write!(f, "Not found: {m}"),
             AppError::Unsupported(m) => write!(f, "Unsupported: {m}"),
+            AppError::Gemini(kind) => match kind {
+                GeminiErrorKind::RegionNotSupported => write!(
+                    f,
+                    "Transcription is not available in your region (Google error)"
+                ),
+                GeminiErrorKind::AccountFlagged => {
+                    write!(f, "Google denied access for this API key's account")
+                }
+                GeminiErrorKind::InvalidKey => write!(f, "Invalid Gemini API key"),
+                GeminiErrorKind::MissingKey => write!(f, "No Gemini API key saved"),
+                GeminiErrorKind::QuotaExceeded { metric, value } if !metric.is_empty() => {
+                    write!(f, "Gemini quota exceeded ({metric}: {value})")
+                }
+                GeminiErrorKind::QuotaExceeded { .. } => {
+                    write!(f, "Gemini quota exceeded (rate limit)")
+                }
+                GeminiErrorKind::ServerError => write!(f, "Gemini server error, try again later"),
+                GeminiErrorKind::Unknown => write!(f, "Transcription failed"),
+            },
             AppError::Other(m) => write!(f, "{m}"),
         }
     }

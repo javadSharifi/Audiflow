@@ -260,13 +260,17 @@ class MainActivity : TauriActivity() {
       try {
         val webView = findWebView(decor)
         webView?.settings?.apply {
+          setSupportZoom(false)
+          builtInZoomControls = false
+          displayZoomControls = false
+          textZoom = 100
           mediaPlaybackRequiresUserGesture = false
           allowFileAccess = true
           allowContentAccess = true
           domStorageEnabled = true
           databaseEnabled = true
         }
-        Log.i(TAG, "Configured WebView settings: mediaPlaybackRequiresUserGesture = false")
+        Log.i(TAG, "Configured WebView settings: mediaPlaybackRequiresUserGesture = false, zoom disabled")
       } catch (t: Throwable) {
         Log.w(TAG, "configureWebViewSettings failed", t)
       }

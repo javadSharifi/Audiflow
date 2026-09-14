@@ -16,6 +16,16 @@ import type {
   BoosterJobSpec,
   AudioTrackInfo,
   LibraryPermissionStatus,
+  TranscriptionJob,
+  TranscriptionMode,
+  TranscriptionRequestConfig,
+  TranscriptionResult,
+  TranscriptionStatus,
+  TranscribeSettings,
+  UsageStats,
+  ObservedQuota,
+  WordInfo,
+  GeminiErrorKind,
 } from "./generated";
 
 export type {
@@ -32,7 +42,33 @@ export type {
   BoosterJobSpec,
   AudioTrackInfo,
   LibraryPermissionStatus,
+  TranscriptionJob,
+  TranscriptionMode,
+  TranscriptionRequestConfig,
+  TranscriptionResult,
+  TranscriptionStatus,
+  TranscribeSettings,
+  UsageStats,
+  ObservedQuota,
+  WordInfo,
+  GeminiErrorKind,
 };
+
+/**
+ * Payload of the backend `transcription-event` channel. Mirrors the Rust
+ * `TranscriptionEvent` struct (events are not part of the Specta command
+ * surface, so this is declared here to match it exactly).
+ */
+export interface TranscriptionEvent {
+  id: string;
+  sourcePath: string;
+  status: TranscriptionStatus;
+  percent: number | null;
+  error: string | null;
+  technical: string | null;
+  errorKind: GeminiErrorKind | null;
+  result: TranscriptionResult | null;
+}
 
 export type ConversionOptions = GeneratedConversionOptions;
 export type TrimSpec = GeneratedTrimSpec;

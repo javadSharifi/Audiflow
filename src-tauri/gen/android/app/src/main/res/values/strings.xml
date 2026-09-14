@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">Audio Converter</string>
-    <string name="main_activity_title">Audio Converter</string>
+    <string name="app_name">Audiflow</string>
+    <string name="main_activity_title">Audiflow</string>
     <string name="default_notification_channel_id">audio_converter_notifications</string>
-    <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audio Converter → Permissions.</string>
+    <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audiflow → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
-    <string name="service_starting">Starting… (v1.4.1)</string>
+    <string name="service_starting">Starting… (v1.4.2)</string>
 </resources>

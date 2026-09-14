@@ -26,3 +26,14 @@ export async function pickVideos(): Promise<string[]> {
   if (!picked) return [];
   return (Array.isArray(picked) ? picked : [picked]).map(String);
 }
+
+/** Open the native multi-directory picker and return absolute paths. Fail-soft []. */
+export async function pickDirectories(): Promise<string[]> {
+  try {
+    const picked = await open({ directory: true, multiple: true });
+    if (!picked) return [];
+    return (Array.isArray(picked) ? picked : [picked]).map(String);
+  } catch {
+    return [];
+  }
+}

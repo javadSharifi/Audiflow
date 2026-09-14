@@ -147,6 +147,31 @@ export const commands = {
 	 *  `exitApp` bridge finishes the activity.
 	 */
 	exitApp: () => __TAURI_INVOKE<void>("exit_app"),
+	/**  Persist the user's Gemini API key to the OS keychain. */
+	saveGeminiApiKey: (key: string) => typedError<null, AppError>(__TAURI_INVOKE("save_gemini_api_key", { key })),
+	/**
+	 *  Cheap onboarding check against `GET /v1beta/models` using the *unsaved*
+	 *  pasted key. Touches no audio. `Ok(true)` = key works; classified
+	 *  `AppError::Gemini(..)` otherwise.
+	 */
+	validateGeminiApiKey: (key: string) => typedError<boolean, AppError>(__TAURI_INVOKE("validate_gemini_api_key", { key })),
+	hasGeminiApiKey: () => __TAURI_INVOKE<boolean>("has_gemini_api_key"),
+	clearGeminiApiKey: () => typedError<null, AppError>(__TAURI_INVOKE("clear_gemini_api_key")),
+	/**
+	 *  Enqueue one transcription; returns the job id. Progress and results arrive
+	 *  via the `transcription-event` channel.
+	 */
+	startTranscription: (filePath: string, config: TranscriptionRequestConfig) => typedError<string, AppError>(__TAURI_INVOKE("start_transcription", { filePath, config })),
+	cancelTranscription: (jobId: string) => __TAURI_INVOKE<void>("cancel_transcription", { jobId }),
+	getTranscriptionQueue: () => __TAURI_INVOKE<TranscriptionJob[]>("get_transcription_queue"),
+	clearFinishedTranscriptions: () => __TAURI_INVOKE<void>("clear_finished_transcriptions"),
+	/**  App-local usage log + last observed real quota (see `usage_tracker.rs`). */
+	getUsageStats: () => __TAURI_INVOKE<UsageStats>("get_usage_stats"),
+	/**
+	 *  Render a finished transcript to txt/srt/vtt (atomic write, no overwrite).
+	 *  SRT/VTT require word timestamps from the original request.
+	 */
+	exportTranscript: (jobId: string, format: string) => typedError<string, AppError>(__TAURI_INVOKE("export_transcript", { jobId, format })),
 };
 
 /* Types */
@@ -163,7 +188,7 @@ export type AbPreviewResult = {
 export type AppError = { kind: "Io"; message: string } | { kind: "FFmpeg"; message: string } | { kind: "NoAudioTrack"; message: string } | { kind: "CorruptedFile"; message: string } | { kind: "InsufficientDiskSpace"; message: {
 	needed: number,
 	available: number,
-} } | { kind: "InvalidInput"; message: string } | { kind: "Cancelled" } | { kind: "NotFound"; message: string } | { kind: "Unsupported"; message: string } | { kind: "Other"; message: string };
+} } | { kind: "InvalidInput"; message: string } | { kind: "Cancelled" } | { kind: "NotFound"; message: string } | { kind: "Unsupported"; message: string } | { kind: "Gemini"; message: GeminiErrorKind } | { kind: "Other"; message: string };
 
 export type AudioFormat = "mp3" | "wav" | "aac" | "m4a" | "flac" | "opus";
 
@@ -241,6 +266,18 @@ export type FileMeta = {
 	error: string | null,
 };
 
+/**
+ *  Classified Gemini API failure. Each variant maps to a distinct,
+ *  translated (en/fa) frontend message keyed by the serde `tag`.
+ *  `RegionNotSupported` is the ONLY variant whose UI copy may suggest
+ *  trying a VPN (with a neutral note that it may be subject to Google's
+ *  terms) — never show that suggestion for the other 403 sub-cases.
+ */
+export type GeminiErrorKind = { kind: "RegionNotSupported" } | { kind: "AccountFlagged" } | { kind: "InvalidKey" } | { kind: "MissingKey" } | { kind: "QuotaExceeded"; detail: {
+	metric: string,
+	value: string,
+} } | { kind: "ServerError" } | { kind: "Unknown" };
+
 /**  Snapshot of one job, serialized to the frontend. */
 export type JobRecord = {
 	id: string,
@@ -257,6 +294,14 @@ export type JobRecord = {
 export type JobStatus = "waiting" | "processing" | "completed" | "failed" | "cancelled";
 
 export type LibraryPermissionStatus = "granted" | "denied" | "permanentlyDenied" | "restricted" | "notRequired";
+
+/**  Last quota failure actually observed from Google (may be stale). */
+export type ObservedQuota = {
+	metric: string,
+	value: string,
+	/**  Unix seconds when Google returned it. */
+	discoveredAt: number,
+};
 
 /**  Where output files are written. */
 export type OutputMode = 
@@ -294,6 +339,8 @@ export type Settings = {
 	silenceMinDurationSecs: number | null,
 	/**  Advanced/debug only: override bundled ffmpeg location. */
 	ffmpegPathOverride: string | null,
+	/**  Transcribe Studio defaults (added v1.5; `default` keeps old files loading). */
+	transcribe?: TranscribeSettings,
 };
 
 /**
@@ -307,6 +354,66 @@ export type StatMediaPath = {
 	durationSecs: number | null,
 	error: string | null,
 };
+
+/**
+ *  Persisted Transcribe Studio preferences: default request options plus the
+ *  one-time cloud-consent flag. The API key itself is NEVER stored here —
+ *  it lives in the OS keychain via `secrets.rs`.
+ */
+export type TranscribeSettings = {
+	/**  BCP-47 code ("fa-IR"); empty string = auto-detect. */
+	defaultLanguage?: string,
+	defaultMode?: TranscriptionMode,
+	fastModeDefault?: boolean,
+	/**  User accepted the "audio leaves the device" consent sheet. */
+	consentAccepted?: boolean,
+};
+
+/**  Snapshot of one transcription job for the UI queue. */
+export type TranscriptionJob = {
+	id: string,
+	sourcePath: string,
+	status: TranscriptionStatus,
+	percent: number | null,
+	error: string | null,
+	technical: string | null,
+	/**  Structured failure kind for exact translated UI copy (None when ok). */
+	errorKind?: GeminiErrorKind | null,
+	result: TranscriptionResult | null,
+};
+
+/**  Cleanup mode for the transcript text. */
+export type TranscriptionMode = 
+/**  Exact words as spoken. */
+"verbatim" | 
+/**  Cleaned-up output (filler removal, light grammar fix). */
+"smart";
+
+/**  Frontend-facing request configuration (camelCase over IPC). */
+export type TranscriptionRequestConfig = {
+	/**  BCP-47 codes, e.g. `["fa-IR"]`. Empty = auto-detect. */
+	languageCodes?: string[],
+	mode?: TranscriptionMode,
+	/**  Up to 8 speakers (`diarization_mode: "speaker"`). */
+	diarizationEnabled?: boolean,
+	/**  Word-level `timestamp_granularities: ["word"]`. */
+	timestampsEnabled?: boolean,
+	/**  Custom vocabulary hints. INCOMPATIBLE with diarization/timestamps. */
+	customVocabulary?: string[],
+	/**  Optional `atempo=1.5` speed-up before upload. Default OFF. */
+	fastMode?: boolean,
+};
+
+/**  Full result of one transcription job (possibly stitched from chunks). */
+export type TranscriptionResult = {
+	fullText: string,
+	words?: WordInfo[],
+	/**  BCP-47 code detected by the model, if reported. */
+	languageDetected?: string | null,
+};
+
+/**  Lifecycle of a transcription job (mirrors `JobStatus` + network phases). */
+export type TranscriptionStatus = "waiting" | "preprocessing" | "uploading" | "transcribing" | "completed" | "failed" | "cancelled";
 
 /**
  *  Optional per-file trim window, in seconds. Both bounds optional: a `None`
@@ -324,6 +431,16 @@ export type TrimSpec = {
 	boostManualGainPercent?: number | null,
 };
 
+/**
+ *  App-local bookkeeping + last observed real limit. The local counter is
+ *  explicitly NOT an official quota — only AI Studio is authoritative.
+ */
+export type UsageStats = {
+	/**  Audio-minutes sent through this app on the current Pacific-Time day. */
+	sentMinutesToday: number | null,
+	lastObservedQuota?: ObservedQuota | null,
+};
+
 /**  Results of audio volume analysis via `volumedetect`. */
 export type VolumeAnalysis = {
 	/**  Peak volume in dB (e.g. -6.5 dB). 0 dB represents full scale digital max. */
@@ -332,6 +449,16 @@ export type VolumeAnalysis = {
 	meanVolumeDb: number | null,
 	/**  Calculated safe boost gain in dB to reach close to peak without compression. */
 	suggestedGainDb: number | null,
+};
+
+/**  One annotated word of the transcript. */
+export type WordInfo = {
+	text: string,
+	/**  e.g. `"spk_1"`. `None` unless diarization was requested. */
+	speaker?: string | null,
+	/**  Seconds from the start of the (rescaled) audio. */
+	startOffset: number | null,
+	endOffset: number | null,
 };
 
 /* Tauri Specta runtime */

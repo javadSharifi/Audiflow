@@ -83,6 +83,9 @@ body,
   overflow-x: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {

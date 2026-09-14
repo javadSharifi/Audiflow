@@ -323,7 +323,15 @@ if [ $SKIP_SIGN -eq 0 ]; then
       UNSIGNED_APK="$RAW_APK"
     fi
 
-    OUT_APK="$(dirname "$UNSIGNED_APK")/AudioConverter-android-${TARGET_ARCH}.apk"
+    ZIPALIGN=$(find -L "$ANDROID_HOME/build-tools" -name zipalign 2>/dev/null | sort -V | tail -n 1)
+    if [ -n "$ZIPALIGN" ] && [ -x "$ZIPALIGN" ]; then
+      echo "Aligning APK with zipalign..."
+      ALIGNED_APK="${UNSIGNED_APK%.apk}-aligned.apk"
+      "$ZIPALIGN" -f -p 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+      mv -f "$ALIGNED_APK" "$UNSIGNED_APK"
+    fi
+
+    OUT_APK="$(dirname "$UNSIGNED_APK")/Audiflow-android-${TARGET_ARCH}.apk"
     echo "Signing APK: $UNSIGNED_APK -> $OUT_APK"
 
     "$APKSIGNER" sign \

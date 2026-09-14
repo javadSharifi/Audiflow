@@ -34,19 +34,21 @@ fi
 echo "Patching Tauri Android project ($TRIPLE → $JNI_DIR)..."
 
 # --- 1. Icons + strings -------------------------------------------------------
+rm -f "$GEN/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" \
+      "$GEN/app/src/main/res/drawable/ic_launcher_background.xml" 2>/dev/null || true
 if [ -d "$ROOT/src-tauri/icons/android" ]; then
   cp -rf "$ROOT/src-tauri/icons/android"/* "$GEN/app/src/main/res/" 2>/dev/null || true
 fi
 mkdir -p "$GEN/app/src/main/res/values" "$GEN/app/src/main/res/values-fa" "$GEN/app/src/main/res/drawable"
 cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
 <resources>
-    <string name="app_name">Audio Converter</string>
-    <string name="main_activity_title">Audio Converter</string>
+    <string name="app_name">Audiflow</string>
+    <string name="main_activity_title">Audiflow</string>
     <string name="default_notification_channel_id">audio_converter_notifications</string>
-    <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audio Converter → Permissions.</string>
+    <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audiflow → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
-    <string name="service_starting">Starting… (v1.4.1)</string>
+    <string name="service_starting">Starting… (v1.4.2)</string>
 </resources>
 EOF
 cat > "$GEN/app/src/main/res/drawable/ic_notification.xml" << 'EOF'
@@ -66,8 +68,8 @@ cat > "$GEN/app/src/main/res/drawable/ic_notification.xml" << 'EOF'
 EOF
 cat > "$GEN/app/src/main/res/values-fa/strings.xml" << 'EOF'
 <resources>
-    <string name="app_name">مبدل صوت</string>
-    <string name="permission_denied_hint">برای انتخاب فایل، دسترسی حافظه لازم است. آن را در تنظیمات سیستم ← برنامه‌ها ← مبدل صوت ← دسترسی‌ها فعال کنید.</string>
+    <string name="app_name">Audiflow</string>
+    <string name="permission_denied_hint">برای انتخاب فایل، دسترسی حافظه لازم است. آن را در تنظیمات سیستم ← برنامه‌ها ← Audiflow ← دسترسی‌ها فعال کنید.</string>
 </resources>
 EOF
 
@@ -84,6 +86,10 @@ if [ -f "$MANIFEST" ] && ! grep -q 'android:extractNativeLibs="true"' "$MANIFEST
 fi
 if [ -f "$GRADLE_FILE" ] && ! grep -q "useLegacyPackaging" "$GRADLE_FILE"; then
   sed -i.bak 's/^android {/android {\n    packagingOptions {\n        jniLibs {\n            useLegacyPackaging = true\n        }\n    }/' "$GRADLE_FILE"
+  rm -f "$GRADLE_FILE.bak"
+fi
+if [ -f "$GRADLE_FILE" ]; then
+  sed -i.bak 's/compileSdk = [0-9]*/compileSdk = 35/; s/targetSdk = [0-9]*/targetSdk = 34/' "$GRADLE_FILE"
   rm -f "$GRADLE_FILE.bak"
 fi
 

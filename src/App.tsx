@@ -5,7 +5,13 @@ import { FileList } from "./components/FileList";
 import { OptionsPanel } from "./components/OptionsPanel";
 import { JobsPanel } from "./components/JobsPanel";
 import { MusicPlayerView } from "./components/music-player/MusicPlayerView";
+import { MusicPlayerNav, type PlayerTab } from "./components/music-player/MusicPlayerNav";
 import { PermissionGate } from "./components/music-player/PermissionGate";
+import {
+  FirstRunFoldersGate,
+  isFirstRunDone,
+  markFirstRunDone,
+} from "./components/music-player/FirstRunFoldersGate";
 import { Toasts } from "./components/Toasts";
 import { useAppStore } from "./stores/useAppStore";
 import { useMusicPlayerStore } from "./stores/useMusicPlayerStore";
@@ -78,6 +84,7 @@ function StartBar(): React.JSX.Element {
 export default function App(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const activeTool = useAppStore((s) => s.activeTool);
+  const setActiveTool = useAppStore((s) => s.setActiveTool);
   const files = useAppStore((s) => s.files);
   const addPaths = useAppStore((s) => s.addPaths);
   const loadSettings = useAppStore((s) => s.loadSettings);
@@ -115,6 +122,28 @@ export default function App(): React.JSX.Element {
     !gateSkipped;
   const gateRef = useRef({ show: false, skip: () => {} });
   gateRef.current = { show: showGate, skip: skipGate };
+
+  // Desktop first-run folders gate: on a fresh install (persistent flag
+  // unset, empty library) let the user pick scan folders BEFORE the boot
+  // scan, so each macOS folder-access prompt arrives with context. Android
+  // keeps its own PermissionGate flow. The boot scan below is deferred while
+  // the gate is up; onDone/onSkip run the scan instead (single call —
+  // scanLibrary replaces tracks, and the gate already persisted customFolders).
+  const [firstRunDone, setFirstRunDone] = useState(() => isFirstRunDone());
+  const showFirstRun = !firstRunDone && !isAndroid() && libTracksEmpty;
+  const handleFirstRunDone = useCallback((dirs: string[]) => {
+    markFirstRunDone();
+    setFirstRunDone(true);
+    void useMusicPlayerStore
+      .getState()
+      .scanLibrary(dirs.length > 0 ? dirs : undefined)
+      .catch(() => {});
+  }, []);
+  const handleFirstRunSkip = useCallback(() => {
+    markFirstRunDone();
+    setFirstRunDone(true);
+    void useMusicPlayerStore.getState().scanLibrary().catch(() => {});
+  }, []);
 
   // Android hardware back: exit selection → double-press to exit with a
   // toast on first press. The music player is a top-level destination like
@@ -243,6 +272,12 @@ export default function App(): React.JSX.Element {
         const music = useMusicPlayerStore.getState();
         await music.checkPermission().catch(() => {});
         if (cancelled) return;
+        // First-run gate pending: leave the initial scan to its
+        // onDone/onSkip handlers (they scan once with the user selection).
+        if (!isFirstRunDone() && !isAndroid() && useMusicPlayerStore.getState().tracks.length === 0) {
+          finishBoot();
+          return;
+        }
         const cached = useMusicPlayerStore.getState().tracks.length;
         if (cached > 0) {
           void useMusicPlayerStore.getState().scanLibrary().catch(() => {});
@@ -304,6 +339,17 @@ export default function App(): React.JSX.Element {
   useDirection(lang);
 
   const isConverter = activeTool === "converter";
+  const fullscreenOpen = useMusicPlayerStore((s) => s.fullscreenOpen);
+  const [playerTab, setPlayerTab] = useState<PlayerTab>("songs");
+
+  const handleSelectPlayerTab = useCallback(
+    (tab: PlayerTab) => {
+      setActiveTool("player");
+      setPlayerTab(tab);
+      useMusicPlayerStore.getState().setFullscreenOpen(false);
+    },
+    [setActiveTool],
+  );
 
   // Until boot settles, render nothing: the static #boot-splash (correct
   // dir/theme from the blocking boot script) covers the screen instead of a
@@ -317,7 +363,7 @@ export default function App(): React.JSX.Element {
       <main
         className={`relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden px-4 pt-4 md:gap-5 md:px-6 min-h-0 ${
           isConverter
-            ? `overflow-y-auto ${files.length > 0 ? "pb-36" : "pb-24"} py-5`
+            ? `overflow-y-auto ${files.length > 0 ? "pb-64" : "pb-28"} py-5`
             : "overflow-hidden pb-4"
         }`}
       >
@@ -329,23 +375,34 @@ export default function App(): React.JSX.Element {
             <JobsPanel />
           </>
         ) : (
-          <MusicPlayerView />
+          <MusicPlayerView activeTab={playerTab} onSelectTab={handleSelectPlayerTab} />
         )}
       </main>
 
-      {/* Converter Start Bar */}
+      {/* Converter Start Bar (stacked above the bottom nav) */}
       {isConverter && files.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
+        <div className="fixed bottom-[84px] left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
           <div className="mx-auto w-full max-w-4xl">
             <StartBar />
           </div>
         </div>
       )}
 
+      {/* Unified bottom navigation (converter + player tabs), hidden in
+          fullscreen so sheets sit on top without nav bleeding through */}
+      {!fullscreenOpen && (
+        <MusicPlayerNav activeTab={playerTab} onSelectTab={handleSelectPlayerTab} />
+      )}
+
       <Toasts />
 
       {/* First-launch permission gate (Android, denied + empty library) */}
       {showGate && <PermissionGate onSkip={skipGate} />}
+
+      {/* First-run folders gate (desktop, unset flag + empty library) */}
+      {showFirstRun && (
+        <FirstRunFoldersGate onDone={handleFirstRunDone} onSkip={handleFirstRunSkip} />
+      )}
     </div>
   );
 }

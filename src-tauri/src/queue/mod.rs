@@ -572,7 +572,7 @@ fn worker_loop(inner: Arc<QueueInner>) {
     }
 }
 
-fn resolve_binaries() -> Result<(PathBuf, PathBuf), AppError> {
+pub(crate) fn resolve_binaries() -> Result<(PathBuf, PathBuf), AppError> {
     let override_path = crate::settings::Settings::load().ffmpeg_path_override;
     if let Some(p) = override_path {
         let pb = PathBuf::from(&p);

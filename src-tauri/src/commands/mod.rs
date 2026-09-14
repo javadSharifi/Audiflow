@@ -5,8 +5,12 @@ use tauri::State;
 
 use crate::error::{AppError, Result};
 use crate::ffmpeg::probe;
+use crate::processing::transcribe::{
+    GeminiClient, TranscriptionJob, TranscriptionRequestConfig, UsageStats,
+};
 use crate::queue::{JobRecord, QueueManager};
 use crate::settings::Settings;
+use crate::transcribe_queue::TranscribeQueueManager;
 use crate::types::{ConversionOptions, FileMeta, TrimSpec};
 
 /// Result of pre-resolving one input path (e.g. Android Content URIs to
@@ -592,7 +596,7 @@ pub fn get_music_permission_status() -> LibraryPermissionStatus {
 pub async fn delete_audio_track(path_or_uri: String) -> Result<()> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::music_library::delete_audio_track(&path_or_uri)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -604,7 +608,7 @@ pub async fn delete_audio_track(path_or_uri: String) -> Result<()> {
 pub async fn set_as_ringtone(path_or_uri: String) -> Result<()> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::music_library::set_as_ringtone(&path_or_uri)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -616,7 +620,7 @@ pub async fn set_as_ringtone(path_or_uri: String) -> Result<()> {
 pub async fn share_audio_track(path_or_uri: String, title: String, mime_type: String) -> Result<()> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::music_library::share_audio_track(&path_or_uri, &title, &mime_type)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -636,7 +640,7 @@ pub async fn android_player_play(
         let playlist = playlist_json.unwrap_or_else(|| "[]".to_string());
         let index = start_index.unwrap_or(0);
         crate::android_fs::call_player_play_jni(&track_json, &playlist, index)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -648,7 +652,7 @@ pub async fn android_player_play(
 pub async fn android_player_pause() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_static_string_no_arg("nativePlayerPause")
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -660,7 +664,7 @@ pub async fn android_player_pause() -> Result<String> {
 pub async fn android_player_resume() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_static_string_no_arg("nativePlayerResume")
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -672,7 +676,7 @@ pub async fn android_player_resume() -> Result<String> {
 pub async fn android_player_seek_to(position_ms: u32) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_seek_jni(position_ms as i64)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -684,7 +688,7 @@ pub async fn android_player_seek_to(position_ms: u32) -> Result<String> {
 pub async fn android_player_next() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_static_string_no_arg("nativePlayerNext")
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -696,7 +700,7 @@ pub async fn android_player_next() -> Result<String> {
 pub async fn android_player_previous() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_static_string_no_arg("nativePlayerPrevious")
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -708,7 +712,7 @@ pub async fn android_player_previous() -> Result<String> {
 pub async fn android_player_set_repeat_mode(mode: String) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_static_string_1arg("nativePlayerSetRepeatMode", &mode)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -720,7 +724,7 @@ pub async fn android_player_set_repeat_mode(mode: String) -> Result<String> {
 pub async fn android_player_set_shuffle_mode(enabled: bool) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_set_shuffle_jni(enabled)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -732,7 +736,7 @@ pub async fn android_player_set_shuffle_mode(enabled: bool) -> Result<String> {
 pub async fn android_player_set_speed(speed: f64) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_set_speed_jni(speed as f32)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -746,7 +750,7 @@ pub async fn android_player_set_speed(speed: f64) -> Result<String> {
 pub async fn android_player_set_volume(volume: f64) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_set_volume_jni(volume as f32)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -760,7 +764,7 @@ pub async fn android_player_set_volume(volume: f64) -> Result<String> {
 pub async fn android_player_set_booster_gain(gain_db: f64) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_set_booster_gain_jni(gain_db as f32)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -772,7 +776,7 @@ pub async fn android_player_set_booster_gain(gain_db: f64) -> Result<String> {
 pub async fn android_player_set_booster_gain_mb(gain_mb: i32) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_player_set_booster_gain_mb_jni(gain_mb)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -784,7 +788,7 @@ pub async fn android_player_set_booster_gain_mb(gain_mb: i32) -> Result<String> 
 pub async fn android_player_get_booster_gain_mb() -> Result<i32> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_player_get_booster_gain_mb_jni()
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -796,7 +800,7 @@ pub async fn android_player_get_booster_gain_mb() -> Result<i32> {
 pub async fn android_get_stream_volume() -> Result<i32> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_get_stream_volume_jni()
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -808,7 +812,7 @@ pub async fn android_get_stream_volume() -> Result<i32> {
 pub async fn android_get_stream_max_volume() -> Result<i32> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_get_stream_max_volume_jni()
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -820,7 +824,7 @@ pub async fn android_get_stream_max_volume() -> Result<i32> {
 pub async fn android_set_stream_volume(volume: i32, show_ui: bool) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::android_fs::call_set_stream_volume_jni(volume, show_ui)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -832,7 +836,7 @@ pub async fn android_set_stream_volume(volume: i32, show_ui: bool) -> Result<Str
 pub async fn android_apply_reduce_hurt() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_apply_reduce_hurt_jni()
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -844,7 +848,7 @@ pub async fn android_apply_reduce_hurt() -> Result<String> {
 pub async fn android_player_stop() -> Result<String> {
     tauri::async_runtime::spawn_blocking(|| {
         crate::android_fs::call_static_string_no_arg("nativePlayerStop")
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -879,7 +883,7 @@ pub async fn get_pending_open_files(
 pub async fn resolve_audio_track(path_or_uri: String) -> Result<crate::music_library::AudioTrackInfo> {
     tauri::async_runtime::spawn_blocking(move || {
         crate::music_library::resolve_single_track(&path_or_uri)
-            .map_err(|e| AppError::Other(e))
+            .map_err(AppError::Other)
     })
     .await
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
@@ -928,6 +932,94 @@ pub fn exit_app(app: tauri::AppHandle) {
     {
         app.exit(0);
     }
+}
+
+// --- Transcribe Studio (Gemini cloud transcription) ---------------------------
+// The API key lives in the OS keychain and every Gemini call runs in Rust;
+// the frontend only ever touches these IPC commands.
+
+/// Persist the user's Gemini API key to the OS keychain.
+#[tauri::command]
+#[specta::specta]
+pub fn save_gemini_api_key(key: String) -> Result<()> {
+    crate::secrets::save_gemini_api_key(&key)
+}
+
+/// Cheap onboarding check against `GET /v1beta/models` using the *unsaved*
+/// pasted key. Touches no audio. `Ok(true)` = key works; classified
+/// `AppError::Gemini(..)` otherwise.
+#[tauri::command]
+#[specta::specta]
+pub async fn validate_gemini_api_key(key: String) -> Result<bool> {
+    let trimmed = key.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidInput("API key is empty".into()));
+    }
+    GeminiClient::new(trimmed).validate_api_key().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn has_gemini_api_key() -> bool {
+    crate::secrets::has_gemini_api_key()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn clear_gemini_api_key() -> Result<()> {
+    crate::secrets::delete_gemini_api_key()
+}
+
+/// Enqueue one transcription; returns the job id. Progress and results arrive
+/// via the `transcription-event` channel.
+#[tauri::command]
+#[specta::specta]
+pub fn start_transcription(
+    manager: State<'_, TranscribeQueueManager>,
+    file_path: String,
+    config: TranscriptionRequestConfig,
+) -> Result<String> {
+    if file_path.trim().is_empty() {
+        return Err(AppError::InvalidInput("No input file selected".into()));
+    }
+    manager.start_transcription(file_path, config)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn cancel_transcription(manager: State<'_, TranscribeQueueManager>, job_id: String) {
+    manager.cancel(&job_id);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_transcription_queue(manager: State<'_, TranscribeQueueManager>) -> Vec<TranscriptionJob> {
+    manager.snapshot()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn clear_finished_transcriptions(manager: State<'_, TranscribeQueueManager>) {
+    manager.clear_finished();
+}
+
+/// App-local usage log + last observed real quota (see `usage_tracker.rs`).
+#[tauri::command]
+#[specta::specta]
+pub fn get_usage_stats() -> UsageStats {
+    crate::processing::transcribe::usage_tracker::get_usage_stats()
+}
+
+/// Render a finished transcript to txt/srt/vtt (atomic write, no overwrite).
+/// SRT/VTT require word timestamps from the original request.
+#[tauri::command]
+#[specta::specta]
+pub fn export_transcript(
+    manager: State<'_, TranscribeQueueManager>,
+    job_id: String,
+    format: String,
+) -> Result<String> {
+    manager.export_transcript(&job_id, &format)
 }
 
 

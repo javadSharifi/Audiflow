@@ -2,8 +2,10 @@
 <html lang="fa" dir="ltr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Audio Converter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Audiflow</title>
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
     <script>
       // Boot prefs: applied synchronously BEFORE first paint so the app never
       // flashes LTR/light. Mirrors the `ac:ui-prefs` cache written by the
@@ -50,27 +52,28 @@
         font-family: -apple-system, "Segoe UI", Roboto, "Vazirmatn", Tahoma, sans-serif;
       }
       #boot-splash .boot-mark {
-        width: 76px;
-        height: 76px;
-        border-radius: 24px;
+        width: 80px;
+        height: 80px;
+        border-radius: 22px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #f97316, #f59e0b);
         box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.12) inset,
-          0 12px 40px rgba(249, 115, 22, 0.45);
+          0 0 0 1px rgba(255, 255, 255, 0.12),
+          0 12px 40px rgba(249, 115, 22, 0.4);
         animation: boot-float 2.4s ease-in-out infinite;
+        overflow: hidden;
       }
-      #boot-splash .boot-mark svg {
-        width: 38px;
-        height: 38px;
-        fill: #fff;
+      #boot-splash .boot-mark img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 22px;
       }
       #boot-splash .boot-name {
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 800;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.02em;
       }
       #boot-splash .boot-name span {
         background: linear-gradient(90deg, #fdba74, #fbbf24);
@@ -111,11 +114,9 @@
   <body>
     <div id="boot-splash">
       <div class="boot-mark">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-        </svg>
+        <img src="/icon.png" alt="Audiflow" />
       </div>
-      <div class="boot-name">Audio <span>Converter</span></div>
+      <div class="boot-name">Audi<span>flow</span></div>
       <div class="boot-bar"><i></i></div>
       <div id="boot-splash-text">در حال بارگذاری…</div>
     </div>
