@@ -345,8 +345,57 @@ export async function androidPlayerSetVolume(volume01: number): Promise<string> 
 }
 
 export async function androidPlayerSetBoosterGain(gainDb: number): Promise<string> {
-  const clamped = Math.max(0, Math.min(12, gainDb));
+  const clamped = Math.max(0, Math.min(80, gainDb));
   const res = await commands.androidPlayerSetBoosterGain(clamped);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidPlayerSetBoosterGainMb(gainMb: number): Promise<string> {
+  const clamped = Math.max(0, Math.min(8000, Math.round(gainMb)));
+  const res = await commands.androidPlayerSetBoosterGainMb(clamped);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidPlayerGetBoosterGainMb(): Promise<number> {
+  const res = await commands.androidPlayerGetBoosterGainMb();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidGetStreamVolume(): Promise<number> {
+  const res = await commands.androidGetStreamVolume();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidGetStreamMaxVolume(): Promise<number> {
+  const res = await commands.androidGetStreamMaxVolume();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidSetStreamVolume(volume: number, showUi = false): Promise<string> {
+  const res = await commands.androidSetStreamVolume(Math.round(volume), showUi);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function androidApplyReduceHurt(): Promise<string> {
+  const res = await commands.androidApplyReduceHurt();
   if (res.status === "error") {
     throw new Error(formatAppError(res.error));
   }

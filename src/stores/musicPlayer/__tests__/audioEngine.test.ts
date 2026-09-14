@@ -12,6 +12,7 @@ import {
   resolveAudioSource,
   applyGainPercent,
   boosterDbForPercent,
+  boosterMbForPercent,
   bindMusicStore,
   noteUserSeek,
   applyNativeStateToStore,
@@ -35,6 +36,7 @@ vi.mock("../../../utils/tauri", () => ({
   androidPlayerSetSpeed: vi.fn(async () => "OK"),
   androidPlayerSetVolume: vi.fn(async () => "OK"),
   androidPlayerSetBoosterGain: vi.fn(async () => "OK"),
+  androidPlayerSetBoosterGainMb: vi.fn(async () => "OK"),
   androidPlayerStop: vi.fn(async () => "OK"),
   androidPlayerGetState: vi.fn(async () => ({
     isPlaying: true,
@@ -132,21 +134,32 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       expect(boosterDbForPercent(999)).toBeCloseTo(12.04, 2);
     });
 
+    it("maps boost percent to reference LoudnessEnhancer millibels (0..8000 mB)", () => {
+      expect(boosterMbForPercent(0)).toBe(0);
+      expect(boosterMbForPercent(50)).toBe(0);
+      expect(boosterMbForPercent(100)).toBe(0);
+      expect(boosterMbForPercent(200)).toBe(2667);
+      expect(boosterMbForPercent(400)).toBe(8000);
+      expect(boosterMbForPercent(999)).toBe(8000);
+    });
+
     it("routes <=100% to volume and disables the enhancer", async () => {
       applyGainPercent(80);
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(0.8);
       expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledWith(0);
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(0);
     });
 
-    it("routes >100% to full volume plus enhancer dB", async () => {
+    it("routes >100% to full volume plus enhancer dB and mB", async () => {
       applyGainPercent(200);
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
       const gainDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls[0][0];
       expect(gainDb).toBeCloseTo(6.02, 2);
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(2667);
     });
   });
 

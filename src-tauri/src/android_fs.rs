@@ -589,6 +589,136 @@ pub fn call_player_set_booster_gain_jni(_gain_db: f32) -> Result<String, String>
     Ok("OK".to_string())
 }
 
+#[cfg(target_os = "android")]
+pub fn call_player_set_booster_gain_mb_jni(gain_mb: i32) -> Result<String, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(
+                &cls,
+                "nativePlayerSetBoosterGainMb",
+                "(I)Ljava/lang/String;",
+                &[jni::objects::JValue::Int(gain_mb)],
+            )
+            .map_err(|e| format!("Failed to call nativePlayerSetBoosterGainMb: {e}"))?;
+        let j_obj = j_val.l().map_err(|e| format!("Expected object: {e}"))?;
+        if j_obj.as_raw().is_null() {
+            return Ok("OK".to_string());
+        }
+        let j_str = jni::objects::JString::from(j_obj);
+        let s: String = env.get_string(&j_str).map_err(|e| format!("{e}"))?.into();
+        Ok(s)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_player_set_booster_gain_mb_jni(_gain_mb: i32) -> Result<String, String> {
+    Ok("OK".to_string())
+}
+
+#[cfg(target_os = "android")]
+pub fn call_player_get_booster_gain_mb_jni() -> Result<i32, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(&cls, "nativePlayerGetBoosterGainMb", "()I", &[])
+            .map_err(|e| format!("Failed to call nativePlayerGetBoosterGainMb: {e}"))?;
+        let val = j_val.i().map_err(|e| format!("Expected int: {e}"))?;
+        Ok(val)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_player_get_booster_gain_mb_jni() -> Result<i32, String> {
+    Ok(0)
+}
+
+#[cfg(target_os = "android")]
+pub fn call_get_stream_volume_jni() -> Result<i32, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(&cls, "nativeGetStreamVolume", "()I", &[])
+            .map_err(|e| format!("Failed to call nativeGetStreamVolume: {e}"))?;
+        let val = j_val.i().map_err(|e| format!("Expected int: {e}"))?;
+        Ok(val)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_get_stream_volume_jni() -> Result<i32, String> {
+    Ok(10)
+}
+
+#[cfg(target_os = "android")]
+pub fn call_get_stream_max_volume_jni() -> Result<i32, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(&cls, "nativeGetStreamMaxVolume", "()I", &[])
+            .map_err(|e| format!("Failed to call nativeGetStreamMaxVolume: {e}"))?;
+        let val = j_val.i().map_err(|e| format!("Expected int: {e}"))?;
+        Ok(val)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_get_stream_max_volume_jni() -> Result<i32, String> {
+    Ok(15)
+}
+
+#[cfg(target_os = "android")]
+pub fn call_set_stream_volume_jni(volume: i32, show_ui: bool) -> Result<String, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(
+                &cls,
+                "nativeSetStreamVolume",
+                "(IZ)Ljava/lang/String;",
+                &[
+                    jni::objects::JValue::Int(volume),
+                    jni::objects::JValue::Bool(if show_ui { 1 } else { 0 }),
+                ],
+            )
+            .map_err(|e| format!("Failed to call nativeSetStreamVolume: {e}"))?;
+        let j_obj = j_val.l().map_err(|e| format!("Expected object: {e}"))?;
+        if j_obj.as_raw().is_null() {
+            return Ok("OK".to_string());
+        }
+        let j_str = jni::objects::JString::from(j_obj);
+        let s: String = env.get_string(&j_str).map_err(|e| format!("{e}"))?.into();
+        Ok(s)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_set_stream_volume_jni(_volume: i32, _show_ui: bool) -> Result<String, String> {
+    Ok("OK".to_string())
+}
+
+#[cfg(target_os = "android")]
+pub fn call_apply_reduce_hurt_jni() -> Result<String, String> {
+    with_jni_env(|env| {
+        let cls = main_activity_class(env)?;
+        let j_val = env
+            .call_static_method(&cls, "nativeApplyReduceHurt", "()Ljava/lang/String;", &[])
+            .map_err(|e| format!("Failed to call nativeApplyReduceHurt: {e}"))?;
+        let j_obj = j_val.l().map_err(|e| format!("Expected object: {e}"))?;
+        if j_obj.as_raw().is_null() {
+            return Ok("OK".to_string());
+        }
+        let j_str = jni::objects::JString::from(j_obj);
+        let s: String = env.get_string(&j_str).map_err(|e| format!("{e}"))?.into();
+        Ok(s)
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn call_apply_reduce_hurt_jni() -> Result<String, String> {
+    Ok("OK".to_string())
+}
+
 /// Drain any URIs queued during cold start or received before WebView mounted.
 pub fn drain_pending_opened_uris() -> Vec<String> {
     #[cfg(target_os = "android")]

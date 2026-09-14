@@ -9,6 +9,7 @@ import { WaveformSeekbar } from "./WaveformSeekbar";
 import { TrackOptionsSheet } from "./TrackOptionsSheet";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
 import { isAndroid } from "../../utils/platform";
+import { androidApplyReduceHurt } from "../../utils/tauri";
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -27,6 +28,7 @@ import {
   X,
   Volume2,
   RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 
 const PLAYBACK_MODE_ORDER: PlaybackMode[] = ["normal", "shuffle", "repeatAll", "repeatOne"];
@@ -623,6 +625,22 @@ export function NowPlayingView(): React.JSX.Element | null {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
+                {volumeGainPercent > 200 && isAndroid() && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await androidApplyReduceHurt();
+                        setVolumeGainPercent(100);
+                      } catch {}
+                    }}
+                    title="کاهش شوک صدا و محافظت از اسپیکر"
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-bold text-rose-600 dark:text-rose-400 transition-colors cursor-pointer active:scale-95"
+                  >
+                    <ShieldAlert className="h-3 w-3" />
+                    <span>محافظ اسپیکر</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setVolumeGainPercent(100)}

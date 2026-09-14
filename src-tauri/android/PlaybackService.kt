@@ -39,19 +39,8 @@ class PlaybackService : MediaSessionService() {
   private var mediaSession: MediaSession? = null
   private var player: ExoPlayer? = null
 
-  // Real-time loudness boost (Namida pattern): Android LoudnessEnhancer bound
-  // to the ExoPlayer audio session. ExoPlayer.volume caps at 1.0, so anything
-  // above 100% rides this effect instead of being silently clamped.
-  private var loudnessEnhancer: android.media.audiofx.LoudnessEnhancer? = null
-  private var boosterGainDb: Float = 0f
-  private var boosterUnsupported: Boolean = false
-  // Media3 1.5 exposes the output session ONLY through the
-  // onAudioSessionIdChanged callback (there is no readable
-  // player.audioSessionId property) — track it here for the enhancer.
+  // Track current ExoPlayer audio session ID to attach/detach from BoostEngine
   private var currentAudioSessionId: Int = 0
-  // The framework LoudnessEnhancer has no readable session getter either, so
-  // mirror the session it was created for to detect staleness on re-attach.
-  private var boosterSessionId: Int = 0
 
   interface PlaybackEventListener {
     fun onPlaybackStateChanged(stateJson: String)
@@ -128,14 +117,17 @@ class PlaybackService : MediaSessionService() {
         }
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
-          // The output session can change across plays; the enhancer is bound
-          // to a session id, so re-attach (reusing the stored gain) instead
-          // of boosting into a dead session.
+          // Track ExoPlayer session ID and bind to BoostEngine
           try {
+            if (currentAudioSessionId > 0 && currentAudioSessionId != audioSessionId) {
+              BoostEngine.detachSession(currentAudioSessionId)
+            }
             currentAudioSessionId = audioSessionId
-            ensureBoosterAttached()
+            if (audioSessionId > 0) {
+              BoostEngine.attachSession(audioSessionId)
+            }
           } catch (t: Throwable) {
-            Log.w(TAG, "Booster re-attach failed", t)
+            Log.w(TAG, "BoostEngine attach failed for session $audioSessionId", t)
           }
         }
       })
@@ -268,7 +260,12 @@ class PlaybackService : MediaSessionService() {
     }
     player = null
     pendingPlay = null
-    releaseBooster()
+    if (currentAudioSessionId > 0) {
+      try {
+        BoostEngine.detachSession(currentAudioSessionId)
+      } catch (_: Throwable) {}
+      currentAudioSessionId = 0
+    }
     try {
       super.onDestroy()
     } catch (t: Throwable) {
@@ -276,72 +273,8 @@ class PlaybackService : MediaSessionService() {
     }
   }
 
-  /**
-   * Store the desired boost and (re)attach the effect. Safe to call any time:
-   * before the player exists, before the audio session is assigned, or on an
-   * unsupported device — every one of those is a no-op (with the gain kept
-   * for the next valid session) rather than a crash.
-   */
   private fun applyBoosterGain(gainDb: Float) {
-    boosterGainDb = gainDb.coerceIn(0f, MAX_BOOSTER_GAIN_DB)
-    ensureBoosterAttached()
-  }
-
-  private fun ensureBoosterAttached() {
-    if (boosterUnsupported) return
-    // No boost wanted and no effect allocated: don't grab an audio effect
-    // for nothing (disabling an existing one still goes through below).
-    if (boosterGainDb <= 0.01f && loudnessEnhancer == null) return
-    if (player == null) return
-    // Session not assigned yet (player fresh / nothing prepared): the
-    // onAudioSessionIdChanged callback retries once it becomes valid.
-    val sessionId = currentAudioSessionId
-    if (sessionId == 0 || sessionId == android.media.AudioManager.ERROR) return
-    val current = loudnessEnhancer
-    if (current != null) {
-      if (boosterSessionId == sessionId) {
-        applyBoosterTarget(current)
-        return
-      }
-      try {
-        current.release()
-      } catch (_: Throwable) {}
-      loudnessEnhancer = null
-    }
-    try {
-      val enhancer = android.media.audiofx.LoudnessEnhancer(sessionId)
-      loudnessEnhancer = enhancer
-      boosterSessionId = sessionId
-      applyBoosterTarget(enhancer)
-    } catch (t: Throwable) {
-      // Device has no LoudnessEnhancer for this session: stay quiet and keep
-      // plain volume behavior instead of crashing playback.
-      Log.w(TAG, "LoudnessEnhancer not supported on this device", t)
-      boosterUnsupported = true
-      loudnessEnhancer = null
-    }
-  }
-
-  private fun applyBoosterTarget(enhancer: android.media.audiofx.LoudnessEnhancer) {
-    try {
-      // Frontend sends dB; the effect takes millibels (Namida mapping).
-      enhancer.setTargetGain(Math.round(boosterGainDb * 100f))
-      enhancer.enabled = boosterGainDb > 0.01f
-    } catch (t: Throwable) {
-      // Out-of-range gain on strict OEMs: fall back to unboosted output.
-      Log.w(TAG, "setTargetGain failed, disabling booster", t)
-      try {
-        enhancer.enabled = false
-      } catch (_: Throwable) {}
-    }
-  }
-
-  private fun releaseBooster() {
-    try {
-      loudnessEnhancer?.release()
-    } catch (_: Throwable) {}
-    loudnessEnhancer = null
-    boosterSessionId = 0
+    BoostEngine.setGainDb(gainDb)
   }
 
   private fun broadcastStateUpdate() {
@@ -511,9 +444,6 @@ class PlaybackService : MediaSessionService() {
     private const val TAG = "PlaybackService"
     private const val NOTIFICATION_ID = 1001
     private const val CHANNEL_ID = "RhythmMediaPlayback"
-    // 400% UI boost ~= +12 dB (20*log10(4)). Defensive ceiling: strict OEMs
-    // throw on larger target gains, and applyBoosterTarget degrades to off.
-    private const val MAX_BOOSTER_GAIN_DB = 12f
 
     @Volatile
     var instance: PlaybackService? = null
@@ -817,9 +747,23 @@ class PlaybackService : MediaSessionService() {
 
     @JvmStatic
     fun setBoosterGain(context: Context, gainDb: Float): String {
-      return runOnService { service ->
-        service.applyBoosterGain(gainDb)
+      return try {
+        BoostEngine.setGainDb(gainDb)
         "OK"
+      } catch (t: Throwable) {
+        Log.e(TAG, "setBoosterGain failed", t)
+        t.message ?: "ERROR"
+      }
+    }
+
+    @JvmStatic
+    fun setBoosterGainMb(context: Context, gainMb: Int): String {
+      return try {
+        BoostEngine.setGainMb(gainMb)
+        "OK"
+      } catch (t: Throwable) {
+        Log.e(TAG, "setBoosterGainMb failed", t)
+        t.message ?: "ERROR"
       }
     }
 

@@ -17,6 +17,8 @@ import {
   persistCustomAlbums,
   loadCachedTracks,
   persistCachedTracks,
+  loadSavedBoosterGain,
+  persistSavedBoosterGain,
 } from "./musicPlayer/persistence";
 import {
   bindMusicStore,
@@ -167,7 +169,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
   shuffleMode: false,
   fullscreenOpen: false,
   playbackRate: 1.0,
-  volumeGainPercent: 100,
+  volumeGainPercent: loadSavedBoosterGain(),
   selectedTrackKeys: new Set(),
   isSelectionMode: false,
 
@@ -542,6 +544,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
         if (fallback) fallback.gain.value = clamped / 100;
       } catch {}
     }
+    persistSavedBoosterGain(clamped);
     set({ volumeGainPercent: clamped });
   },
 

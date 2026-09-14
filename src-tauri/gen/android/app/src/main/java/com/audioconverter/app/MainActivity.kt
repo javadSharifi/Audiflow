@@ -13,6 +13,7 @@ import android.provider.OpenableColumns
 import android.provider.Settings
 import android.system.Os
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.Keep
@@ -86,6 +87,12 @@ class MainActivity : TauriActivity() {
       Log.e(TAG, "Failed to initialize MainActivity", e)
     }
     super.onCreate(savedInstanceState)
+    try {
+      AudioSessionReceiver.register(applicationContext)
+    } catch (_: Throwable) {}
+    try {
+      BoostEngine.init(applicationContext)
+    } catch (_: Throwable) {}
     try {
       configureWebViewSettings()
     } catch (_: Throwable) {}
@@ -233,6 +240,18 @@ class MainActivity : TauriActivity() {
     try {
       configureWebViewSettings()
     } catch (_: Throwable) {}
+    try {
+      BoostEngine.reAssert()
+    } catch (_: Throwable) {}
+  }
+
+  override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+      try {
+        BoostEngine.reAssert()
+      } catch (_: Throwable) {}
+    }
+    return super.onKeyDown(keyCode, event)
   }
 
   private fun configureWebViewSettings() {
@@ -268,6 +287,9 @@ class MainActivity : TauriActivity() {
   }
 
   override fun onDestroy() {
+    try {
+      AudioSessionReceiver.unregister(applicationContext)
+    } catch (_: Throwable) {}
     // Avoid leaking the Activity through the static handle.
     if (instance === this) {
       instance = null
@@ -1299,8 +1321,53 @@ class MainActivity : TauriActivity() {
 
     @JvmStatic
     fun nativePlayerSetBoosterGain(gainDb: Float): String {
+      return try {
+        BoostEngine.setGainDb(gainDb)
+        "OK"
+      } catch (t: Throwable) {
+        Log.e(TAG, "nativePlayerSetBoosterGain failed", t)
+        t.message ?: "ERROR"
+      }
+    }
+
+    @JvmStatic
+    fun nativePlayerSetBoosterGainMb(gainMb: Int): String {
+      return try {
+        BoostEngine.setGainMb(gainMb)
+        "OK"
+      } catch (t: Throwable) {
+        Log.e(TAG, "nativePlayerSetBoosterGainMb failed", t)
+        t.message ?: "ERROR"
+      }
+    }
+
+    @JvmStatic
+    fun nativePlayerGetBoosterGainMb(): Int {
+      return BoostEngine.getTargetGainMb()
+    }
+
+    @JvmStatic
+    fun nativeGetStreamVolume(): Int {
+      val ctx = appContext ?: instance?.applicationContext ?: return 0
+      return AudioStreamManager.getStreamVolume(ctx)
+    }
+
+    @JvmStatic
+    fun nativeGetStreamMaxVolume(): Int {
+      val ctx = appContext ?: instance?.applicationContext ?: return 15
+      return AudioStreamManager.getStreamMaxVolume(ctx)
+    }
+
+    @JvmStatic
+    fun nativeSetStreamVolume(volume: Int, showUi: Boolean): String {
       val ctx = appContext ?: instance?.applicationContext ?: return "CONTEXT_NULL"
-      return PlaybackService.setBoosterGain(ctx, gainDb)
+      return AudioStreamManager.setStreamVolume(ctx, volume, showUi)
+    }
+
+    @JvmStatic
+    fun nativeApplyReduceHurt(): String {
+      val ctx = appContext ?: instance?.applicationContext ?: return "CONTEXT_NULL"
+      return AudioStreamManager.applyReduceHurt(ctx)
     }
 
     @JvmStatic

@@ -766,6 +766,78 @@ pub async fn android_player_set_booster_gain(gain_db: f64) -> Result<String> {
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
 }
 
+/// Set real-time loudness boost in millibels (0..8000 mB) via BoostEngine.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_player_set_booster_gain_mb(gain_mb: i32) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::android_fs::call_player_set_booster_gain_mb_jni(gain_mb)
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+/// Query currently active booster gain in millibels.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_player_get_booster_gain_mb() -> Result<i32> {
+    tauri::async_runtime::spawn_blocking(|| {
+        crate::android_fs::call_player_get_booster_gain_mb_jni()
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+/// Query hardware media volume step from AudioManager.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_get_stream_volume() -> Result<i32> {
+    tauri::async_runtime::spawn_blocking(|| {
+        crate::android_fs::call_get_stream_volume_jni()
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+/// Query hardware media max volume step from AudioManager.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_get_stream_max_volume() -> Result<i32> {
+    tauri::async_runtime::spawn_blocking(|| {
+        crate::android_fs::call_get_stream_max_volume_jni()
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+/// Set hardware media volume step directly on AudioManager.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_set_stream_volume(volume: i32, show_ui: bool) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::android_fs::call_set_stream_volume_jni(volume, show_ui)
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+/// Apply reduce-hurt speaker protection to dampen volume and reset extreme gain.
+#[tauri::command]
+#[specta::specta]
+pub async fn android_apply_reduce_hurt() -> Result<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        crate::android_fs::call_apply_reduce_hurt_jni()
+            .map_err(|e| AppError::Other(e))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
 /// Stop playback via native Jetpack Media3.
 #[tauri::command]
 #[specta::specta]

@@ -46,7 +46,7 @@ cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
     <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audio Converter → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
-    <string name="service_starting">Starting… (v1.3.11)</string>
+    <string name="service_starting">Starting… (v1.4.1)</string>
 </resources>
 EOF
 cat > "$GEN/app/src/main/res/drawable/ic_notification.xml" << 'EOF'
@@ -115,7 +115,10 @@ node -e '
   add("android.permission.POST_NOTIFICATIONS");
   add("android.permission.FOREGROUND_SERVICE");
   add("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK");
+  add("android.permission.FOREGROUND_SERVICE_SPECIAL_USE");
   add("android.permission.WAKE_LOCK");
+  add("android.permission.MODIFY_AUDIO_SETTINGS");
+  add("android.permission.RECORD_AUDIO");
   if (need.length > 0) {
     const perms =
       (need.includes("android.permission.READ_MEDIA_AUDIO") ? "\n    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />" : "") +
@@ -126,7 +129,10 @@ node -e '
       (need.includes("android.permission.POST_NOTIFICATIONS") ? "\n    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />" : "") +
       (need.includes("android.permission.FOREGROUND_SERVICE") ? "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />" : "") +
       (need.includes("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK") ? "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />" : "") +
-      (need.includes("android.permission.WAKE_LOCK") ? "\n    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />" : "");
+      (need.includes("android.permission.FOREGROUND_SERVICE_SPECIAL_USE") ? "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_SPECIAL_USE\" />" : "") +
+      (need.includes("android.permission.WAKE_LOCK") ? "\n    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />" : "") +
+      (need.includes("android.permission.MODIFY_AUDIO_SETTINGS") ? "\n    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />" : "") +
+      (need.includes("android.permission.RECORD_AUDIO") ? "\n    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />" : "");
 
     content = content.replace(/<manifest[^>]*>/, (m) => m + perms);
   }
@@ -135,6 +141,18 @@ node -e '
   if (!content.includes("PlaybackService")) {
     const serviceTag = "\n        <!-- Media3 Foreground Playback Service -->\n        <service\n            android:name=\".PlaybackService\"\n            android:foregroundServiceType=\"mediaPlayback\"\n            android:exported=\"true\">\n            <intent-filter>\n                <action android:name=\"androidx.media3.session.MediaSessionService\" />\n                <action android:name=\"android.media.browse.MediaBrowserService\" />\n            </intent-filter>\n            <meta-data\n                android:name=\"androidx.media3.session.DefaultMediaNotificationProvider.smallIcon\"\n                android:resource=\"@drawable/ic_notification\" />\n        </service>\n";
     content = content.replace(/<\/application>/, serviceTag + "    $&");
+  }
+
+  // Inject BoostVolumeService into application tag if missing
+  if (!content.includes("BoostVolumeService")) {
+    const boostServiceTag = "\n        <!-- Background Audio Booster Service with WakeLock (specialUse on API 34+) -->\n        <service\n            android:name=\".BoostVolumeService\"\n            android:foregroundServiceType=\"specialUse\"\n            android:exported=\"false\">\n            <property\n                android:name=\"android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE\"\n                android:value=\"Audio loudness booster and equalizer service\" />\n        </service>\n";
+    content = content.replace(/<\/application>/, boostServiceTag + "    $&");
+  }
+
+  // Inject AudioSessionReceiver into application tag if missing
+  if (!content.includes("AudioSessionReceiver")) {
+    const receiverTag = "\n        <!-- System-wide Audio Session Receiver for external player boost -->\n        <receiver\n            android:name=\".AudioSessionReceiver\"\n            android:exported=\"true\">\n            <intent-filter>\n                <action android:name=\"android.media.action.OPEN_AUDIO_EFFECT_CONTROL_SESSION\" />\n                <action android:name=\"android.media.action.CLOSE_AUDIO_EFFECT_CONTROL_SESSION\" />\n            </intent-filter>\n        </receiver>\n";
+    content = content.replace(/<\/application>/, receiverTag + "    $&");
   }
 
   // Ensure the Media3 smallIcon meta-data survives re-patches (older
@@ -226,6 +244,21 @@ cat > "$GEN/app/proguard-rules.pro" << 'EOF'
     public <methods>;
     *;
 }
+-keep class com.audioconverter.app.BoostEngine {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audioconverter.app.AudioSessionReceiver {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audioconverter.app.BoostVolumeService {
+    public static <methods>;
+    public <methods>;
+    *;
+}
 -keepclassmembers class com.audioconverter.app.MainActivity {
     public static <methods>;
     *;
@@ -235,6 +268,31 @@ cat > "$GEN/app/proguard-rules.pro" << 'EOF'
     *;
 }
 -keepclassmembers class com.audioconverter.app.PlaybackService {
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audioconverter.app.BoostEngine {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audioconverter.app.AudioSessionReceiver {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audioconverter.app.BoostVolumeService {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audioconverter.app.AudioStreamManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audioconverter.app.AudioStreamManager {
+    public static <methods>;
     public <methods>;
     *;
 }

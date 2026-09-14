@@ -108,6 +108,18 @@ export const commands = {
 	 *  no loudness DSP path (the WebAudio GainNode covers it).
 	 */
 	androidPlayerSetBoosterGain: (gainDb: number | null) => typedError<string, AppError>(__TAURI_INVOKE("android_player_set_booster_gain", { gainDb })),
+	/**  Set real-time loudness boost in millibels (0..8000 mB) via BoostEngine. */
+	androidPlayerSetBoosterGainMb: (gainMb: number) => typedError<string, AppError>(__TAURI_INVOKE("android_player_set_booster_gain_mb", { gainMb })),
+	/**  Query currently active booster gain in millibels. */
+	androidPlayerGetBoosterGainMb: () => typedError<number, AppError>(__TAURI_INVOKE("android_player_get_booster_gain_mb")),
+	/**  Query hardware media volume step from AudioManager. */
+	androidGetStreamVolume: () => typedError<number, AppError>(__TAURI_INVOKE("android_get_stream_volume")),
+	/**  Query hardware media max volume step from AudioManager. */
+	androidGetStreamMaxVolume: () => typedError<number, AppError>(__TAURI_INVOKE("android_get_stream_max_volume")),
+	/**  Set hardware media volume step directly on AudioManager. */
+	androidSetStreamVolume: (volume: number, showUi: boolean) => typedError<string, AppError>(__TAURI_INVOKE("android_set_stream_volume", { volume, showUi })),
+	/**  Apply reduce-hurt speaker protection to dampen volume and reset extreme gain. */
+	androidApplyReduceHurt: () => typedError<string, AppError>(__TAURI_INVOKE("android_apply_reduce_hurt")),
 	/**  Stop playback via native Jetpack Media3. */
 	androidPlayerStop: () => typedError<string, AppError>(__TAURI_INVOKE("android_player_stop")),
 	/**  Query live playback state from native Jetpack Media3. */

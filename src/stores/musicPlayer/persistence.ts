@@ -130,3 +130,28 @@ export function persistCachedTracks(tracks: AudioTrackInfo[]) {
     } catch {}
   }
 }
+
+const BOOSTER_GAIN_KEY = "player-volume-gain-percent";
+
+export function loadSavedBoosterGain(): number {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const raw = localStorage.getItem(BOOSTER_GAIN_KEY);
+      if (raw) {
+        const num = parseFloat(raw);
+        if (Number.isFinite(num) && num >= 0 && num <= 400) {
+          return num;
+        }
+      }
+    }
+  } catch {}
+  return 100;
+}
+
+export function persistSavedBoosterGain(gain: number): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(BOOSTER_GAIN_KEY, String(gain));
+    }
+  } catch {}
+}
