@@ -6,6 +6,7 @@ import { OptionsPanel } from "./components/OptionsPanel";
 import { JobsPanel } from "./components/JobsPanel";
 import { MusicPlayerView } from "./components/music-player/MusicPlayerView";
 import { MusicPlayerNav, type PlayerTab } from "./components/music-player/MusicPlayerNav";
+import { KeepAlivePane } from "./components/music-player/KeepAlivePane";
 import { PermissionGate } from "./components/music-player/PermissionGate";
 import {
   FirstRunFoldersGate,
@@ -360,28 +361,29 @@ export default function App(): React.JSX.Element {
     <div className="relative flex h-screen max-w-full flex-col overflow-hidden overflow-x-hidden bg-zinc-100/90 text-zinc-900 select-none dark:bg-[#09090b] dark:text-zinc-100">
       <HeaderBar />
 
-      <main
-        className={`relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-x-hidden px-4 pt-4 md:gap-5 md:px-6 min-h-0 ${
-          isConverter
-            ? `overflow-y-auto ${files.length > 0 ? "pb-64" : "pb-28"} py-5`
-            : "overflow-hidden pb-4"
-        }`}
-      >
-        {isConverter ? (
-          <>
+      <main className="relative z-10 flex w-full flex-1 flex-col min-h-0 overflow-hidden">
+        <KeepAlivePane active={isConverter} lazy={false}>
+          <div
+            className={`mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 pt-4 md:gap-5 md:px-6 min-h-0 py-5 ${
+              files.length > 0 ? "pb-64" : "pb-28"
+            }`}
+          >
             {files.length === 0 && <DropZone />}
             <FileList />
             <OptionsPanel />
             <JobsPanel />
-          </>
-        ) : (
-          <MusicPlayerView activeTab={playerTab} onSelectTab={handleSelectPlayerTab} />
-        )}
+          </div>
+        </KeepAlivePane>
+        <KeepAlivePane active={!isConverter} lazy={false}>
+          <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col min-h-0 overflow-hidden px-4 pt-4 md:px-6 pb-4">
+            <MusicPlayerView activeTab={playerTab} onSelectTab={handleSelectPlayerTab} />
+          </div>
+        </KeepAlivePane>
       </main>
 
       {/* Converter Start Bar (stacked above the bottom nav) */}
       {isConverter && files.length > 0 && (
-        <div className="fixed bottom-[84px] left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
+        <div className="fixed bottom-[88px] left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
           <div className="mx-auto w-full max-w-4xl">
             <StartBar />
           </div>

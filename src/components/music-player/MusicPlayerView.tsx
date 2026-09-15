@@ -4,6 +4,7 @@ import { SongsView } from "./SongsView";
 import { LikedView } from "./LikedView";
 import { AlbumsView } from "./AlbumsView";
 import { BoosterView } from "./BoosterView";
+import { KeepAlivePane } from "./KeepAlivePane";
 import { MiniPlayer } from "./MiniPlayer";
 import { NowPlayingView } from "./NowPlayingView";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
@@ -30,7 +31,7 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
     setFullscreenOpen(false);
   };
 
-  // Android back: album/like tabs go home to songs first (consumes the press
+  // Android back: album/like/boost tabs go home to songs first (consumes the press
   // so App doesn't also jump to converter on the same press).
   useEffect(() => {
     if (!isAndroid()) return;
@@ -49,16 +50,19 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
 
   return (
     <div className="flex flex-col flex-1 w-full gap-3 min-h-0 overflow-hidden relative">
-      {/* Active Tab View */}
-      {activeTab === "songs" ? (
+      {/* Persistent Keep-Alive Tab Panes (Instant switching, zero DOM thrash) */}
+      <KeepAlivePane active={activeTab === "songs"}>
         <SongsView />
-      ) : activeTab === "like" ? (
+      </KeepAlivePane>
+      <KeepAlivePane active={activeTab === "like"}>
         <LikedView />
-      ) : activeTab === "boost" ? (
+      </KeepAlivePane>
+      <KeepAlivePane active={activeTab === "boost"}>
         <BoosterView />
-      ) : (
+      </KeepAlivePane>
+      <KeepAlivePane active={activeTab === "album"}>
         <AlbumsView />
-      )}
+      </KeepAlivePane>
 
       {/* Fullscreen Now Playing View (covers nav + mini player) */}
       <NowPlayingView />

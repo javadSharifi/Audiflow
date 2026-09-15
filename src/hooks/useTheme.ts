@@ -14,6 +14,13 @@ export function resolveTheme(pref: "light" | "dark" | "system"): Resolved {
 /** Applies the theme to <html> and reacts to OS changes in system mode. */
 export function useTheme(): void {
   const theme = useAppStore((s) => s.theme);
+  const reducedBlur = useAppStore((s) => s.reducedBlur);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.toggle("perf-mode", reducedBlur);
+    }
+  }, [reducedBlur]);
 
   useEffect(() => {
     const apply = () => {

@@ -153,7 +153,7 @@ export const TrackRow = memo(function TrackRow({ track, playlist }: TrackRowProp
         onTouchEnd={cancelLongPress}
         onTouchCancel={cancelLongPress}
         onClick={handleRowClick}
-        className={`group flex items-center justify-between gap-3 py-3 px-3 rounded-2xl transition-all duration-200 cursor-pointer select-none ${
+        className={`group flex h-16 box-border items-center justify-between gap-3 px-3 rounded-2xl transition-all duration-200 cursor-pointer select-none ${
           isSelected
             ? "bg-orange-500/15 dark:bg-orange-500/20 border border-orange-500/40 shadow-sm"
             : isCurrentTrack

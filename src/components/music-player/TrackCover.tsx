@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Music2, Disc3 } from "lucide-react";
 import type { AudioTrackInfo } from "../../types";
 import {
   artworkCacheKey,
-  getSyncArtworkSrc,
+  getCachedArtworkSrc,
   resolveArtworkSrc,
 } from "../../utils/artwork";
 
@@ -35,7 +35,8 @@ function getGradientIndex(str: string): number {
 
 export function TrackCover({ track, className = "", size = "md" }: TrackCoverProps): React.JSX.Element {
   const [imgFailed, setImgFailed] = useState(false);
-  const [extractedSrc, setExtractedSrc] = useState<string | null>(null);
+  const initialCached = getCachedArtworkSrc(track);
+  const [extractedSrc, setExtractedSrc] = useState<string | null>(initialCached ?? null);
   const coverKey = track.id ?? track.coverUrl ?? null;
 
   useEffect(() => {
@@ -43,30 +44,32 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
   }, [coverKey]);
 
   // Lazy embedded-art extraction: covers that can't load directly
-  // (missing coverUrl, or a dead legacy MediaStore albumart content:// URI)
-  // are resolved on demand through the native artwork cache — the same cache
-  // file the media notification uses for its artwork.
+  // are resolved on demand through the native artwork cache.
   const artKey = `${artworkCacheKey(track)}|${track.coverUrl ?? ""}`;
   useEffect(() => {
     let cancelled = false;
-    setExtractedSrc(null);
-    if (getSyncArtworkSrc(track)) return;
+    const sync = getCachedArtworkSrc(track);
+    if (sync !== undefined) {
+      setExtractedSrc(sync);
+      return;
+    }
     void resolveArtworkSrc(track).then((src) => {
       if (!cancelled) setExtractedSrc(src);
     });
     return () => {
       cancelled = true;
     };
-    // artKey carries every input resolveArtworkSrc depends on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artKey]);
 
-  const identifier = (track.title || track.name || track.id || "track").trim();
-  const paletteIndex = getGradientIndex(identifier + (track.artist || ""));
-  const gradient = GRADIENT_PALETTES[paletteIndex];
+  const gradient = useMemo(() => {
+    const identifier = (track.title || track.name || track.id || "track").trim();
+    const paletteIndex = getGradientIndex(identifier + (track.artist || ""));
+    return GRADIENT_PALETTES[paletteIndex];
+  }, [track.title, track.name, track.id, track.artist]);
 
   // Directly loadable cover wins; otherwise the lazily extracted one.
-  const resolvedSrc = !imgFailed ? (getSyncArtworkSrc(track) ?? extractedSrc) : null;
+  const resolvedSrc = !imgFailed ? (getCachedArtworkSrc(track) ?? extractedSrc) : null;
 
   const dimensions =
     size === "sm"

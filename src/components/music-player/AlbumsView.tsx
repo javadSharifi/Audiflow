@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useAppStore } from "../../stores/useAppStore";
 import {
   useMusicPlayerStore,
   computeAllAlbums,
 } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
-import { AlbumCard } from "./AlbumCard";
 import { AlbumDetailView } from "./AlbumDetailView";
+import { AlbumGridVirtualized } from "./AlbumGridVirtualized";
 import {
   Search,
   Plus,
@@ -31,6 +31,7 @@ export function AlbumsView(): React.JSX.Element {
   const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
   const isPlaying = useMusicPlayerStore((s) => s.isPlaying);
 
+  const parentRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
@@ -270,8 +271,8 @@ export function AlbumsView(): React.JSX.Element {
         </div>
       )}
 
-      {/* Scrollable Container with Sections */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-44 flex flex-col gap-6">
+      {/* Scrollable Container with Sections — shared virtual scroller */}
+      <div ref={parentRef} className="flex-1 min-h-0 overflow-y-auto pr-1 pb-44 flex flex-col gap-6">
         {/* ================================================================= */}
         {/* SECTION 1: My Custom Albums (Row 1 / Priority)                   */}
         {/* ================================================================= */}
@@ -288,33 +289,16 @@ export function AlbumsView(): React.JSX.Element {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
-            {/* First Item: + New Album Dashed Action Card */}
-            <button
-              type="button"
-              onClick={() => setIsCreatingAlbum(true)}
-              className="flex flex-col items-center justify-center aspect-square p-2 sm:p-4 rounded-2xl sm:rounded-3xl border-2 border-dashed border-orange-500/40 hover:border-orange-500 bg-orange-500/[0.03] hover:bg-orange-500/[0.08] text-orange-600 dark:text-orange-400 transition-all duration-200 cursor-pointer group active:scale-95 shadow-sm"
-            >
-              <div className="flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 group-hover:scale-110 transition-transform mb-1 sm:mb-2">
-                <Plus className="h-4 w-4 sm:h-6 sm:w-6" />
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">
-                {translate(lang, "createAlbum")}
-              </span>
-            </button>
-
-            {/* Custom Album Cards */}
-            {filteredCustom.map((album) => (
-              <AlbumCard
-                key={album.id}
-                album={album}
-                onClick={() => setSelectedAlbumId(album.id)}
-                onPlay={() => void handlePlayAlbum(album)}
-                onRename={() => setEditingAlbum({ id: album.id, name: album.name })}
-                onDelete={() => setDeletingAlbum(album)}
-              />
-            ))}
-          </div>
+          <AlbumGridVirtualized
+            albums={filteredCustom}
+            parentRef={parentRef}
+            onSelectAlbum={setSelectedAlbumId}
+            onPlayAlbum={handlePlayAlbum}
+            onRename={(id, name) => setEditingAlbum({ id, name })}
+            onDelete={setDeletingAlbum}
+            showCreateCard
+            onCreate={() => setIsCreatingAlbum(true)}
+          />
         </div>
 
         {/* ================================================================= */}
@@ -339,16 +323,12 @@ export function AlbumsView(): React.JSX.Element {
               <span className="text-xs">{translate(lang, "noAlbumsFound")}</span>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
-              {filteredAuto.map((album) => (
-                <AlbumCard
-                  key={album.id}
-                  album={album}
-                  onClick={() => setSelectedAlbumId(album.id)}
-                  onPlay={() => void handlePlayAlbum(album)}
-                />
-              ))}
-            </div>
+            <AlbumGridVirtualized
+              albums={filteredAuto}
+              parentRef={parentRef}
+              onSelectAlbum={setSelectedAlbumId}
+              onPlayAlbum={handlePlayAlbum}
+            />
           )}
         </div>
       </div>

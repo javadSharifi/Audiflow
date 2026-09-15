@@ -77,6 +77,7 @@ export type QueueItem = JobRecord;
 export type AppSettings = GeneratedSettings & {
   language: "en" | "fa";
   theme: "light" | "dark" | "system";
+  reducedBlur?: boolean;
 };
 
 export type AppTool = "converter" | "player";

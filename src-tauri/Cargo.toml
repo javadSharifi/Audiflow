@@ -1,6 +1,6 @@
 [package]
 name = "audio-converter"
-version = "1.4.2"
+version = "1.4.3"
 description = "Fast, private video-to-audio converter with quality presets, trimming, splitting, silence removal, and queue processing"
 edition = "2021"
 rust-version = "1.77"

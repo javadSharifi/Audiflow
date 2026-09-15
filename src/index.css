@@ -216,3 +216,29 @@ html[data-font="vazir"] body {
 .animate-music-bar-3 {
   animation: music-bar-3 0.9s ease-in-out infinite;
 }
+
+/* Performance Mode (Reduced Blur) for smooth mobile scrolling & minimal GPU strain */
+.perf-mode [class*="backdrop-blur"],
+html.perf-mode [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.perf-mode .shadow-2xl,
+html.perf-mode .shadow-2xl,
+.perf-mode .shadow-xl,
+html.perf-mode .shadow-xl {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.perf-mode [class*="bg-white/95"],
+html.perf-mode [class*="bg-white/95"] {
+  background-color: #ffffff !important;
+}
+
+.dark.perf-mode [class*="bg-zinc-900/95"],
+.dark .perf-mode [class*="bg-zinc-900/95"],
+html.dark.perf-mode [class*="bg-zinc-900/95"],
+html.dark .perf-mode [class*="bg-zinc-900/95"] {
+  background-color: #18181b !important;
+}

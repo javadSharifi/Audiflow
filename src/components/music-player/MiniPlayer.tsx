@@ -135,7 +135,7 @@ export function MiniPlayer(): React.JSX.Element | null {
   };
 
   return (
-    <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-35 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
+    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-35 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
       <div
         onClick={() => setFullscreenOpen(true)}
         className="group relative flex flex-col gap-2 p-3 rounded-3xl bg-white/95 dark:bg-zinc-900/95 hover:bg-white dark:hover:bg-zinc-900 border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl cursor-pointer transition-all duration-200 active:scale-98"
@@ -160,44 +160,44 @@ export function MiniPlayer(): React.JSX.Element | null {
           data-testid="mini-transport-controls"
           className="relative z-30 flex items-center gap-0.5 sm:gap-1 shrink-0 pointer-events-auto"
         >
-          {/* Previous Track Button */}
+          {/* Previous Track Button — 40dp intermediate (prev 32 → now 40) */}
           <button
             type="button"
             onClick={handlePrevious}
             title={translate(lang, "previousSong")}
             aria-label={translate(lang, "previousSong")}
-            className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
+            className="flex min-h-[40px] min-w-[40px] h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
           >
-            <SkipBack className="h-4 w-4" />
+            <SkipBack className="h-[18px] w-[18px]" />
           </button>
 
-          {/* Play / Pause Toggle Button */}
+          {/* Play / Pause Toggle Button — 44dp intermediate (prev 36 → now 44) */}
           <button
             type="button"
             onClick={handleTogglePlay}
             title={translate(lang, isPlaying ? "pauseSong" : "playSong")}
             aria-label={translate(lang, isPlaying ? "pauseSong" : "playSong")}
-            className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 transition-all active:scale-90 cursor-pointer hover:brightness-105"
+            className="flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 transition-all active:scale-90 cursor-pointer hover:brightness-105"
           >
             {isPlaying ? (
-              <Pause className="h-4 w-4 fill-current" />
+              <Pause className="h-[18px] w-[18px] fill-current" />
             ) : (
-              <Play className="h-4 w-4 fill-current ms-0.5" />
+              <Play className="h-[18px] w-[18px] fill-current ms-0.5" />
             )}
           </button>
 
-          {/* Next Track Button */}
+          {/* Next Track Button — 40dp intermediate */}
           <button
             type="button"
             onClick={handleNext}
             title={translate(lang, "nextSong")}
             aria-label={translate(lang, "nextSong")}
-            className="flex h-8 w-8 items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer active:scale-90"
+            className="flex min-h-[40px] min-w-[40px] h-10 w-10 items-center justify-center rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
           >
-            <SkipForward className="h-4 w-4" />
+            <SkipForward className="h-[18px] w-[18px]" />
           </button>
 
-          {/* Close / Dismiss MiniPlayer Button */}
+          {/* Close / Dismiss MiniPlayer Button — 40dp */}
           <button
             type="button"
             onClick={(e) => {
@@ -206,9 +206,9 @@ export function MiniPlayer(): React.JSX.Element | null {
             }}
             title={translate(lang, "close")}
             aria-label={translate(lang, "close")}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90 ms-0.5"
+            className="flex min-h-[40px] min-w-[40px] h-10 w-10 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90 ms-0.5"
           >
-            <X className="h-4 w-4" />
+            <X className="h-[18px] w-[18px]" />
           </button>
         </div>
         </div>

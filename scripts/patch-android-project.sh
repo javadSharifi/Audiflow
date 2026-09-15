@@ -48,7 +48,7 @@ cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
     <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audiflow → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
-    <string name="service_starting">Starting… (v1.4.2)</string>
+    <string name="service_starting">Starting… (v1.4.3)</string>
 </resources>
 EOF
 cat > "$GEN/app/src/main/res/drawable/ic_notification.xml" << 'EOF'
@@ -89,7 +89,7 @@ if [ -f "$GRADLE_FILE" ] && ! grep -q "useLegacyPackaging" "$GRADLE_FILE"; then
   rm -f "$GRADLE_FILE.bak"
 fi
 if [ -f "$GRADLE_FILE" ]; then
-  sed -i.bak 's/compileSdk = [0-9]*/compileSdk = 35/; s/targetSdk = [0-9]*/targetSdk = 34/' "$GRADLE_FILE"
+  sed -i.bak 's/compileSdk = [0-9]*/compileSdk = 36/; s/targetSdk = [0-9]*/targetSdk = 36/' "$GRADLE_FILE"
   rm -f "$GRADLE_FILE.bak"
 fi
 

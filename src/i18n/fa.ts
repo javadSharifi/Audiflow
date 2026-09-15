@@ -98,6 +98,9 @@ export const fa: Record<TranslationKey, string> = {
   themeSystem: "سیستم",
   concurrency: "تسک‌های همزمان",
   autoOpenOutput: "بازکردن خودکار پوشه خروجی پس از پایان",
+  perfModeTitle: "حالت عملکرد بالا",
+  perfModeDesc: "غیرفعال‌سازی افکت‌های بلور شیشه‌ای برای اسکرول روان‌تر در موبایل",
+  perfModeActive: "کاهش بلور (عملکرد بالا)",
   saveSettings: "ذخیره",
   settingsSaved: "ذخیره شد",
 

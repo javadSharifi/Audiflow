@@ -95,6 +95,9 @@ export const en = {
   themeSystem: "System",
   concurrency: "Concurrent tasks",
   autoOpenOutput: "Open output folder when finished",
+  perfModeTitle: "High Performance Mode",
+  perfModeDesc: "Disable heavy blur effects for smoother scrolling on mobile",
+  perfModeActive: "Reduced Blur (High FPS)",
   saveSettings: "Save",
   settingsSaved: "Saved",
 

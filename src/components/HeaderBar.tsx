@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages } from "lucide-react";
+import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { resolveTheme } from "../hooks/useTheme";
@@ -14,6 +14,8 @@ export function HeaderBar(): React.JSX.Element {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const persistSettings = useAppStore((s) => s.persistSettings);
   const settings = useAppStore((s) => s.settings);
+  const reducedBlur = useAppStore((s) => s.reducedBlur);
+  const setReducedBlur = useAppStore((s) => s.setReducedBlur);
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState("");
 
@@ -58,25 +60,25 @@ export function HeaderBar(): React.JSX.Element {
         </h1>
       </div>
 
-      {/* Header Actions: Theme quick toggle + Settings */}
+      {/* Header Actions: Theme quick toggle + Settings — 44dp intermediate (prev 32 → now 44) */}
       <div className="flex items-center gap-2 text-xs ms-auto">
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex h-8 w-8 items-center justify-center rounded-xl border border-black/5 bg-black/[0.03] text-zinc-600 transition-all hover:bg-black/[0.06] active:scale-95 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
+          className="flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-xl border border-black/5 bg-black/[0.03] text-zinc-600 transition-all hover:bg-black/[0.06] active:scale-95 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
           title={isDark ? translate(lang, "themeLight") : translate(lang, "themeDark")}
           aria-label="Toggle theme"
         >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
         </button>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-xl border border-black/5 bg-black/[0.03] text-zinc-600 transition-all hover:bg-black/[0.06] active:scale-95 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
+          className="flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-xl border border-black/5 bg-black/[0.03] text-zinc-600 transition-all hover:bg-black/[0.06] active:scale-95 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
           title={translate(lang, "settingsTitle")}
           aria-label={translate(lang, "settingsTitle")}
         >
-          <SettingsIcon className="h-4 w-4" strokeWidth={2} />
+          <SettingsIcon className="h-[18px] w-[18px]" strokeWidth={2} />
         </button>
       </div>
 
@@ -93,9 +95,9 @@ export function HeaderBar(): React.JSX.Element {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-black/5 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-white"
+                  className="flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-full text-zinc-400 hover:bg-black/5 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-white"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
@@ -162,6 +164,30 @@ export function HeaderBar(): React.JSX.Element {
                       </>
                     )}
                   </button>
+                </div>
+
+                {/* Performance Mode (Reduced Blur) Setting Row */}
+                <div className="flex items-center justify-between rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block font-semibold text-zinc-800 dark:text-zinc-200">
+                        {translate(lang, "perfModeTitle")}
+                      </span>
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {translate(lang, "perfModeDesc")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    checked={reducedBlur}
+                    onChange={(e) => setReducedBlur(e.target.checked)}
+                    className="h-5 w-5 rounded-md accent-orange-500 cursor-pointer"
+                  />
                 </div>
 
                 {/* Concurrency Setting */}

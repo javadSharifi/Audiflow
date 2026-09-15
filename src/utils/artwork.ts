@@ -9,10 +9,56 @@ type TrackLike = Partial<AudioTrackInfo> & {
   coverUrl?: string | null;
 };
 
-/** In-memory cover cache: artwork key -> resolved src (or null = known missing). */
+/** In-memory cover cache: artwork key -> resolved src (or null = known missing). LRU 100. */
 const memoryCache = new Map<string, string | null>();
+const LRU_LIMIT = 100;
 /** Dedup concurrent extractions for the same track. */
 const inflight = new Map<string, Promise<string | null>>();
+/** Concurrency throttling for native IPC. */
+const MAX_CONCURRENCY = 4;
+let activeIpc = 0;
+const ipcQueue: Array<() => void> = [];
+
+function touchCache(key: string): void {
+  const v = memoryCache.get(key);
+  if (v !== undefined) {
+    memoryCache.delete(key);
+    memoryCache.set(key, v as string | null);
+  }
+}
+
+function setCacheLru(key: string, value: string | null): void {
+  if (memoryCache.has(key)) memoryCache.delete(key);
+  memoryCache.set(key, value);
+  while (memoryCache.size > LRU_LIMIT) {
+    const oldest = memoryCache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    memoryCache.delete(oldest);
+  }
+}
+
+function runWithConcurrency<T>(fn: () => Promise<T>): Promise<T> {
+  if (activeIpc < MAX_CONCURRENCY) {
+    activeIpc++;
+    return fn().finally(() => {
+      activeIpc--;
+      const next = ipcQueue.shift();
+      if (next) next();
+    });
+  }
+  return new Promise<T>((resolve, reject) => {
+    ipcQueue.push(() => {
+      activeIpc++;
+      fn()
+        .then(resolve, reject)
+        .finally(() => {
+          activeIpc--;
+          const nxt = ipcQueue.shift();
+          if (nxt) nxt();
+        });
+    });
+  });
+}
 
 /** Stable identity for one track's artwork (matches the native cache key input). */
 export function artworkCacheKey(track: TrackLike): string {
@@ -66,6 +112,22 @@ export function getSyncArtworkSrc(track: TrackLike): string | null {
   return toLoadableSrc(track.coverUrl);
 }
 
+/**
+ * Returns the synchronously available artwork source:
+ * 1. directly loadable coverUrl, OR
+ * 2. previously resolved & cached in-memory artwork, OR
+ * 3. undefined if not yet resolved.
+ */
+export function getCachedArtworkSrc(track: TrackLike): string | null | undefined {
+  const sync = getSyncArtworkSrc(track);
+  if (sync) return sync;
+  if (!artworkCacheKey(track)) return null;
+  const k = memoryKey(track);
+  const v = memoryCache.get(k);
+  if (v !== undefined) touchCache(k);
+  return v;
+}
+
 function audioRefOf(track: TrackLike): string {
   return track.uri || track.path || "";
 }
@@ -83,12 +145,15 @@ export function resolveArtworkSrc(track: TrackLike): Promise<string | null> {
 
   const syncSrc = getSyncArtworkSrc(track);
   if (syncSrc) {
-    memoryCache.set(key, syncSrc);
+    setCacheLru(key, syncSrc);
     return Promise.resolve(syncSrc);
   }
 
   const cached = memoryCache.get(key);
-  if (cached !== undefined) return Promise.resolve(cached);
+  if (cached !== undefined) {
+    touchCache(key);
+    return Promise.resolve(cached);
+  }
 
   const ongoing = inflight.get(key);
   if (ongoing) return ongoing;
@@ -96,13 +161,13 @@ export function resolveArtworkSrc(track: TrackLike): Promise<string | null> {
   const audioRef = audioRefOf(track);
   if (!audioRef) return Promise.resolve(null);
 
-  const task = getTrackArtworkUrl(audioRef)
+  const task = runWithConcurrency(() => getTrackArtworkUrl(audioRef))
     .then((src) => {
-      memoryCache.set(key, src);
+      setCacheLru(key, src);
       return src;
     })
     .catch(() => {
-      memoryCache.set(key, null);
+      setCacheLru(key, null);
       return null;
     })
     .finally(() => {
@@ -135,4 +200,6 @@ export function evictArtworkCache(audioRefs?: string[]): void {
 export function __clearArtworkCachesForTests(): void {
   memoryCache.clear();
   inflight.clear();
+  activeIpc = 0;
+  ipcQueue.length = 0;
 }

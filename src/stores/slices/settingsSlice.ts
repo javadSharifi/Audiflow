@@ -18,14 +18,28 @@ function getInitialActiveTool(): AppTool {
   return "player";
 }
 
+function getInitialReducedBlur(): boolean {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem("ac:reduced-blur");
+      if (stored !== null) {
+        return stored === "1";
+      }
+    }
+  } catch {}
+  return isAndroid();
+}
+
 export interface SettingsSlice {
   settings: AppSettings | null;
   options: ConversionOptions;
   lang: Lang;
   theme: "light" | "dark" | "system";
   activeTool: AppTool;
+  reducedBlur: boolean;
 
   setActiveTool: (tool: AppTool) => void;
+  setReducedBlur: (enabled: boolean) => void;
   updateOptions: (patch: Partial<ConversionOptions>) => void;
   loadSettings: () => Promise<void>;
   updateSettings: (patch: Partial<AppSettings>) => void;
@@ -61,6 +75,7 @@ export const createSettingsSlice: StateCreator<
   lang: "fa",
   theme: "system",
   activeTool: getInitialActiveTool(),
+  reducedBlur: getInitialReducedBlur(),
 
   setActiveTool(tool) {
     try {
@@ -69,6 +84,15 @@ export const createSettingsSlice: StateCreator<
       }
     } catch {}
     set({ activeTool: tool });
+  },
+
+  setReducedBlur(enabled) {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("ac:reduced-blur", enabled ? "1" : "0");
+      }
+    } catch {}
+    set({ reducedBlur: enabled });
   },
 
   updateOptions(patch) {
