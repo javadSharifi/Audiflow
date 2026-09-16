@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore, isTrackLiked } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
@@ -108,7 +109,7 @@ export function TrackOptionsSheet({ track, onClose }: TrackOptionsSheetProps): R
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       {/* Tap backdrop to dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
@@ -300,6 +301,7 @@ export function TrackOptionsSheet({ track, onClose }: TrackOptionsSheetProps): R
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -31,6 +31,8 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const requestMediaPermission = useMusicPlayerStore((s) => s.requestMediaPermission);
   const setSearchQuery = useMusicPlayerStore((s) => s.setSearchQuery);
   const setSortBy = useMusicPlayerStore((s) => s.setSortBy);
+  const isSelectionMode = useMusicPlayerStore((s) => s.isSelectionMode);
+  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
 
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [notifDismissed, setNotifDismissed] = useState(() => {
@@ -258,7 +260,13 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
         ) : (
           <div
             ref={parentRef}
-            className="flex-1 overflow-y-auto min-h-0 pr-1 pb-44"
+            className={`flex-1 overflow-y-auto min-h-0 pr-1 ${
+              isSelectionMode && currentTrack
+                ? "pb-72"
+                : isSelectionMode || currentTrack
+                  ? "pb-44"
+                  : "pb-24"
+            }`}
           >
             <div
               style={{

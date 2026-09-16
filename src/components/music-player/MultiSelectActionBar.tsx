@@ -28,6 +28,7 @@ export function MultiSelectActionBar({
   const pushToast = useAppStore((s) => s.pushToast);
 
   const isSelectionMode = useMusicPlayerStore((s) => s.isSelectionMode);
+  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
   const selectedTrackKeys = useMusicPlayerStore((s) => s.selectedTrackKeys);
   const likedPaths = useMusicPlayerStore((s) => s.likedPaths);
   const exitSelectionMode = useMusicPlayerStore((s) => s.exitSelectionMode);
@@ -101,7 +102,13 @@ export function MultiSelectActionBar({
 
   return (
     <>
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200">
+      <div
+        className={`fixed left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-3 sm:px-4 select-none animate-in slide-in-from-bottom duration-200 ${
+          currentTrack
+            ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px)+108px)]"
+            : "bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))]"
+        }`}
+      >
         <div className="flex items-center justify-between gap-2 p-3 rounded-3xl bg-white/95 dark:bg-zinc-900/95 text-zinc-900 dark:text-white border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
           {/* Left: Count & Select All */}
           <div className="flex items-center gap-2 min-w-0">

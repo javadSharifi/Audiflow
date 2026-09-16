@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { useAppStore } from "../stores/useAppStore";
 
-type Resolved = "light" | "dark";
+export type Resolved = "light" | "dark";
+
+/** Synchronously paints the resolved theme onto <html>. */
+export function applyResolvedTheme(resolved: Resolved): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.style.colorScheme = resolved;
+}
 
 export function resolveTheme(pref: "light" | "dark" | "system"): Resolved {
   if (pref !== "system") return pref;
@@ -24,9 +31,7 @@ export function useTheme(): void {
 
   useEffect(() => {
     const apply = () => {
-      const resolved = resolveTheme(theme);
-      document.documentElement.classList.toggle("dark", resolved === "dark");
-      document.documentElement.style.colorScheme = resolved;
+      applyResolvedTheme(resolveTheme(theme));
     };
     apply();
     if (theme !== "system") return;

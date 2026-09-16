@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
@@ -82,8 +83,8 @@ export function AddToAlbumModal({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-[70] flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="absolute inset-0" onClick={onClose} />
 
       <div
@@ -215,6 +216,7 @@ export function AddToAlbumModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

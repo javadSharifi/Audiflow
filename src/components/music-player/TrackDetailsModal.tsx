@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "../../stores/useAppStore";
 import { translate } from "../../i18n";
 import { formatBytes } from "../../utils/format";
@@ -62,9 +63,14 @@ export function TrackDetailsModal({ track, onClose }: TrackDetailsModalProps): R
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="glass-panel w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4 border border-black/10 dark:border-white/10 max-h-[90vh] overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div
+        className="relative z-10 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-white/95 dark:bg-zinc-900/95 border border-black/10 dark:border-white/10 shadow-2xl backdrop-blur-2xl p-4 sm:p-5 animate-in slide-in-from-bottom duration-250 ease-out flex flex-col gap-4 max-h-[90vh] overflow-y-auto select-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700 sm:hidden" />
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100">
@@ -196,6 +202,7 @@ export function TrackDetailsModal({ track, onClose }: TrackDetailsModalProps): R
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

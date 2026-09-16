@@ -4,7 +4,8 @@ import { getVersion } from "@tauri-apps/api/app";
 import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
-import { resolveTheme } from "../hooks/useTheme";
+import { applyResolvedTheme, resolveTheme } from "../hooks/useTheme";
+import { revealOrigin, revealThemeChange } from "../utils/themeTransition";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
@@ -29,10 +30,16 @@ export function HeaderBar(): React.JSX.Element {
     void persistSettings();
   };
 
-  const toggleTheme = () => {
+  const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
     const currentResolved = resolveTheme(theme);
     const nextTheme = currentResolved === "dark" ? "light" : "dark";
-    patch({ theme: nextTheme });
+    const { x, y } = revealOrigin(e);
+    revealThemeChange(x, y, () => {
+      // Paint synchronously so the view-transition snapshot captures the new
+      // theme even though the store update below flushes asynchronously.
+      applyResolvedTheme(nextTheme);
+      patch({ theme: nextTheme });
+    });
   };
 
   const toggleLang = () => {

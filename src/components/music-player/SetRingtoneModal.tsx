@@ -4,6 +4,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
@@ -646,14 +647,15 @@ export function SetRingtoneModal({
 
   const selLen = Math.max(0, selEnd - selStart);
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-150 select-none">
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 select-none">
       <div className="absolute inset-0" onClick={onClose} />
 
       <div
-        className="glass-card relative z-10 w-full max-w-lg rounded-3xl p-5 sm:p-6 flex flex-col gap-4.5 border border-black/10 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
+        className="relative z-10 w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl bg-white/95 dark:bg-zinc-900/95 border border-black/10 dark:border-white/10 shadow-2xl backdrop-blur-2xl p-4 sm:p-5 flex flex-col gap-4 animate-in slide-in-from-bottom duration-250 ease-out overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-300 dark:bg-zinc-700 sm:hidden" />
         {/* ============================================================= */}
         {/* 1. Header (Title + Track Info + Close)                        */}
         {/* ============================================================= */}
@@ -935,6 +937,7 @@ export function SetRingtoneModal({
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

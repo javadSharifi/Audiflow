@@ -35,8 +35,8 @@ export function MusicPlayerNav({ activeTab, onSelectTab }: MusicPlayerNavProps):
       aria-label="Music Player Navigation"
       className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[55] w-fit max-w-[calc(100vw-1.5rem)] sm:max-w-xl lg:max-w-2xl px-1 select-none"
     >
-      {/* Floating Glossy iOS Dock Container — 44dp intermediate (prev 40 → now 44, prev large 48) */}
-      <div className="flex items-center w-fit gap-1 p-1.5 rounded-full overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] transition-all duration-300">
+      {/* Floating Glossy iOS Dock Container — 52dp touch targets for Android */}
+      <div className="flex items-center w-fit gap-1.5 p-2 rounded-full overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.5)] transition-all duration-300">
         {PLAYER_TABS.map((tab) => {
           const isActive =
             tab.id === "converter" ? activeTool === "converter" : activeTool === "player" && activeTab === tab.id;
@@ -61,14 +61,14 @@ export function MusicPlayerNav({ activeTab, onSelectTab }: MusicPlayerNavProps):
               aria-label={label}
               onClick={handleClick}
               title={label}
-              className={`relative flex items-center justify-center min-h-[44px] h-11 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 active:scale-95 min-w-0 overflow-hidden ${
+              className={`relative flex items-center justify-center min-h-[52px] h-[52px] rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 active:scale-95 min-w-0 overflow-hidden ${
                 isActive
-                  ? "flex-none w-auto max-w-[45%] gap-2 px-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 font-bold"
-                  : "flex-none w-11 h-11 gap-0 px-0 sm:flex-auto sm:w-auto sm:gap-1.5 sm:px-2.5 text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06]"
+                  ? "flex-none w-auto max-w-[45%] gap-2 px-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 font-bold"
+                  : "flex-none w-[52px] h-[52px] gap-0 px-0 sm:flex-auto sm:w-auto sm:gap-1.5 sm:px-2.5 text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06]"
               }`}
             >
               <Icon
-                className={`h-[18px] w-[18px] shrink-0 transition-transform duration-200 ${
+                className={`h-[22px] w-[22px] shrink-0 transition-transform duration-200 ${
                   isActive ? "scale-110" : ""
                 }`}
                 strokeWidth={isActive ? 2.4 : 2}

@@ -265,6 +265,7 @@ export const fa: Record<TranslationKey, string> = {
   trackDetails: "جزییات آهنگ",
   shareSong: "اشتراک‌گذاری آهنگ",
   shareFailed: "اشتراک‌گذاری این آهنگ ممکن نشد.",
+  playerSkippedUnplayable: "فایل پخش‌نشدنی رد شد — پخش ادامه دارد.",
   copiedToClipboard: "در حافظه کپی شد",
   openFileLocation: "نمایش در پوشه",
   trackPath: "مسیر فایل / آدرس",

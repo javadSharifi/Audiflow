@@ -34,8 +34,12 @@ import {
   unifiedSetShuffleMode,
   unifiedSetSpeed,
   unifiedStop,
+  publishStoppedMediaState,
+  cancelArmedAutoAdvance,
 } from "./musicPlayer/audioEngine";
+import { resolveNextTrack, noteUnplayable, snapshotUnplayableKeys, trackKey } from "./musicPlayer/autoAdvance";
 import { getTrackKey, getTrackAliases, isTrackLiked } from "./musicPlayer/trackUtils";
+import { useAppStore } from "./useAppStore";
 import { isAndroid } from "../utils/platform";
 import { evictArtworkCache } from "../utils/artwork";
 
@@ -118,6 +122,13 @@ export interface MusicPlayerState {
   togglePlayTrack: (track: AudioTrackInfo, playlist?: AudioTrackInfo[]) => Promise<void>;
   playNextTrack: (auto?: boolean) => Promise<void>;
   playPreviousTrack: () => Promise<void>;
+  /**
+   * Skip path for a track that failed to start (element `error`, play()
+   * rejection, resolve failure): mark it unplayable for this session, show
+   * a notice, and continue with the next playable track — or stop
+   * explicitly when nothing playable remains. Never leaves a stuck state.
+   */
+  handleTrackStartFailure: (failedTrack: AudioTrackInfo | null) => Promise<void>;
   seekTo: (timeSecs: number) => void;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
@@ -336,6 +347,10 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
       return;
     }
 
+    // A new start takes over: kill any pending auto-advance token so a late
+    // end pulse from the previous track can't double-advance (T017 race).
+    cancelArmedAutoAdvance();
+
     set({
       currentTrack: track,
       isPlaying: true,
@@ -410,44 +425,61 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     const list = state.currentPlaylist.length > 0 ? state.currentPlaylist : state.tracks;
     if (list.length === 0) return;
 
-    if (state.repeatMode === "one" && state.currentTrack) {
+    const outcome = resolveNextTrack({
+      list,
+      currentTrack: state.currentTrack,
+      repeatMode: state.repeatMode,
+      shuffleMode: state.shuffleMode,
+    });
+    if (outcome.kind === "repeatOne") {
       state.seekTo(0);
       state.resumeTrack();
       return;
     }
-
-    const currentIndex = list.findIndex(
-      (t) =>
-        state.currentTrack &&
-        (t.id === state.currentTrack.id || t.uri === state.currentTrack.uri),
-    );
-
-    let nextIndex = 0;
-    if (state.shuffleMode) {
-      if (list.length > 1) {
-        let rand = Math.floor(Math.random() * list.length);
-        while (rand === currentIndex) {
-          rand = Math.floor(Math.random() * list.length);
-        }
-        nextIndex = rand;
-      } else {
-        nextIndex = 0;
+    if (outcome.kind === "stop") {
+      if (!auto && list.length > 0) {
+        // Manual next past the end wraps (long-standing behavior); only
+        // AUTO advance stops, so the queue end never freezes silently.
+        await state.playTrack(list[0], list);
+        return;
       }
-    } else {
-      if (currentIndex >= 0 && currentIndex < list.length - 1) {
-        nextIndex = currentIndex + 1;
-      } else if (currentIndex === list.length - 1) {
-        if (auto && state.repeatMode === "off") {
-          return;
-        }
-        nextIndex = 0;
-      }
+      set({ isPlaying: false, currentTime: 0 });
+      publishStoppedMediaState();
+      return;
     }
 
-    const nextTrack = list[nextIndex];
-    if (nextTrack) {
-      await state.playTrack(nextTrack, list);
+    await state.playTrack(outcome.track, list);
+  },
+
+  async handleTrackStartFailure(failedTrack) {
+    if (!failedTrack) return;
+    const state = get();
+    noteUnplayable(trackKey(failedTrack));
+    try {
+      useAppStore.getState().pushToast("warning", "playerSkippedUnplayable");
+    } catch {}
+    const list = state.currentPlaylist.length > 0 ? state.currentPlaylist : state.tracks;
+    const outcome =
+      list.length === 0
+        ? ({ kind: "stop" } as const)
+        : resolveNextTrack({
+            list,
+            currentTrack: failedTrack,
+            repeatMode: state.repeatMode,
+            shuffleMode: state.shuffleMode,
+            excludeKeys: snapshotUnplayableKeys(),
+          });
+    if (outcome.kind === "repeatOne") {
+      state.seekTo(0);
+      state.resumeTrack();
+      return;
     }
+    if (outcome.kind === "stop") {
+      set({ isPlaying: false, currentTime: 0 });
+      publishStoppedMediaState();
+      return;
+    }
+    await state.playTrack(outcome.track, list);
   },
 
   async playPreviousTrack() {

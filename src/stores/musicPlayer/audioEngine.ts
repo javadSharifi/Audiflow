@@ -4,6 +4,7 @@ import { isAndroid } from "../../utils/platform";
 import { initMediaSession, syncMediaSession } from "../../utils/mediaSession";
 import type { AudioTrackInfo } from "../../types";
 import type { useMusicPlayerStore } from "../useMusicPlayerStore";
+import { createAdvanceGuard, clearUnplayable, trackKey } from "./autoAdvance";
 
 type MusicStore = typeof useMusicPlayerStore;
 
@@ -18,6 +19,32 @@ let globalAudio: HTMLAudioElement | null = null;
 let globalAudioContext: AudioContext | null = null;
 let globalGainNode: GainNode | null = null;
 let graphInitFailed = false;
+
+// Single-fire guard for track-end auto-advance (see autoAdvance.ts): every
+// real track start (`play`) arms a fresh generation; each end signal consumes
+// it, so a doubled `ended` + watchdog pair can never advance twice.
+const advanceGuard = createAdvanceGuard();
+let armedAdvanceGeneration = -1;
+
+/** Position within the last epsilon of a known duration counts as ended. */
+const END_WATCHDOG_EPSILON_SECS = 0.25;
+
+function requestGuardedAutoAdvance(): void {
+  const s = boundStore?.getState();
+  if (!s || !advanceGuard.isCurrent(armedAdvanceGeneration)) return;
+  armedAdvanceGeneration = -1;
+  void s.playNextTrack(true);
+}
+
+/**
+ * Invalidate a pending auto-advance token. Called whenever a NEW track start
+ * takes over (manual tap/next/prev or skip): a late `ended`/watchdog pulse
+ * from the previous track must never advance the queue a second time. The
+ * new track's own `play` event re-arms the guard.
+ */
+export function cancelArmedAutoAdvance(): void {
+  armedAdvanceGeneration = -1;
+}
 
 /**
  * Ensure the WebAudio gain graph exists BEFORE any src is assigned.
@@ -208,10 +235,22 @@ export function getGlobalAudio(): HTMLAudioElement | null {
         duration: dur,
         playbackRate: s.playbackRate,
       });
+
+      // Redundant end detection: if the element sits at the tail of a known
+      // duration without ever firing `ended` (gapless/corrupt tail), advance
+      // through the same single-fire guard.
+      if (
+        !globalAudio.paused &&
+        !globalAudio.ended &&
+        dur > 0 &&
+        cur >= dur - END_WATCHDOG_EPSILON_SECS
+      ) {
+        requestGuardedAutoAdvance();
+      }
     });
 
     globalAudio.addEventListener("ended", () => {
-      void state()?.playNextTrack(true);
+      requestGuardedAutoAdvance();
     });
 
     globalAudio.addEventListener("pause", () => {
@@ -228,6 +267,14 @@ export function getGlobalAudio(): HTMLAudioElement | null {
     });
 
     globalAudio.addEventListener("play", () => {
+      // A real start (re)arms the auto-advance guard for this track.
+      armedAdvanceGeneration = advanceGuard.arm();
+      // Self-healing: a track that starts fine is playable again — drop any
+      // session skip-mark so a transient failure never bans it permanently.
+      try {
+        const cur = boundStore?.getState().currentTrack;
+        if (cur) clearUnplayable(trackKey(cur));
+      } catch {}
       boundStore?.setState({ isPlaying: true });
       const s = state();
       if (!s) return;
@@ -242,6 +289,13 @@ export function getGlobalAudio(): HTMLAudioElement | null {
 
     globalAudio.addEventListener("error", (e) => {
       console.warn("Audio playback error:", e);
+      // Skip, don't stick: a dead file advances the queue instead of
+      // freezing the player on a silent "playing" row.
+      const failed = state()?.currentTrack ?? null;
+      if (failed) {
+        void state()?.handleTrackStartFailure(failed);
+        return;
+      }
       boundStore?.setState({ isPlaying: false });
       const s = state();
       if (!s) return;
@@ -563,12 +617,12 @@ async function playViaWebAudio(track: AudioTrackInfo): Promise<void> {
     if (p && typeof p.catch === "function") {
       p.catch((err) => {
         console.warn("WebAudio play error:", err);
-        boundStore?.setState({ isPlaying: false });
+        void boundStore?.getState().handleTrackStartFailure(track);
       });
     }
   } catch (err) {
     console.warn("Failed to play track via WebAudio:", err);
-    boundStore?.setState({ isPlaying: false });
+    void boundStore?.getState().handleTrackStartFailure(track);
   }
 }
 
@@ -720,8 +774,25 @@ export async function unifiedSetVolume(volume01: number): Promise<void> {
   } catch {}
 }
 
-export async function unifiedStop(): Promise<void> {
-  stopAndroidStateSync();
+/**
+ * Publish an explicit stopped state to the system media session after the
+ * queue is spent (or every candidate failed). The element fires no further
+ * events in that state, so without this the lock screen/notification would
+ * keep showing a stale "playing" row.
+ */
+export function publishStoppedMediaState(): void {
+  const s = boundStore?.getState();
+  if (!s) return;
+  syncMediaSession({
+    track: s.currentTrack,
+    isPlaying: false,
+    currentTime: 0,
+    duration: s.duration,
+    playbackRate: s.playbackRate,
+  });
+}
+
+export async function unifiedStop(): Promise<void> {  stopAndroidStateSync();
   if (isAndroid()) {
     try {
       await api.androidPlayerStop();

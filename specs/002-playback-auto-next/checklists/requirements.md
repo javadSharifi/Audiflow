@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Mobile Performance & Smoothness Optimization
+# Specification Quality Checklist: Playback Auto-Next Reliability
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-09-15
-**Feature**: [spec.md](../spec.md)
+**Created**: 2026-09-16
+**Feature**: [spec.md](./spec.md)
 
 ## Content Quality
 
@@ -31,5 +31,4 @@
 
 ## Notes
 
-- Specification passes all quality validation checks.
-- Addresses the core mobile user complaints regarding list scrolling stutter and tab switching latency while maintaining a unified cross-platform architecture.
+- All items pass on first validation. Scope decision (desktop fix + Android single-queue edge verification only) recorded in Assumptions; no open markers.

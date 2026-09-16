@@ -242,3 +242,31 @@ html.dark.perf-mode [class*="bg-zinc-900/95"],
 html.dark .perf-mode [class*="bg-zinc-900/95"] {
   background-color: #18181b !important;
 }
+
+/* Circular theme reveal (View Transitions API): the new theme expands as a
+   circle from the toggle click point (--reveal-x/y/r set by
+   revealThemeChange). Only clip-path animates (~300ms, GPU-cheap).
+   Note: no prefers-reduced-motion opt-out by explicit clarify decision. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: ease-out;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation-name: none;
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+  clip-path: circle(0px at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  animation-name: theme-reveal;
+}
+
+@keyframes theme-reveal {
+  to {
+    clip-path: circle(var(--reveal-r, 150vmax) at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}

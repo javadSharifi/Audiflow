@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
-import { useMusicPlayerStore } from "../../../stores/useMusicPlayerStore";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { useMusicPlayerStore, getGlobalAudio } from "../../../stores/useMusicPlayerStore";
 import { useAppStore } from "../../../stores/useAppStore";
 import { TrackRow } from "../TrackRow";
 import type { AudioTrackInfo } from "../../../types";
@@ -99,5 +99,51 @@ describe("Audio Playback and Single Track Constraint", () => {
 
     // Active playing indicator equalizer is visible
     expect(screen.getAllByTitle(/Now Playing/i).length).toBeGreaterThan(0);
+  });
+
+  it("now-playing display follows the audible track across auto-advance (T009)", async () => {
+    const store = useMusicPlayerStore.getState();
+    await store.playTrack(mockTrack1, [mockTrack1, mockTrack2]);
+    // jsdom never really starts playback: arm the guard as a `play` would.
+    getGlobalAudio()?.dispatchEvent(new Event("play"));
+
+    const row1 = render(<TrackRow track={mockTrack1} />);
+    const row2 = render(<TrackRow track={mockTrack2} />);
+    expect(row1.getByRole("button", { name: /Pause song/i })).toBeTruthy();
+
+    getGlobalAudio()?.dispatchEvent(new Event("ended"));
+    await waitFor(() => {
+      expect(useMusicPlayerStore.getState().currentTrack?.id).toBe("track_2");
+    });
+
+    row1.rerender(<TrackRow track={mockTrack1} />);
+    row2.rerender(<TrackRow track={mockTrack2} />);
+    // Previous row is no longer playing; new row shows the live state.
+    expect(row1.getByRole("button", { name: /Play song/i })).toBeTruthy();
+    expect(row2.getByRole("button", { name: /Pause song/i })).toBeTruthy();
+  });
+
+  it("stopped indicator shown at natural playlist end (T012)", async () => {
+    useMusicPlayerStore.setState({
+      currentTrack: mockTrack2,
+      isPlaying: true,
+      currentTime: 120,
+      duration: 240,
+      repeatMode: "off",
+    });
+    getGlobalAudio()?.dispatchEvent(new Event("play"));
+
+    const row = render(<TrackRow track={mockTrack2} />);
+    expect(row.getByRole("button", { name: /Pause song/i })).toBeTruthy();
+
+    getGlobalAudio()?.dispatchEvent(new Event("ended"));
+    await waitFor(() => {
+      expect(useMusicPlayerStore.getState().isPlaying).toBe(false);
+    });
+
+    row.rerender(<TrackRow track={mockTrack2} />);
+    // Explicit stopped state: no stale Pause/playing indicator.
+    expect(row.getByRole("button", { name: /Play song/i })).toBeTruthy();
+    expect(row.queryByRole("button", { name: /Pause song/i })).toBeNull();
   });
 });

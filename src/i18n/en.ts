@@ -262,6 +262,7 @@ export const en = {
   trackDetails: "Track Details",
   shareSong: "Share Song",
   shareFailed: "Could not share this track.",
+  playerSkippedUnplayable: "Skipped an unplayable file — continuing playback.",
   copiedToClipboard: "Copied to clipboard",
   openFileLocation: "Show in Folder",
   trackPath: "File Path / URI",
