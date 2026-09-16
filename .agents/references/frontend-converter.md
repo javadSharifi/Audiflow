@@ -16,6 +16,7 @@ Domain: Converter shell + queue UI + converter stores. Part of `PROJECT_GRAPH.md
 | `src/components/OptionsPanel.tsx` | Output format/quality/split/silence/folder form + estimates; exports `OptionsPanel`; deps stores, `estimate`/`format`. |
 | `src/components/Toasts.tsx` | Auto-dismiss toast stack; exports `Toasts`; deps `useAppStore` toasts. |
 | `src/components/TrimEditor.tsx` | Canvas waveform trim editor (compact play button, 44px handle hit-areas + keyboard-arrow nudges, از/تا typed inputs without steppers, small duration text, live-region feedback); exports `TrimEditor`; deps `api.waveformPeaks`, `format`. |
+| `src/components/converter-wizard/WizardStepper.tsx` | Wizard 1-4 progress (mobile: current step badge + full label only; `sm:`+ full 4-step row with truncate); exports `WizardStepper`, `WizardStep`; deps `translate`. |
 | `src/components/__tests__/FileList.test.tsx` | Vitest for converter file list rendering/actions. |
 | `src/components/__tests__/HeaderBar.test.tsx` | Vitest for header bar theme/lang/tool switching + update-button visibility/dialog. |
 | `src/components/UpdateModal.tsx` | Celebratory new-version dialog (gradient hero, version pills, notes, download CTA via `openExternalUrl`); exports `UpdateModal`. |

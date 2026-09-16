@@ -84,71 +84,36 @@ git status --short  # workdir changes since sync
 
 ## Sync pointer
 
-- commit: f9bc6768be18df90227cadfd6251c872fd92b9e5
+- commit: d617fb1
 - branch: main
 - date: 2026-09-16
-- workdir_clean_at_sync: false (38 unstaged entries present; next sync must include workdir diff)
+- workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
 
 Critical files (blob hashes at sync commit; re-verify these explicitly on each sync):
 
 - `src-tauri/src/processing/pipeline.rs` `9145b41ce6184dd6ff66ad3a1916d95a94148a48`
 - `src-tauri/src/commands/mod.rs` `6041dac354c41e8adaac4e590fc3b33a752638a9`
-- `src/types/generated.ts` `a3920b0ea600bd3c8ea425104cb06623043d804d`
+- `src/types/generated.ts` `405a591fca8791a8a755466ff8ea5e7028409773`
 - `src-tauri/src/secrets.rs` `ce0223cff57ca6112bffc2586d6b14833b8f7823`
 - `src-tauri/src/lib.rs` `17a0656a85d66536d29db07743966d7f4b6cc144`
 - `src-tauri/src/queue/mod.rs` `44fc75643cef02dac32579dda0b41df08dc8c30d`
 - `src/utils/tauri.ts` `c24a909ebc355deda0d8e21be4971c05ef459f63`
 - `src-tauri/src/settings.rs` `6c4c7804d3abbecef0e1b8c1394db4464cded276`
-- `src-tauri/src/processing/sound_booster/presets.rs` `ad6b85195690a13b1ed0e849394e082ff0081e95`
+- `src-tauri/src/processing/sound_booster/presets.rs` `1f0d497f1b2bc523c098a6460f61d887d551e813`
 - `src-tauri/src/types.rs` `44e4dbaf18ac6d9cae3d3fb0c4acc895b159d8e6`
 
 ## Known workdir drift
 
-At generation time the workdir differed from the sync commit in 39 entries.
+At generation time the workdir differed from the sync commit in 39 entries (all committed in d617fb1).
+As of the d617fb1 sync the workdir differs only in shared-memory files below.
 Rows above describe the sync-commit state unless marked untracked; treat every
 path below as overriding the table (modified) or voiding it (deleted).
 Refresh this section on every sync from live `git status --short`.
 
 ```text
-M .specify/templates/plan-template.md
- D AGENT_HANDOFF.md
- D CODE_REVIEW_REPORT.md
- D PROJECT_OVERVIEW_FA.md
- D SOUND_BOOSTER_ARCHITECTURE.md
- D SOUND_BOOSTER_AUDIT_AND_FIXES.md
- D SYSTEM_BOOSTER_REMOVAL.md
- D TRANSCRIBE_HIDDEN.md
- D specs/001-mobile-performance-optimization/checklists/requirements.md
- D specs/001-mobile-performance-optimization/contracts/performance-settings.contract.md
- D specs/001-mobile-performance-optimization/contracts/view-cache.contract.md
- D specs/001-mobile-performance-optimization/contracts/virtual-list.contract.md
- D specs/001-mobile-performance-optimization/data-model.md
- D specs/001-mobile-performance-optimization/plan.md
- D specs/001-mobile-performance-optimization/quickstart.md
- D specs/001-mobile-performance-optimization/research.md
- D specs/001-mobile-performance-optimization/spec.md
- D specs/001-mobile-performance-optimization/tasks.md
- M src-tauri/Cargo.lock
- M src-tauri/gen/android/app/src/main/res/values/strings.xml
- M src/components/music-player/AddToAlbumModal.tsx
- M src/components/music-player/MiniPlayer.tsx
- M src/components/music-player/MultiSelectActionBar.tsx
- M src/components/music-player/MusicPlayerNav.tsx
- M src/components/music-player/SetRingtoneModal.tsx
- M src/components/music-player/TrackDetailsModal.tsx
- M src/components/music-player/TrackListView.tsx
- M src/components/music-player/TrackOptionsSheet.tsx
-?? .agents/__pycache__/
-?? .agents/dev-context-sync.md
-?? .agents/gen_graph.py
-?? .agents/project-graph.md
-?? .agents/references/
-?? AGENTS.md
-?? BUGFIXES.md
-?? DECISIONS.md
-?? PROJECT_GRAPH.md
-?? RULES.md
-?? src/components/music-player/__tests__/SheetPositioning.test.tsx
+M .agents/references/frontend-converter.md
+M BUGFIXES.md
+M PROJECT_GRAPH.md
 ```
 
 Table scope: noisy collateral (icons, fonts, `gen/` outputs, skill data, lockfiles,
