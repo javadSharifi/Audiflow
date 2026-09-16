@@ -74,12 +74,12 @@ describe("SetRingtoneModal Component", () => {
     const preset15 = screen.getByText("15s");
     fireEvent.click(preset15);
 
-    expect(screen.getByText("0:15.0")).toBeTruthy();
+    expect(screen.getByText("00:15.0")).toBeTruthy();
 
     const preset45 = screen.getByText("45s");
     fireEvent.click(preset45);
 
-    expect(screen.getByText("0:45.0")).toBeTruthy();
+    expect(screen.getByText("00:45.0")).toBeTruthy();
   });
 
   it("calls setRingtone and triggers confirmation on submit", async () => {

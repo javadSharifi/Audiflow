@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Scissors, Volume2, Music, Trash2, Plus, X, Zap } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
-import { formatBytes, formatDuration } from "../utils/format";
+import { formatBytes, formatDuration, formatTimecode } from "../utils/format";
 import { pickVideos, isAudioPath } from "../utils/dialog";
 import { TrimEditor } from "./TrimEditor";
 import { FileBoosterInline } from "../features/sound-booster/file-booster/FileBoosterInline";
@@ -50,34 +51,36 @@ function FileRow({
             <button
               onClick={onToggleTrim}
               data-testid={`trim-toggle-${file.name}`}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border align-middle text-[11px] font-medium transition-all ${
+              className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border px-3 align-middle text-[11px] font-bold transition-all duration-200 ${
                 expandedMode === "trim"
                   ? "border-orange-500 bg-orange-500 text-white shadow-sm shadow-orange-500/30"
-                  : "border-black/10 bg-white/60 text-zinc-500 hover:border-orange-400 hover:text-orange-500 dark:border-white/10 dark:bg-zinc-800/60 dark:text-zinc-400"
+                  : "border-black/10 bg-white/60 text-zinc-600 hover:border-orange-400 hover:text-orange-500 dark:border-white/10 dark:bg-zinc-800/60 dark:text-zinc-300"
               }`}
               aria-label={`${translate(lang, "trimEdit")} ${file.name}`}
               aria-expanded={expandedMode === "trim"}
               title={translate(lang, "trimTitle")}
             >
-              <Scissors className="h-3 w-3" strokeWidth={2.2} />
+              <Scissors className="h-3.5 w-3.5" strokeWidth={2.2} />
+              <span>{translate(lang, "trimShort")}</span>
             </button>
 
             {/* Sound Booster Button */}
             <button
               onClick={onToggleBoost}
               data-testid={`boost-toggle-${file.name}`}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border align-middle text-[11px] font-medium transition-all ${
+              className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border px-3 align-middle text-[11px] font-bold transition-all duration-200 ${
                 expandedMode === "boost"
                   ? "border-orange-500 bg-orange-500 text-white shadow-sm shadow-orange-500/30"
                   : file.boostEnabled
                     ? "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:border-orange-500/40 dark:bg-orange-500/20 dark:text-orange-400"
-                    : "border-black/10 bg-white/60 text-zinc-500 hover:border-orange-400 hover:text-orange-500 dark:border-white/10 dark:bg-zinc-800/60 dark:text-zinc-400"
+                    : "border-black/10 bg-white/60 text-zinc-600 hover:border-orange-400 hover:text-orange-500 dark:border-white/10 dark:bg-zinc-800/60 dark:text-zinc-300"
               }`}
-              aria-label={`Sound Boost ${file.name}`}
+              aria-label={`${translate(lang, "fileBoosterTitle")} ${file.name}`}
               aria-expanded={expandedMode === "boost"}
-              title={translate(lang, "fileBoosterTitle" as any)}
+              title={translate(lang, "fileBoosterTitle")}
             >
-              <Volume2 className="h-3 w-3" strokeWidth={2.2} />
+              <Volume2 className="h-3.5 w-3.5" strokeWidth={2.2} />
+              <span>{translate(lang, "boostBtnShort")}</span>
             </button>
           </div>
 
@@ -105,9 +108,9 @@ function FileRow({
             {(file.trimStartSecs != null || file.trimEndSecs != null) && (
               <span
                 data-testid={`trim-chip-${file.name}`}
-                className="rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-orange-600 dark:text-orange-400"
+                className="rounded-full border border-orange-500/40 bg-transparent px-2 py-0.5 text-[10px] font-semibold tabular-nums text-orange-600 dark:text-orange-300"
               >
-                ✂ {formatDuration(file.trimStartSecs ?? 0)} – {formatDuration(file.trimEndSecs ?? file.durationSecs)}
+                ✂ {formatTimecode(file.trimStartSecs ?? 0)} – {formatTimecode(file.trimEndSecs ?? file.durationSecs)}
               </span>
             )}
             {file.boostEnabled && (
@@ -127,8 +130,9 @@ function FileRow({
         <td className="px-3 py-2.5 text-end">
           <button
             onClick={() => removeFile(file.path)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500"
-            aria-label={translate(lang, "removeFile")}
+            className="flex h-11 min-h-[44px] w-11 min-w-[44px] items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-orange-500"
+            aria-label={`${translate(lang, "removeFile")} ${file.name}`}
+            title={`${translate(lang, "removeFile")} ${file.name}`}
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.2} />
           </button>
@@ -155,41 +159,58 @@ function FileRow({
 
 function MobileFileCard({
   file,
-  expandedMode,
-  onToggleTrim,
-  onToggleBoost,
+  onOpenTrim,
+  onOpenBoost,
 }: {
   file: InputFile;
-  expandedMode: "trim" | "boost" | null;
-  onToggleTrim: () => void;
-  onToggleBoost: () => void;
+  onOpenTrim: () => void;
+  onOpenBoost: () => void;
 }): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const removeFile = useAppStore((s) => s.removeFile);
   const isAudio = file.kind === "audio" || isAudioPath(file.path);
   const boostLabel = boostBadgeLabel(file, lang);
+  const [nameExpanded, setNameExpanded] = useState(false);
+  const hasTrim = file.trimStartSecs != null || file.trimEndSecs != null;
+  const trimLabel = hasTrim
+    ? `${formatTimecode(file.trimStartSecs ?? 0)} – ${formatTimecode(file.trimEndSecs ?? file.durationSecs)}`
+    : "";
 
   return (
     <div className="glass-card flex flex-col rounded-2xl p-4 transition-all">
-      <div className="flex items-start justify-between gap-2">
+      {/* ── Section: file ── */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-semibold text-sm text-zinc-800 dark:text-zinc-100">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-[#F8FAFC]">
             {isAudio && (
-              <span className="shrink-0 inline-flex items-center rounded-md bg-orange-500/10 p-1 text-orange-600 dark:text-orange-400">
+              <span className="inline-flex shrink-0 items-center rounded-md bg-orange-500/10 p-1 text-orange-600 dark:text-orange-400">
                 <Music className="h-3 w-3" strokeWidth={2.5} />
               </span>
             )}
-            <span className="truncate" title={file.path}>{file.name}</span>
+            <button
+              type="button"
+              onClick={() => setNameExpanded((v) => !v)}
+              title={file.path}
+              aria-label={file.name}
+              aria-expanded={nameExpanded}
+              className={`min-h-[44px] min-w-0 flex-1 cursor-pointer bg-transparent p-0 text-start ${
+                nameExpanded ? "whitespace-normal break-all" : "truncate"
+              }`}
+              style={{ direction: "ltr", textAlign: "right", unicodeBidi: "plaintext" }}
+            >
+              <span className={nameExpanded ? undefined : "block truncate"}>{file.name}</span>
+            </button>
           </div>
           {file.error && (
             <span className="mt-1 block text-xs font-medium text-red-500">{file.error}</span>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-            <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-bold uppercase dark:bg-white/[0.06]">
+          {/* line 2: format • size • duration — high-contrast, tabular */}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium tabular-nums text-slate-600 dark:text-[#CBD5E1]">
+            <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-bold uppercase dark:bg-white/[0.06] dark:text-[#CBD5E1]">
               {file.formatName.split(",")[0]}
             </span>
             <span>{formatBytes(file.sizeBytes)}</span>
-            <span>•</span>
+            <span aria-hidden="true">•</span>
             <span>{file.hasAudio ? formatDuration(file.durationSecs) : "—"}</span>
             {file.boostEnabled && (
               <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/25 dark:text-amber-300">
@@ -202,72 +223,143 @@ function MobileFileCard({
 
         <button
           onClick={() => removeFile(file.path)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500"
-          aria-label={translate(lang, "removeFile")}
+          className="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 cursor-pointer items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-orange-500 ms-2 -me-1 -mt-1"
+          aria-label={`${translate(lang, "removeFile")} ${file.name}`}
+          title={`${translate(lang, "removeFile")} ${file.name}`}
         >
           <X className="h-4 w-4" strokeWidth={2.2} />
         </button>
       </div>
 
-      {/* Action Row */}
-      <div className="mt-3.5 flex items-center justify-between border-t border-black/[0.04] pt-3 dark:border-white/[0.04]">
-        <div className="flex items-center gap-2">
-          {/* Trim Button */}
-          <button
-            onClick={onToggleTrim}
-            data-testid={`trim-toggle-mobile-${file.name}`}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-              expandedMode === "trim"
-                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/30"
-                : "border border-black/5 bg-black/[0.02] text-zinc-700 hover:border-orange-400 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300"
-            }`}
-          >
-            <Scissors className="h-3 w-3" strokeWidth={2.2} />
-            <span>{translate(lang, "trimEdit")}</span>
-          </button>
+      {/* ── Section: tools — icon-only, single row, 44px ── */}
+      <div className="mt-3 flex items-center gap-2 border-t border-black/[0.04] pt-3 dark:border-white/[0.04]">
+        {/* Trim icon: neutral ghost, orange-tinted once a trim exists */}
+        <button
+          type="button"
+          onClick={onOpenTrim}
+          data-testid={`trim-toggle-mobile-${file.name}`}
+          aria-label={`${translate(lang, "trimEdit")} ${file.name}`}
+          title={translate(lang, "trimEdit")}
+          className={`flex h-11 min-h-[44px] w-11 min-w-[44px] cursor-pointer items-center justify-center rounded-xl border transition-all focus-visible:outline-2 focus-visible:outline-orange-500 ${
+            hasTrim
+              ? "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300"
+              : "border-black/10 bg-transparent text-zinc-700 hover:border-orange-400 hover:text-orange-600 dark:border-white/15 dark:text-[#CBD5E1]"
+          }`}
+        >
+          <Scissors className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+        </button>
 
-          {/* Sound Booster Button */}
-          <button
-            onClick={onToggleBoost}
-            data-testid={`boost-toggle-mobile-${file.name}`}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${
-              expandedMode === "boost"
-                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/30"
-                : file.boostEnabled
-                  ? "border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400"
-                  : "border border-black/5 bg-black/[0.02] text-zinc-700 hover:border-orange-400 dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300"
-            }`}
-          >
-            <Volume2 className="h-3 w-3" strokeWidth={2.2} />
-            <span>{translate(lang, "boostBtnShort" as any)}</span>
-          </button>
-        </div>
+        {/* Boost icon: same treatment — colored only when enabled */}
+        <button
+          type="button"
+          onClick={onOpenBoost}
+          data-testid={`boost-toggle-mobile-${file.name}`}
+          aria-label={`${translate(lang, "fileBoosterTitle")} ${file.name}`}
+          title={translate(lang, "fileBoosterTitle")}
+          className={`flex h-11 min-h-[44px] w-11 min-w-[44px] cursor-pointer items-center justify-center rounded-xl border transition-all focus-visible:outline-2 focus-visible:outline-orange-500 ${
+            file.boostEnabled
+              ? "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300"
+              : "border-black/10 bg-transparent text-slate-600 hover:border-orange-400 hover:text-orange-600 dark:border-white/15 dark:text-[#CBD5E1]"
+          }`}
+        >
+          <Volume2 className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+        </button>
 
-        <div>
-          {(file.trimStartSecs != null || file.trimEndSecs != null) ? (
-            <span
-              className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-orange-600 dark:text-orange-400"
-            >
-              {formatDuration(file.trimStartSecs ?? 0)} – {formatDuration(file.trimEndSecs ?? file.durationSecs)}
-            </span>
-          ) : (
-            <span className="text-xs text-zinc-400">{translate(lang, "trimFullFile")}</span>
-          )}
-        </div>
+        {/* Tiny range readout — plain text, no pill */}
+        {hasTrim && (
+          <span
+            data-testid={`trim-chip-mobile-${file.name}`}
+            className="text-[11px] font-semibold tabular-nums text-orange-600 dark:text-orange-300"
+          >
+            {trimLabel}
+          </span>
+        )}
       </div>
-
-      {expandedMode === "trim" && (
-        <div className="mt-3.5 border-t border-black/[0.04] pt-3.5 dark:border-white/[0.04]">
-          <TrimEditor key={`trim-${file.path}`} file={file} />
-        </div>
-      )}
-
-      {expandedMode === "boost" && (
-        <div className="mt-3.5 border-t border-black/[0.04] pt-3.5 dark:border-white/[0.04]">
-          <FileBoosterInline key={`boost-${file.path}`} file={file} />
-        </div>
-      )}
     </div>
+  );
+}
+
+/** Bottom-sheet modal (mobile) hosting the trim / boost editor for one file. */
+function MobileEditModal({
+  file,
+  mode,
+  onClose,
+}: {
+  file: InputFile;
+  mode: "trim" | "boost";
+  onClose: () => void;
+}): React.JSX.Element {
+  const lang = useAppStore((s) => s.lang);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const title = mode === "trim" ? translate(lang, "trimEdit") : translate(lang, "fileBoosterTitle");
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${title} ${file.name}`}
+        onClick={(e) => e.stopPropagation()}
+        data-testid={`mobile-edit-modal-${mode}`}
+        className="glass-panel max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-4 pb-6 sm:rounded-3xl"
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 flex-1 truncate text-sm font-bold text-zinc-800 dark:text-[#F8FAFC]">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            autoFocus
+            aria-label={translate(lang, "close")}
+            data-testid="mobile-edit-modal-close"
+            className="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 cursor-pointer items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1] dark:hover:bg-white/10"
+          >
+            <X className="h-5 w-5" strokeWidth={2.2} />
+          </button>
+        </div>
+        {mode === "trim" ? (
+          <TrimEditor key={`trim-modal-${file.path}`} file={file} />
+        ) : (
+          <FileBoosterInline key={`boost-modal-${file.path}`} file={file} />
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+export function TrimBoostHint({ lang }: { lang: "en" | "fa" }): React.JSX.Element {
+  const parts = translate(lang, "trimBoostHint").split("*");
+  return (
+    <p data-testid="trim-boost-hint" className="px-1 text-center text-sm font-medium leading-relaxed text-slate-600 dark:text-[#CBD5E1]">
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <strong key={i} className="font-bold text-orange-600 dark:text-orange-400">
+            {part}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </p>
   );
 }
 
@@ -277,8 +369,10 @@ export function FileList(): React.JSX.Element | null {
   const clearFiles = useAppStore((s) => s.clearFiles);
   const addPaths = useAppStore((s) => s.addPaths);
 
-  // Tracks active expanded row: path -> "trim" | "boost"
+  // Tracks active expanded row (desktop table accordion): path -> "trim" | "boost"
   const [activeExpanded, setActiveExpanded] = useState<{ path: string; mode: "trim" | "boost" } | null>(null);
+  // Mobile bottom-sheet modal: path + editor mode (card itself stays minimal).
+  const [mobileModal, setMobileModal] = useState<{ path: string; mode: "trim" | "boost" } | null>(null);
 
   if (files.length === 0) return null;
 
@@ -307,12 +401,22 @@ export function FileList(): React.JSX.Element | null {
           <MobileFileCard
             key={f.path}
             file={f}
-            expandedMode={activeExpanded?.path === f.path ? activeExpanded.mode : null}
-            onToggleTrim={() => handleToggle(f.path, "trim")}
-            onToggleBoost={() => handleToggle(f.path, "boost")}
+            onOpenTrim={() => setMobileModal({ path: f.path, mode: "trim" })}
+            onOpenBoost={() => setMobileModal({ path: f.path, mode: "boost" })}
           />
         ))}
       </div>
+      {(() => {
+        const target = mobileModal ? files.find((f) => f.path === mobileModal.path) : undefined;
+        if (!target || !mobileModal) return null;
+        return (
+          <MobileEditModal
+            file={target}
+            mode={mobileModal.mode}
+            onClose={() => setMobileModal(null)}
+          />
+        );
+      })()}
 
       {/* Desktop Table (>= md) */}
       <div className="glass-panel hidden overflow-hidden rounded-3xl md:block">
@@ -359,6 +463,8 @@ export function FileList(): React.JSX.Element | null {
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
         <span>{translate(lang, "addFiles")}</span>
       </button>
+
+      <TrimBoostHint lang={lang} />
     </div>
   );
 }

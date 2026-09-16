@@ -1,5 +1,6 @@
 package com.audioconverter.app
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -7,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -22,8 +24,17 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
+import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
+import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -59,12 +70,10 @@ class PlaybackService : MediaSessionService() {
     // startForeground() within ~5s or the process is killed (the classic
     // "playback stops after ~5s / in background" failure). Promote early
     // with a placeholder notification; Media3 replaces it once playing.
+    // The provider carries an explicit Close (بستن) action so the row is
+    // never trapped without a dismiss affordance.
     try {
-      setMediaNotificationProvider(
-        androidx.media3.session.DefaultMediaNotificationProvider(this).apply {
-          setSmallIcon(R.drawable.ic_notification)
-        }
-      )
+      setMediaNotificationProvider(CloseableNotificationProvider(this))
     } catch (t: Throwable) {
       Log.w(TAG, "Could not set custom notification provider", t)
     }
@@ -151,6 +160,7 @@ class PlaybackService : MediaSessionService() {
 
       val builder = MediaSession.Builder(this, player!!)
         .setSessionActivity(sessionActivityPendingIntent)
+        .setCallback(SessionCallback())
 
       val session = builder.build()
       mediaSession = session
@@ -158,6 +168,15 @@ class PlaybackService : MediaSessionService() {
       // MediaNotificationManager never tracks the session, so the early
       // "Starting…" placeholder is never replaced by media controls.
       addSession(session)
+      // Custom Close layout button: on Android 13+ the shade/lock-screen
+      // media card is rendered by SystemUI from the session (notification
+      // actions are ignored there), so this is what puts بستن/Close on the
+      // lock screen player. Handled in SessionCallback.onCustomCommand.
+      try {
+        session.setCustomLayout(listOf(buildCloseButton()))
+      } catch (t: Throwable) {
+        Log.w(TAG, "Could not set custom Close layout", t)
+      }
       Log.i(TAG, "MediaSession created successfully")
       drainPendingPlay()
     } catch (t: Throwable) {
@@ -166,6 +185,18 @@ class PlaybackService : MediaSessionService() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    // Close action from the notification (placeholder or Media3 row):
+    // stop playback and dismiss the row so no "running" notification is
+    // ever trapped on screen without a way out.
+    if (intent?.action == ACTION_CLOSE) {
+      Log.i(TAG, "ACTION_CLOSE received; stopping playback and dismissing notification")
+      try {
+        closeAndDismissNotification("action-close")
+      } catch (t: Throwable) {
+        Log.e(TAG, "ACTION_CLOSE handling failed", t)
+      }
+      return android.app.Service.START_NOT_STICKY
+    }
     // Delegate to MediaSessionService so media-button / controller intents
     // keep working; framework decides stickiness. Rhythm returns the super
     // result here as well (START_NOT_STICKY only for its own early-returns).
@@ -229,6 +260,10 @@ class PlaybackService : MediaSessionService() {
 
   override fun onDestroy() {
     Log.i(TAG, "Destroying PlaybackService")
+    try {
+      (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+        .cancel(NOTIFICATION_ID)
+    } catch (_: Throwable) {}
     try {
       if (instance === this) {
         instance = null
@@ -411,6 +446,12 @@ class PlaybackService : MediaSessionService() {
         .setSmallIcon(R.drawable.ic_notification)
         .setOngoing(true)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
+        .setContentIntent(contentPendingIntent())
+        .addAction(
+          android.R.drawable.ic_menu_close_clear_cancel,
+          closeLabel(),
+          closePendingIntent()
+        )
         .build()
     } catch (t: Throwable) {
       Log.w(TAG, "Placeholder notification build failed", t)
@@ -427,6 +468,23 @@ class PlaybackService : MediaSessionService() {
         startForeground(NOTIFICATION_ID, notification)
       }
       Log.d(TAG, "Early foreground promotion posted")
+      // Watchdog: if no playback ever starts, the placeholder would sit as
+      // a stuck "Audiflow is running" row with no purpose. Release it.
+      try {
+        mainHandler.postDelayed({
+          try {
+            val p = player
+            if (p == null || p.mediaItemCount == 0) {
+              Log.i(TAG, "Placeholder watchdog: no playback started, releasing")
+              closeAndDismissNotification("placeholder-watchdog")
+            }
+          } catch (t: Throwable) {
+            Log.w(TAG, "Placeholder watchdog failed", t)
+          }
+        }, PLACEHOLDER_WATCHDOG_MS)
+      } catch (t: Throwable) {
+        Log.w(TAG, "Could not schedule placeholder watchdog", t)
+      }
     } catch (t: Throwable) {
       // Background-start restriction (ForegroundServiceStartNotAllowedException
       // on S+): Media3 will promote once playback actually starts from a
@@ -439,11 +497,202 @@ class PlaybackService : MediaSessionService() {
     }
   }
 
+  /**
+   * Label for the notification Close button. Resolved from resources so it
+   * follows the device locale (fa → بستن); hardcoded fallback for safety.
+   */
+  private fun closeLabel(): String {
+    return try {
+      getString(R.string.player_notification_close)
+    } catch (_: Throwable) {
+      if (Locale.getDefault().language == "fa") "بستن" else "Close"
+    }
+  }
+
+  private fun closePendingIntent(): PendingIntent {
+    val closeIntent = Intent(this, PlaybackService::class.java).apply {
+      action = ACTION_CLOSE
+    }
+    val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    } else {
+      PendingIntent.FLAG_UPDATE_CURRENT
+    }
+    return PendingIntent.getService(this, ACTION_CLOSE_REQUEST_CODE, closeIntent, flags)
+  }
+
+  private fun contentPendingIntent(): PendingIntent {
+    val openIntent = Intent(this, MainActivity::class.java).apply {
+      flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    }
+    val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    } else {
+      PendingIntent.FLAG_UPDATE_CURRENT
+    }
+    return PendingIntent.getActivity(this, 0, openIntent, flags)
+  }
+
+  private fun buildCloseButton(): CommandButton {
+    return CommandButton.Builder()
+      .setDisplayName(closeLabel())
+      .setSessionCommand(SessionCommand(CUSTOM_CMD_CLOSE, Bundle.EMPTY))
+      .setIconResId(android.R.drawable.ic_menu_close_clear_cancel)
+      .build()
+  }
+
+  /**
+   * Single choke point for leaving the foreground: stops playback, clears
+   * the queue, removes the notification row, pushes the idle state to the
+   * WebView engine, and lets the system reclaim the service. Idempotent.
+   */
+  private fun closeAndDismissNotification(reason: String) {
+    Log.i(TAG, "Closing player and dismissing notification ($reason)")
+    try {
+      player?.stop()
+    } catch (t: Throwable) {
+      Log.w(TAG, "player.stop failed during close", t)
+    }
+    try {
+      player?.clearMediaItems()
+    } catch (t: Throwable) {
+      Log.w(TAG, "player.clearMediaItems failed during close", t)
+    }
+    try {
+      lastErrorCode = null
+      lastErrorMessage = null
+    } catch (_: Throwable) {}
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+      } else {
+        @Suppress("DEPRECATION")
+        stopForeground(true)
+      }
+    } catch (t: Throwable) {
+      Log.w(TAG, "stopForeground failed during close", t)
+    }
+    try {
+      (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+        .cancel(NOTIFICATION_ID)
+    } catch (t: Throwable) {
+      Log.w(TAG, "notification cancel failed during close", t)
+    }
+    try {
+      broadcastStateUpdate()
+    } catch (t: Throwable) {
+      Log.w(TAG, "broadcastStateUpdate failed during close", t)
+    }
+    try {
+      stopSelf()
+    } catch (t: Throwable) {
+      Log.w(TAG, "stopSelf failed during close", t)
+    }
+  }
+
+  /**
+   * Media3 notification provider with an appended Close action for the
+   * legacy notification shade (pre-Android 13 renders notification actions;
+   * 13+ SystemUI cards are covered by the session custom layout instead).
+   */
+  private inner class CloseableNotificationProvider(
+    context: Context
+  ) : androidx.media3.session.DefaultMediaNotificationProvider(context) {
+    init {
+      setSmallIcon(R.drawable.ic_notification)
+    }
+
+    @OptIn(UnstableApi::class)
+    override fun addNotificationActions(
+      mediaSession: MediaSession,
+      mediaButtons: ImmutableList<CommandButton>,
+      builder: NotificationCompat.Builder,
+      actionFactory: MediaNotification.ActionFactory
+    ): IntArray {
+      val shown = super.addNotificationActions(mediaSession, mediaButtons, builder, actionFactory)
+      try {
+        // The session custom layout may already surface our Close button as
+        // a notification action (observed twice on API 34) — don't duplicate.
+        val alreadyShown = try {
+          mediaButtons.any { it.sessionCommand?.customAction == CUSTOM_CMD_CLOSE }
+        } catch (_: Throwable) {
+          false
+        }
+        if (!alreadyShown) {
+          builder.addAction(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            closeLabel(),
+            closePendingIntent()
+          )
+        }
+      } catch (t: Throwable) {
+        Log.w(TAG, "Could not add Close action to media notification", t)
+      }
+      return shown
+    }
+  }
+
+  /**
+   * Handles the session-level Close custom command (Android 13+ SystemUI /
+   * lock-screen card path) and advertises it to connecting controllers.
+   */
+  private inner class SessionCallback : MediaSession.Callback {
+    override fun onConnect(
+      session: MediaSession,
+      controller: MediaSession.ControllerInfo
+    ): MediaSession.ConnectionResult {
+      return try {
+        val withClose = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+          .buildUpon()
+          .add(SessionCommand(CUSTOM_CMD_CLOSE, Bundle.EMPTY))
+          .build()
+        MediaSession.ConnectionResult.accept(
+          withClose,
+          MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+        )
+      } catch (t: Throwable) {
+        Log.w(TAG, "onConnect custom command failed", t)
+        super.onConnect(session, controller)
+      }
+    }
+
+    override fun onCustomCommand(
+      session: MediaSession,
+      controller: MediaSession.ControllerInfo,
+      customCommand: SessionCommand,
+      extras: Bundle
+    ): ListenableFuture<SessionResult> {
+      return try {
+        if (customCommand.customAction == CUSTOM_CMD_CLOSE) {
+          Log.i(TAG, "Custom CLOSE command received; dismissing player")
+          try {
+            closeAndDismissNotification("custom-command")
+          } catch (t: Throwable) {
+            Log.e(TAG, "Custom CLOSE handling failed", t)
+          }
+          Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        } else {
+          super.onCustomCommand(session, controller, customCommand, extras)
+        }
+      } catch (t: Throwable) {
+        Log.e(TAG, "onCustomCommand failed", t)
+        Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_UNKNOWN))
+      }
+    }
+  }
+
   @Keep
   companion object {
     private const val TAG = "PlaybackService"
     private const val NOTIFICATION_ID = 1001
     private const val CHANNEL_ID = "RhythmMediaPlayback"
+    /** Service intent action fired by the notification Close button. */
+    private const val ACTION_CLOSE = "com.audioconverter.app.ACTION_CLOSE_PLAYER"
+    private const val ACTION_CLOSE_REQUEST_CODE = 9001
+    /** Session custom command backing the lock-screen Close button. */
+    private const val CUSTOM_CMD_CLOSE = "com.audioconverter.app.CLOSE"
+    /** Max time the "Starting…" placeholder may sit without playback. */
+    private const val PLACEHOLDER_WATCHDOG_MS = 8000L
 
     @Volatile
     var instance: PlaybackService? = null
@@ -770,8 +1019,7 @@ class PlaybackService : MediaSessionService() {
     @JvmStatic
     fun stop(context: Context): String {
       return runOnService { service ->
-        service.player?.stop()
-        service.player?.clearMediaItems()
+        service.closeAndDismissNotification("stop")
         "OK"
       }
     }

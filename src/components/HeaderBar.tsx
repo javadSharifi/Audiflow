@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap } from "lucide-react";
+import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap, Download } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { applyResolvedTheme, resolveTheme } from "../hooks/useTheme";
 import { revealOrigin, revealThemeChange } from "../utils/themeTransition";
+import { useGithubUpdate } from "../hooks/useGithubUpdate";
+import { UpdateModal } from "./UpdateModal";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
@@ -18,7 +20,9 @@ export function HeaderBar(): React.JSX.Element {
   const reducedBlur = useAppStore((s) => s.reducedBlur);
   const setReducedBlur = useAppStore((s) => s.setReducedBlur);
   const [open, setOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
   const [version, setVersion] = useState("");
+  const { latest, updateAvailable } = useGithubUpdate();
 
   useEffect(() => {
     getVersion().then(setVersion).catch(() => {});
@@ -67,8 +71,23 @@ export function HeaderBar(): React.JSX.Element {
         </h1>
       </div>
 
-      {/* Header Actions: Theme quick toggle + Settings — 44dp intermediate (prev 32 → now 44) */}
+      {/* Header Actions: Update (when available) + Theme quick toggle + Settings — 44dp intermediate (prev 32 → now 44) */}
       <div className="flex items-center gap-2 text-xs ms-auto">
+        {updateAvailable && latest && (
+          <button
+            type="button"
+            onClick={() => setUpdateOpen(true)}
+            className="relative flex min-h-[44px] min-w-[44px] h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-600 shadow-sm shadow-orange-500/20 transition-all hover:bg-orange-500/20 active:scale-95 dark:text-orange-400"
+            title={translate(lang, "updateAvailable")}
+            aria-label={translate(lang, "updateAvailable")}
+          >
+            <Download className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            <span className="absolute top-2 end-2 flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75 motion-reduce:animate-none" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-zinc-900" />
+            </span>
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleTheme}
@@ -264,6 +283,16 @@ export function HeaderBar(): React.JSX.Element {
           </div>,
           document.body,
         )}
+
+      {/* Update Dialog Portal */}
+      {updateOpen && updateAvailable && latest && (
+        <UpdateModal
+          lang={lang}
+          currentVersion={version}
+          latest={latest}
+          onClose={() => setUpdateOpen(false)}
+        />
+      )}
     </header>
   );
 }

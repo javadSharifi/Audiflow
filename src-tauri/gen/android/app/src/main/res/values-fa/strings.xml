@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Audiflow</string>
+    <string name="player_notification_close">بستن</string>
     <string name="permission_denied_hint">برای انتخاب فایل، دسترسی حافظه لازم است. آن را در تنظیمات سیستم ← برنامه‌ها ← Audiflow ← دسترسی‌ها فعال کنید.</string>
 </resources>

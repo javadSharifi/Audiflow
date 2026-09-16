@@ -16,7 +16,7 @@ pub enum BoosterPreset {
     Bass,
     /// Maximum amplification with strict limiter — surfaces quality warning in UI.
     Extreme,
-    /// User-controlled slider (0% to 200%).
+    /// User-controlled slider (0% to 400%, unified with the live player scale).
     Manual,
 }
 
@@ -66,8 +66,10 @@ pub fn build_preset_filter_chain(
             format!("volume=14dB,{STRICT_LIMITER}")
         }
         BoosterPreset::Manual => {
-            // Percentage: 0% = 0.0 (mute), 100% = 1.0 (0dB), 200% = 2.0 (+6.02dB), clamp 0..200
-            let pct = manual_gain_percent.unwrap_or(100.0).clamp(0.0, 200.0);
+            // Percentage: 0% = 0.0 (mute), 100% = 1.0 (0dB), 200% = 2.0 (+6.02dB),
+            // 400% = 4.0 (+12.04dB), clamp 0..400 — unified with the live
+            // player scale (003-volume-boost-accuracy).
+            let pct = manual_gain_percent.unwrap_or(100.0).clamp(0.0, 400.0);
             let multiplier = pct / 100.0;
             format!("volume={multiplier:.3},{DEFAULT_LIMITER}")
         }
@@ -105,6 +107,28 @@ mod tests {
 
         let chain_200 = build_preset_filter_chain(BoosterPreset::Manual, Some(200.0), None);
         assert!(chain_200.contains("volume=2.000"));
+    }
+
+    #[test]
+    fn test_manual_gain_400_matches_live_scale() {
+        // 003-volume-boost-accuracy US1 (T005): offline Manual range unified
+        // with the live 100-400% scale — linear amplitude, honest step.
+        let chain_400 = build_preset_filter_chain(BoosterPreset::Manual, Some(400.0), None);
+        assert!(
+            chain_400.contains("volume=4.000"),
+            "Manual 400% must map to 4x amplitude, got: {chain_400}"
+        );
+    }
+
+    #[test]
+    fn test_manual_400_ends_in_limiter_ceiling() {
+        // 003-volume-boost-accuracy US3 (T014): honesty wins below full scale;
+        // the mandatory alimiter stays as a full-scale-only ceiling.
+        let chain_400 = build_preset_filter_chain(BoosterPreset::Manual, Some(400.0), None);
+        assert!(
+            chain_400.contains("alimiter"),
+            "Manual 400% must still terminate in alimiter, got: {chain_400}"
+        );
     }
 
     #[test]

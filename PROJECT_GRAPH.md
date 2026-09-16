@@ -37,7 +37,7 @@ Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React 19 + Rust 
 | ---- | ---- | ----- |
 | Converter shell + queue UI + converter stores | `.agents/references/frontend-converter.md` | 21 |
 | Music library / player UI + player stores | `.agents/references/frontend-player.md` | 49 |
-| Sound Booster + Transcribe Studio UI | `.agents/references/frontend-features.md` | 25 |
+| Sound Booster + Transcribe Studio UI | `.agents/references/frontend-features.md` | 34 |
 | IPC facade, utils, i18n, types, styles | `.agents/references/frontend-infra.md` | 24 |
 | Tauri app root, commands, queues, settings/secrets | `.agents/references/backend-core.md` | 20 |
 | Single-pass DSP pipeline, FFmpeg, booster, transcribe engine | `.agents/references/backend-processing.md` | 24 |
@@ -162,7 +162,7 @@ hand-written sources an agent would actually navigate to or edit.
 | --- | --- | --- | --- |
 | Convert/trim/split/silence behavior | `src-tauri/src/processing/pipeline.rs` | `processing/silence.rs`, `processing/split.rs`, `processing/naming.rs`, `ffmpeg/` | player UI |
 | Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | transcribe queue |
-| Converter UI/options | `src/components/OptionsPanel.tsx`, `src/components/FileList.tsx` | `src/stores/slices/fileSlice.ts`, `settingsSlice.ts`, `utils/estimate.ts` | Rust internals |
+| Converter UI/options | `src/components/converter-wizard/ConverterWizard.tsx` (4-step wizard: upload/configs/progress/result) | `converter-wizard/Wizard*Step.tsx`, `OptionsPanel.tsx`, `FileList.tsx`, `JobsPanel.tsx` (bare), `ConverterResultSection.tsx` | Rust internals |
 | Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |

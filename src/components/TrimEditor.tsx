@@ -5,7 +5,7 @@ import { translate } from "../i18n";
 import { formatTimecode, parseTimeInput } from "../utils/format";
 import { isAndroid } from "../utils/platform";
 import * as api from "../utils/tauri";
-import { Play, Pause, ArrowRight, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw } from "lucide-react";
 import type { InputFile } from "../types";
 
 /**
@@ -24,8 +24,17 @@ import type { InputFile } from "../types";
 
 type DragTarget = "start" | "end" | null;
 
-const HANDLE_HIT_PX = 20;
+// 44px touch target → 22px radius around each handle line.
+const HANDLE_HIT_PX = 22;
 const CANVAS_H = 104;
+
+function buzz(ms = 10): void {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    /* vibrate unsupported — ignore */
+  }
+}
 
 interface PaintArgs {
   peaks: [number, number][];
@@ -97,7 +106,7 @@ function drawWaveform(canvas: HTMLCanvasElement, args: PaintArgs): void {
     }
   }
 
-  // Draw Handle Lines & Grips
+  // Draw Handle Lines & Grips — high-visibility: top circle knob + pill + dots
   const drawHandle = (x: number, isLeft: boolean) => {
     // Vertical luminous line
     ctx.strokeStyle = "#f97316";
@@ -106,6 +115,19 @@ function drawWaveform(canvas: HTMLCanvasElement, args: PaintArgs): void {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, CANVAS_H);
     ctx.stroke();
+
+    // Top circle knob (clear visual anchor above the handle)
+    ctx.fillStyle = "#f97316";
+    ctx.shadowColor = "rgba(249, 115, 22, 0.45)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(x, 10, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(x, 10, 2.5, 0, Math.PI * 2);
+    ctx.fill();
 
     // iOS style handle pill grip at center
     const gripW = 10;
@@ -125,9 +147,14 @@ function drawWaveform(canvas: HTMLCanvasElement, args: PaintArgs): void {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Inner grip line
+    // Grip dots (3 vertical dots — clearer than a single line)
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(gripX + gripW / 2 - 0.75, gripY + 8, 1.5, gripH - 16);
+    for (let i = 0; i < 3; i++) {
+      const dy = gripY + gripH / 2 - 6 + i * 6;
+      ctx.beginPath();
+      ctx.arc(gripX + gripW / 2, dy, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
 
   // Always draw start and end handles
@@ -174,6 +201,8 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   const [waveErr, setWaveErr] = useState(false);
   const [srcUrl, setSrcUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  // Operation feedback for screen readers (Loading → Success/Error).
+  const [opStatus, setOpStatus] = useState<{ kind: "success" | "error"; msg: string } | null>(null);
   // Android: statUri often can't report duration for SAF/document URIs.
   // Probe the staged file for the real duration so the editor stays usable.
   const [probedDur, setProbedDur] = useState(0);
@@ -360,6 +389,7 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
       const t = timeFromEvent(e.clientX);
       if (target) {
         draggingRef.current = target;
+        buzz(10);
         e.currentTarget.setPointerCapture(e.pointerId);
         audition(t);
         return;
@@ -485,19 +515,45 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
     setTrim(file.path, "trimStartSecs", null);
     setTrim(file.path, "trimEndSecs", null);
     stopAudition();
-  }, [file.path, setTrim, stopAudition]);
+    setOpStatus({ kind: "success", msg: translate(lang, "trimStatusCleared") });
+  }, [file.path, lang, setTrim, stopAudition]);
+
+  /** ±1s nudge for the handle-overlay keyboard arrows (no visible steppers). */
+  const stepBound = useCallback(
+    (which: "start" | "end", delta: number) => {
+      const cur = which === "start" ? (selStart ?? 0) : (selEnd ?? duration);
+      applyBound(which, cur + delta);
+      buzz(10);
+      setOpStatus({ kind: "success", msg: translate(lang, "trimStatusApplied") });
+    },
+    [applyBound, duration, lang, selEnd, selStart],
+  );
+
+  /** Grab a handle from its invisible 44px overlay button (touch + SR). */
+  const grabHandle = useCallback(
+    (which: "start" | "end") => {
+      if (peaks == null || duration <= 0) return;
+      draggingRef.current = which;
+      buzz(10);
+      audition(which === "start" ? (selStart ?? 0) : (selEnd ?? duration));
+    },
+    [audition, duration, peaks, selEnd, selStart],
+  );
 
   const commitText = (field: "trimStartSecs" | "trimEndSecs", raw: string) => {
     if (raw.trim() === "") {
       setTrim(file.path, field, null);
+      setOpStatus({ kind: "success", msg: translate(lang, "trimStatusCleared") });
       return;
     }
     const secs = parseTimeInput(raw);
     if (secs == null) {
       pushToast("error", "errTrimInvalid");
+      setOpStatus({ kind: "error", msg: translate(lang, "errTrimInvalid") });
       return;
     }
     applyBound(field === "trimStartSecs" ? "start" : "end", secs);
+    setOpStatus({ kind: "success", msg: translate(lang, "trimStatusApplied") });
   };
 
   if (!file.hasAudio) return null;
@@ -505,146 +561,245 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   const selLen = Math.max(0, (selEnd ?? duration) - (selStart ?? 0));
 
   return (
-    <div className="glass-card mt-3 flex flex-col gap-3.5 rounded-2xl p-4 md:p-5 border border-black/5 dark:border-white/10 shadow-lg shadow-black/5">
-      {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-black/[0.04] pb-3 dark:border-white/[0.04]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold tracking-tight text-zinc-800 dark:text-zinc-100">
-            {translate(lang, "trimTitle")}
-          </span>
-          <span className="rounded-full bg-black/[0.04] px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
-            {formatTimecode(duration)}
-          </span>
-        </div>
+    // Flat section (no nested card — the file card is the only card).
+    <div className="flex flex-col gap-6">
+      {/* Guide — readable: 14px+, leading-relaxed, high contrast */}
+      <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-[#CBD5E1]">
+        {translate(lang, "trimTitle")}
+      </p>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={playSelection}
-            disabled={!srcUrl}
-            data-testid={`trim-play-${file.name}`}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-orange-500/25 hover:brightness-105 active:scale-95 transition-all disabled:opacity-40"
-            aria-label={translate(lang, "trimPlay")}
-            title={srcUrl ? undefined : translate(lang, "trimPreviewUnavailable")}
-          >
-            {playing ? (
-              <Pause className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
-            ) : (
-              <Play className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
-            )}
-            <span>{translate(lang, "trimPlay")}</span>
-          </button>
+      {/* ── Section: tools — 1+3 grid, 44px targets, single-line ── */}
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={playSelection}
+          disabled={!srcUrl}
+          data-testid={`trim-play-${file.name}`}
+          className="flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-2 text-xs font-bold text-white shadow-md shadow-orange-500/25 transition-all hover:brightness-105 active:scale-[0.99] disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-orange-500"
+          aria-label={translate(lang, "trimPlay")}
+          title={srcUrl ? undefined : translate(lang, "trimPreviewUnavailable")}
+        >
+          {playing ? (
+            <Pause className="h-3.5 w-3.5 shrink-0 fill-current" strokeWidth={0} />
+          ) : (
+            <Play className="h-3.5 w-3.5 shrink-0 fill-current" strokeWidth={0} />
+          )}
+          <span className="truncate">{translate(lang, "trimPlay")}</span>
+        </button>
 
+        <div className="grid grid-cols-3 gap-2">
           {duration >= 10.05 && (
             <>
               <button
                 onClick={previewFirst10}
                 data-testid={`trim-cut-first-${file.name}`}
-                className="glass-card rounded-xl px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:border-orange-400 hover:text-orange-600 dark:text-zinc-300 transition-all active:scale-95 flex items-center gap-1"
+                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
                 title={lang === "fa" ? "پیش‌نمایش ۱۰ ثانیه اول بازه انتخاب‌شده" : "Preview first 10s of selection"}
               >
-                <Play className="h-3 w-3 fill-current" strokeWidth={0} />
-                <span>{translate(lang, "trimCutFirst10")}</span>
+                <Play className="h-3 w-3 shrink-0 fill-current" strokeWidth={0} />
+                <span className="truncate">{translate(lang, "trimCutFirst10")}</span>
               </button>
               <button
                 onClick={previewLast10}
                 data-testid={`trim-cut-last-${file.name}`}
-                className="glass-card rounded-xl px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:border-orange-400 hover:text-orange-600 dark:text-zinc-300 transition-all active:scale-95 flex items-center gap-1"
+                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
                 title={lang === "fa" ? "پیش‌نمایش ۱۰ ثانیه آخر بازه انتخاب‌شده" : "Preview last 10s of selection"}
               >
-                <Play className="h-3 w-3 fill-current" strokeWidth={0} />
-                <span>{translate(lang, "trimCutLast10")}</span>
+                <Play className="h-3 w-3 shrink-0 fill-current" strokeWidth={0} />
+                <span className="truncate">{translate(lang, "trimCutLast10")}</span>
               </button>
             </>
           )}
 
-          {hasSelection && (
+          {/* Reset: outline gray (red reserved for destructive «clear list») */}
+          {hasSelection ? (
             <button
               onClick={clearTrim}
               data-testid={`trim-clear-${file.name}`}
-              className="flex items-center gap-1 rounded-xl bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/20 active:scale-95 transition-all"
+              className={`${duration >= 10.05 ? "" : "col-span-3"} flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-black/10 bg-transparent px-2 py-2.5 text-xs font-semibold text-slate-600 transition-all hover:border-slate-400 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:border-white/15 dark:text-[#CBD5E1]`}
             >
-              <RotateCcw className="h-3 w-3" strokeWidth={2.2} />
-              <span>{translate(lang, "trimClear")}</span>
+              <RotateCcw className="h-3 w-3 shrink-0" strokeWidth={2.2} />
+              <span className="truncate">{translate(lang, "trimClear")}</span>
             </button>
+          ) : duration < 10.05 ? null : (
+            <span className="flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl border border-dashed border-black/10 px-2 py-2.5 text-[11px] text-slate-500 dark:border-white/10 dark:text-[#CBD5E1]">
+              {translate(lang, "trimFullFile")}
+            </span>
           )}
         </div>
       </div>
 
-      {/* Waveform surface */}
+      {/* ── Section: waveform ── */}
       <div
         ref={wrapRef}
-        className={`relative select-none overflow-hidden rounded-2xl bg-black/[0.04] p-1.5 border border-black/5 dark:bg-black/50 dark:border-white/5 ${peaks ? "cursor-ew-resize" : ""}`}
-        style={{ height: CANVAS_H + 12 }}
+        className={`relative touch-none overflow-hidden rounded-2xl border border-black/5 bg-black/[0.04] p-1.5 select-none dark:border-white/5 dark:bg-[#0F0F23] ${peaks ? "cursor-ew-resize" : ""}`}
+        style={{ height: CANVAS_H + 12, touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         data-testid={`trim-editor-${file.name}`}
+        role="slider"
+        aria-label={`${translate(lang, "trimTitle")} ${formatTimecode(selStart ?? 0)} – ${formatTimecode(selEnd ?? duration)}`}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration * 10) / 10}
+        aria-valuenow={Math.round(((selEnd ?? duration) - (selStart ?? 0)) * 10) / 10}
+        aria-valuetext={`${formatTimecode(selStart ?? 0)} – ${formatTimecode(selEnd ?? duration)}`}
       >
         <canvas ref={canvasRef} className="h-full w-full touch-none rounded-xl" />
+        {/* Invisible 44px hit-areas around each handle (touch + screen reader) */}
+        {peaks && duration > 0 && (
+          <>
+            <button
+              type="button"
+              aria-label={`${translate(lang, "trimHandleStart")}: ${formatTimecode(selStart ?? 0)}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                grabHandle("start");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  stepBound("start", -1);
+                }
+                if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  stepBound("start", 1);
+                }
+              }}
+              className="absolute top-1/2 min-h-[44px] min-w-[44px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-transparent focus-visible:outline-2 focus-visible:outline-orange-500"
+              style={{ left: `${(((selStart ?? 0) / duration) * 100).toFixed(3)}%`, touchAction: "none" }}
+            />
+            <button
+              type="button"
+              aria-label={`${translate(lang, "trimHandleEnd")}: ${formatTimecode(selEnd ?? duration)}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                grabHandle("end");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  stepBound("end", -1);
+                }
+                if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  stepBound("end", 1);
+                }
+              }}
+              className="absolute top-1/2 min-h-[44px] min-w-[44px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-transparent focus-visible:outline-2 focus-visible:outline-orange-500"
+              style={{ left: `${(((selEnd ?? duration) / duration) * 100).toFixed(3)}%`, touchAction: "none" }}
+            />
+          </>
+        )}
         {!peaks && !waveErr && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs font-medium text-zinc-400">
-            <div className="flex items-center gap-1">
-              <span className="h-4 w-1 rounded-full bg-orange-500/60 animate-[pulse_1s_ease-in-out_infinite]" />
-              <span className="h-6 w-1 rounded-full bg-orange-500/80 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
-              <span className="h-8 w-1 rounded-full bg-orange-500 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
-              <span className="h-5 w-1 rounded-full bg-orange-500/70 animate-[pulse_1s_ease-in-out_0.6s_infinite]" />
-              <span className="h-3 w-1 rounded-full bg-orange-500/50 animate-[pulse_1s_ease-in-out_0.8s_infinite]" />
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm font-medium text-slate-500 dark:text-[#CBD5E1]"
+          >
+            <div className="flex items-center gap-1" aria-hidden="true">
+              <span className="h-4 w-1 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-orange-500/60" />
+              <span className="h-6 w-1 animate-[pulse_1s_ease-in-out_0.2s_infinite] rounded-full bg-orange-500/80" />
+              <span className="h-8 w-1 animate-[pulse_1s_ease-in-out_0.4s_infinite] rounded-full bg-orange-500" />
+              <span className="h-5 w-1 animate-[pulse_1s_ease-in-out_0.6s_infinite] rounded-full bg-orange-500/70" />
+              <span className="h-3 w-1 animate-[pulse_1s_ease-in-out_0.8s_infinite] rounded-full bg-orange-500/50" />
             </div>
             <span className="animate-pulse">{translate(lang, "trimLoading")}</span>
           </div>
         )}
         {waveErr && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-red-400">
+          <div
+            role="alert"
+            className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm font-medium text-red-400"
+          >
             {translate(lang, "trimWaveError")}
           </div>
         )}
       </div>
 
-      {/* Precision inputs & selected duration footer */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs" dir="ltr">
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5">
-            <span className="font-semibold text-zinc-500 dark:text-zinc-400">{translate(lang, "trimStart")}</span>
-            <input
-              type="text"
-              defaultValue={selStart != null ? formatTimecode(selStart) : ""}
-              key={`s-${file.path}-${selStart ?? "none"}`}
-              placeholder="0:00.0"
-              data-testid={`trim-start-text-${file.name}`}
-              onBlur={(e) => commitText("trimStartSecs", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-              className="glass-pill w-20 rounded-xl px-2.5 py-1.5 text-center font-semibold tabular-nums text-zinc-800 dark:text-zinc-200 outline-none"
-            />
+      {/* ── Section: summary — compact: از/تا inputs + duration in one line ── */}
+      <div
+        dir={lang === "fa" ? "rtl" : "ltr"}
+        className="flex flex-wrap items-center gap-x-2 gap-y-2 text-xs"
+      >
+        <span className="font-semibold text-slate-600 dark:text-[#CBD5E1]">
+          {translate(lang, "trimFrom")}
+        </span>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor={`trim-start-${file.path}`}
+            className="text-[11px] font-semibold text-slate-600 dark:text-[#CBD5E1]"
+          >
+            {translate(lang, "trimStart")}
           </label>
-
-          <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
-
-          <label className="flex items-center gap-1.5">
-            <span className="font-semibold text-zinc-500 dark:text-zinc-400">{translate(lang, "trimEnd")}</span>
-            <input
-              type="text"
-              defaultValue={selEnd != null ? formatTimecode(selEnd) : ""}
-              key={`e-${file.path}-${selEnd ?? "none"}`}
-              placeholder={formatTimecode(duration)}
-              data-testid={`trim-end-text-${file.name}`}
-              onBlur={(e) => commitText("trimEndSecs", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-              className="glass-pill w-20 rounded-xl px-2.5 py-1.5 text-center font-semibold tabular-nums text-zinc-800 dark:text-zinc-200 outline-none"
-            />
-          </label>
+          <input
+            id={`trim-start-${file.path}`}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            dir="ltr"
+            defaultValue={selStart != null ? formatTimecode(selStart) : ""}
+            key={`s-${file.path}-${selStart ?? "none"}`}
+            placeholder="00:00.0"
+            aria-label={`${translate(lang, "trimStart")} ${formatTimecode(selStart ?? 0)}`}
+            data-testid={`trim-start-text-${file.name}`}
+            onBlur={(e) => commitText("trimStartSecs", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            className="glass-pill h-11 min-h-[44px] w-24 rounded-xl px-2.5 text-center text-sm font-semibold tabular-nums text-zinc-800 outline-none focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#F8FAFC]"
+          />
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-600 dark:text-orange-400 tabular-nums">
-          <span>{translate(lang, "trimSelectedDuration")}:</span>
+        <span className="font-semibold text-slate-600 dark:text-[#CBD5E1]">
+          {translate(lang, "trimTo")}
+        </span>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor={`trim-end-${file.path}`}
+            className="text-[11px] font-semibold text-slate-600 dark:text-[#CBD5E1]"
+          >
+            {translate(lang, "trimEnd")}
+          </label>
+          <input
+            id={`trim-end-${file.path}`}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            dir="ltr"
+            defaultValue={selEnd != null ? formatTimecode(selEnd) : ""}
+            key={`e-${file.path}-${selEnd ?? "none"}`}
+            placeholder={formatTimecode(duration)}
+            aria-label={`${translate(lang, "trimEnd")} ${formatTimecode(selEnd ?? duration)}`}
+            data-testid={`trim-end-text-${file.name}`}
+            onBlur={(e) => commitText("trimEndSecs", e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            className="glass-pill h-11 min-h-[44px] w-24 rounded-xl px-2.5 text-center text-sm font-semibold tabular-nums text-zinc-800 outline-none focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#F8FAFC]"
+          />
+        </div>
+
+        <p
+          aria-live="polite"
+          className="text-[11px] font-semibold tabular-nums text-slate-600 dark:text-[#CBD5E1]"
+        >
+          <span>{translate(lang, "trimSelectedDuration")}: </span>
           <span>{formatTimecode(selLen)}</span>
-          <span className="text-orange-400/60 font-normal">/ {formatTimecode(duration)}</span>
-        </div>
+          <span className="font-normal opacity-70"> / {formatTimecode(duration)}</span>
+        </p>
       </div>
+
+      {/* Operation feedback — polite success, assertive error */}
+      {opStatus && (
+        <div
+          role={opStatus.kind === "error" ? "alert" : "status"}
+          aria-live={opStatus.kind === "error" ? "assertive" : "polite"}
+          className={`text-xs font-medium ${opStatus.kind === "error" ? "text-red-500" : "text-slate-600 dark:text-[#CBD5E1]"}`}
+        >
+          {opStatus.msg}
+        </div>
+      )}
 
       {/* Hidden audio element drives audition + selection playback. */}
       {srcUrl && (

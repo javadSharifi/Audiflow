@@ -69,13 +69,18 @@ describe("revealThemeChange", () => {
 
   it("sets reveal vars and applies inside the transition", () => {
     const callbacks: Array<() => void> = [];
-    docRecord().startViewTransition = vi.fn((cb: () => void) => {
+    const starter = vi.fn((cb: () => void) => {
       callbacks.push(cb);
       return { finished: Promise.resolve() };
     });
+    docRecord().startViewTransition = starter;
     const apply = vi.fn();
     revealThemeChange(10, 20, apply);
     expect(docRecord().startViewTransition).toHaveBeenCalledTimes(1);
+    // Regression: the native method must be called with `document` as
+    // receiver, otherwise it throws "Illegal invocation" and we silently
+    // fall back to an instant switch.
+    expect(starter.mock.instances[0]).toBe(document);
     expect(document.documentElement.style.getPropertyValue("--reveal-x")).toBe("10px");
     expect(document.documentElement.style.getPropertyValue("--reveal-y")).toBe("20px");
     expect(document.documentElement.style.getPropertyValue("--reveal-r")).toMatch(/px$/);

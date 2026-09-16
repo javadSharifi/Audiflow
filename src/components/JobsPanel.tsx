@@ -109,7 +109,7 @@ function JobRow({ job }: { job: QueueItem }): React.JSX.Element {
   );
 }
 
-export function JobsPanel(): React.JSX.Element | null {
+export function JobsPanel({ bare = false }: { bare?: boolean } = {}): React.JSX.Element | null {
   const jobs = useAppStore((s) => s.jobs);
   const cancelAll = useAppStore((s) => s.cancelAll);
   const clearFinishedJobs = useAppStore((s) => s.clearFinishedJobs);
@@ -140,7 +140,10 @@ export function JobsPanel(): React.JSX.Element | null {
   const anyActive = active > 0;
 
   return (
-    <section className="glass-panel flex flex-col gap-4 rounded-3xl p-5 md:p-6 shadow-sm" data-testid="jobs-panel">
+    <section
+      className={bare ? "flex flex-col gap-4" : "glass-panel flex flex-col gap-4 rounded-3xl p-5 md:p-6 shadow-sm"}
+      data-testid="jobs-panel"
+    >
       <div className="flex items-center justify-between gap-2 border-b border-black/[0.05] pb-3 dark:border-white/[0.05]">
         {/* Compact per-status counters */}
         <div className="flex items-center gap-3 text-xs font-semibold tabular-nums">

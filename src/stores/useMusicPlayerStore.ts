@@ -38,6 +38,8 @@ import {
   cancelArmedAutoAdvance,
 } from "./musicPlayer/audioEngine";
 import { resolveNextTrack, noteUnplayable, snapshotUnplayableKeys, trackKey } from "./musicPlayer/autoAdvance";
+import { createSeekDebouncer } from "./musicPlayer/seekDebounce";
+import { createGainGlider } from "./musicPlayer/gainGlide";
 import { getTrackKey, getTrackAliases, isTrackLiked } from "./musicPlayer/trackUtils";
 import { useAppStore } from "./useAppStore";
 import { isAndroid } from "../utils/platform";
@@ -68,6 +70,37 @@ export {
 // ---------------------------------------------------------------------------
 // Store Interface & Implementation
 // ---------------------------------------------------------------------------
+
+/**
+ * Module-scope trailing seek coalescer (003-volume-boost-accuracy US2).
+ * Leading edge applies immediately; scrub bursts inside the window collapse
+ * to one trailing apply of the final position.
+ */
+const seekDebouncer = createSeekDebouncer((targetSecs: number) => {
+  void unifiedSeekTo(targetSecs);
+});
+
+/**
+ * Module-scope gain glide (004-boost-slider-debounce US1). Slider/dial
+ * ticks arrive at pointer-event rate; applying every one restarts the
+ * engine per movement (audible chop). Leading edge stays immediate so
+ * taps/toggles never lag; bursts glide at ~150 ms steps with a guaranteed
+ * trailing flush of the final value.
+ */
+const gainGlider = createGainGlider((percent: number) => {
+  try {
+    // Routed through the shared WebAudio graph (with safe fallbacks inside).
+    applyGainPercent(percent);
+  } catch (e) {
+    console.warn("Failed to set gain value:", e);
+    // Last-resort fallback so playback never goes silent.
+    try {
+      const fallback = getGlobalGainNode();
+      if (fallback) fallback.gain.value = percent / 100;
+    } catch {}
+  }
+  persistSavedBoosterGain(percent);
+});
 
 export interface MusicPlayerState {
   tracks: AudioTrackInfo[];
@@ -527,7 +560,15 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
 
   seekTo(timeSecs) {
     if (Number.isFinite(timeSecs)) {
-      void unifiedSeekTo(timeSecs);
+      // 003-volume-boost-accuracy US2: coalesce scrub bursts so fast
+      // scrubbing fires ~1 native seek per second and lands on the final
+      // position. Optimistic UI stays instant; short tracks bypass.
+      const duration = get().duration;
+      if (duration > 0 && duration < 5) {
+        void unifiedSeekTo(timeSecs);
+      } else {
+        seekDebouncer.request(timeSecs);
+      }
       set({ currentTime: timeSecs });
     }
   },
@@ -565,19 +606,10 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
 
   setVolumeGainPercent(gain) {
     const clamped = Math.max(0, Math.min(400, gain));
-    try {
-      // Routed through the shared WebAudio graph (with safe fallbacks inside).
-      applyGainPercent(clamped);
-    } catch (e) {
-      console.warn("Failed to set gain value:", e);
-      // Last-resort fallback so playback never goes silent.
-      try {
-        const fallback = getGlobalGainNode();
-        if (fallback) fallback.gain.value = clamped / 100;
-      } catch {}
-    }
-    persistSavedBoosterGain(clamped);
+    // UI stays live on every tick; the engine glides behind (US1) and the
+    // persisted value always matches an applied (heard) value.
     set({ volumeGainPercent: clamped });
+    gainGlider.request(clamped);
   },
 
   enterSelectionMode(initialTrack) {

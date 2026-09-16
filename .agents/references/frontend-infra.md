@@ -6,8 +6,8 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 
 | File | Summary |
 | ---- | ------- |
-| `src/i18n/en.ts` | English string dictionary; exports `en`. |
-| `src/i18n/fa.ts` | Persian RTL dictionary typed to `TranslationKey`; exports `fa`. |
+| `src/i18n/en.ts` | English string dictionary (incl. update-notice keys); exports `en`. |
+| `src/i18n/fa.ts` | Persian RTL dictionary typed to `TranslationKey` (incl. update-notice keys); exports `fa`. |
 | `src/i18n/index.ts` | `translate(lang,key)` with fallback/interpolation; exports `Lang`, `translate`, `isRtl`. |
 | `src/index.css` | Tailwind v4 entry + IRANSans fonts + theme/utilities + theme-reveal view-transition CSS. |
 | `src/types/generated.ts` | tauri-specta OUTPUT do-not-edit; ~50 commands + IPC schemas; exports `commands`. |
@@ -26,6 +26,8 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/utils/externalUrl.ts` | System-browser opener with fallback; exports `openExternalUrl`. |
 | `src/utils/format.test.ts` | Vitest for format/parse helpers. |
 | `src/utils/format.ts` | Duration/timecode/bytes + parse helpers; exports `formatDuration`, `parseDurationInput`. |
+| `src/utils/githubUpdate.test.ts` | Vitest for version compare + release fetch fail-soft. |
+| `src/utils/githubUpdate.ts` | GitHub latest-release check (normalize/compare/fetch, fail-soft); exports `fetchLatestRelease`, `isNewerVersion`, `normalizeVersion`, `GITHUB_REPO`. |
 | `src/utils/mediaSession.ts` | MediaSession metadata/actions; exports `initMediaSession`, `syncMediaSession`. |
 | `src/utils/openWith.ts` | Open-with routing to player/converter; exports `handleIncomingFiles`, `isAudioPath`. |
 | `src/utils/platform.ts` | UA-based OS detection; exports `isAndroid/Mobile/Desktop/...`. |

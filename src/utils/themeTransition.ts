@@ -24,7 +24,9 @@ function getStarter(): StartViewTransitionFn | null {
   if (typeof document === "undefined") return null;
   const candidate = (document as unknown as Record<string, unknown>).startViewTransition;
   if (typeof candidate !== "function") return null;
-  return candidate as StartViewTransitionFn;
+  // Native DOM methods throw "Illegal invocation" when called unbound,
+  // so the receiver must be preserved.
+  return (candidate as StartViewTransitionFn).bind(document);
 }
 
 /** Farthest-corner distance so the circle always covers the whole viewport. */

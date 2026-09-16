@@ -144,6 +144,22 @@ html[data-font="vazir"] body {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Wizard step enter animation */
+@keyframes wizard-step-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wizard-step-in {
+  animation: wizard-step-in 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step-in {
+    animation: none;
+  }
+}
+
 /* Subtle Shimmer Animation */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }

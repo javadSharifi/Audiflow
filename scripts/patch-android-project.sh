@@ -48,6 +48,7 @@ cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
     <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audiflow → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
+    <string name="player_notification_close">Close</string>
     <string name="service_starting">Starting… (v1.4.3)</string>
 </resources>
 EOF
@@ -69,6 +70,7 @@ EOF
 cat > "$GEN/app/src/main/res/values-fa/strings.xml" << 'EOF'
 <resources>
     <string name="app_name">Audiflow</string>
+    <string name="player_notification_close">بستن</string>
     <string name="permission_denied_hint">برای انتخاب فایل، دسترسی حافظه لازم است. آن را در تنظیمات سیستم ← برنامه‌ها ← Audiflow ← دسترسی‌ها فعال کنید.</string>
 </resources>
 EOF

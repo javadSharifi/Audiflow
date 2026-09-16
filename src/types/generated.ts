@@ -227,7 +227,7 @@ export type BoosterPreset =
 "bass" | 
 /**  Maximum amplification with strict limiter — surfaces quality warning in UI. */
 "extreme" | 
-/**  User-controlled slider (0% to 200%). */
+/**  User-controlled slider (0% to 400%, unified with the live player scale). */
 "manual";
 
 export type ConversionOptions = {

@@ -12,7 +12,6 @@ import {
   resolveAudioSource,
   applyGainPercent,
   boosterDbForPercent,
-  boosterMbForPercent,
   bindMusicStore,
   noteUserSeek,
   applyNativeStateToStore,
@@ -134,15 +133,6 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       expect(boosterDbForPercent(999)).toBeCloseTo(12.04, 2);
     });
 
-    it("maps boost percent to reference LoudnessEnhancer millibels (0..8000 mB)", () => {
-      expect(boosterMbForPercent(0)).toBe(0);
-      expect(boosterMbForPercent(50)).toBe(0);
-      expect(boosterMbForPercent(100)).toBe(0);
-      expect(boosterMbForPercent(200)).toBe(2667);
-      expect(boosterMbForPercent(400)).toBe(8000);
-      expect(boosterMbForPercent(999)).toBe(8000);
-    });
-
     it("routes <=100% to volume and disables the enhancer", async () => {
       applyGainPercent(80);
       await Promise.resolve();
@@ -152,14 +142,128 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(0);
     });
 
-    it("routes >100% to full volume plus enhancer dB and mB", async () => {
+    it("routes >100% to full volume plus a single enhancer dB call (US1)", async () => {
       applyGainPercent(200);
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
       const gainDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls[0][0];
       expect(gainDb).toBeCloseTo(6.02, 2);
-      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(2667);
+      // The parallel linear-mB path was deleted: single writer only.
+      expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledTimes(1);
+      expect(api.androidPlayerSetBoosterGainMb).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("003-volume-boost-accuracy: honest single-path gain (US1)", () => {
+    beforeEach(() => {
+      vi.spyOn(platform, "isAndroid").mockReturnValue(true);
+    });
+
+    it("T003 gain mapping is monotonic with contract anchors", () => {
+      // Anchors from contracts/booster-gain-mapping.contract.md.
+      expect(boosterDbForPercent(100)).toBe(0);
+      expect(boosterDbForPercent(150)).toBeCloseTo(3.52, 2);
+      expect(boosterDbForPercent(200)).toBeCloseTo(6.02, 2);
+      expect(boosterDbForPercent(250)).toBeCloseTo(7.96, 2);
+      expect(boosterDbForPercent(300)).toBeCloseTo(9.54, 2);
+      expect(boosterDbForPercent(350)).toBeCloseTo(10.88, 2);
+      expect(boosterDbForPercent(400)).toBeCloseTo(12.04, 2);
+      const steps = [100, 125, 150, 175, 200, 250, 300, 350, 400];
+      const dbs = steps.map(boosterDbForPercent);
+      for (let i = 1; i < dbs.length; i++) {
+        expect(dbs[i]).toBeGreaterThan(dbs[i - 1]);
+      }
+    });
+
+    it("T004 issues exactly one gain IPC per boost change above 100%", async () => {
+      applyGainPercent(200);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const totalGainCalls =
+        vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length +
+        vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.length;
+      expect(totalGainCalls).toBe(1);
+      expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
+    });
+
+    it("T004 keeps the disable pair at or below 100%", async () => {
+      applyGainPercent(80);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(0.8);
+      expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledWith(0);
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe("003-volume-boost-accuracy: boost preserved across seeks (US2)", () => {
+    beforeEach(() => {
+      vi.spyOn(platform, "isAndroid").mockReturnValue(true);
+    });
+
+    it("T010 seeks never touch enhancer gain or volume", async () => {
+      applyGainPercent(300);
+      await Promise.resolve();
+      vi.clearAllMocks();
+
+      noteUserSeek(42);
+      await unifiedSeekTo(42);
+      await Promise.resolve();
+
+      expect(api.androidPlayerSeekTo).toHaveBeenCalledWith(42000);
+      expect(api.androidPlayerSetBoosterGain).not.toHaveBeenCalled();
+      expect(api.androidPlayerSetBoosterGainMb).not.toHaveBeenCalled();
+      expect(api.androidPlayerSetVolume).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("004-boost-slider-debounce: per-tick fan-out pinned (T002)", () => {
+    beforeEach(() => {
+      vi.spyOn(platform, "isAndroid").mockReturnValue(true);
+      bindMusicStore(useMusicPlayerStore);
+    });
+
+    it("T002 a 10-tick drag burst coalesces to at most 3 engine applies", () => {
+      vi.useFakeTimers();
+      try {
+        const store = useMusicPlayerStore.getState();
+        for (let i = 0; i < 10; i++) {
+          store.setVolumeGainPercent(150 + i * 10);
+        }
+        // Leading apply fired synchronously; glide the rest out fully.
+        vi.advanceTimersByTime(5000);
+
+        // Was 10 (one full engine apply per tick = the chop source).
+        expect(vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length).toBeLessThanOrEqual(3);
+        const lastDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.at(-1)?.[0];
+        expect(lastDb).toBeCloseTo(boosterDbForPercent(240), 2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("T008 state follows every tick while the engine glides behind", () => {
+      vi.useFakeTimers();
+      try {
+        const store = useMusicPlayerStore.getState();
+        store.setVolumeGainPercent(150);
+        store.setVolumeGainPercent(200);
+        store.setVolumeGainPercent(250);
+
+        // UI number is live on every movement (US2)...
+        expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(250);
+        // ...while the engine applied only the leading value so far.
+        expect(vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length).toBe(1);
+
+        vi.advanceTimersByTime(5000);
+        const lastDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.at(-1)?.[0];
+        expect(lastDb).toBeCloseTo(boosterDbForPercent(250), 2);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

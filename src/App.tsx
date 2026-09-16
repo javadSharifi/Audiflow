@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HeaderBar } from "./components/HeaderBar";
-import { DropZone } from "./components/DropZone";
-import { FileList } from "./components/FileList";
-import { OptionsPanel } from "./components/OptionsPanel";
-import { JobsPanel } from "./components/JobsPanel";
 import { MusicPlayerView } from "./components/music-player/MusicPlayerView";
 import { MusicPlayerNav, type PlayerTab } from "./components/music-player/MusicPlayerNav";
 import { KeepAlivePane } from "./components/music-player/KeepAlivePane";
@@ -20,73 +16,18 @@ import { translate } from "./i18n";
 import { useTheme, useDirection } from "./hooks/useTheme";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
-import { isLossy } from "./types";
 import { isAndroid } from "./utils/platform";
 import * as api from "./utils/tauri";
 import { useNativeDragDrop } from "./hooks/useNativeDragDrop";
 import { handleIncomingFiles } from "./utils/openWith";
 import { ANDROID_BACK_EVENT, wasBackConsumed } from "./utils/androidBack";
-import { Loader2, Play } from "lucide-react";
 import type { QueueItem } from "./types";
-
-function StartBar(): React.JSX.Element {
-  const lang = useAppStore((s) => s.lang);
-  const files = useAppStore((s) => s.files);
-  const options = useAppStore((s) => s.options);
-  const jobs = useAppStore((s) => s.jobs);
-  const starting = useAppStore((s) => s.starting);
-  const startQueue = useAppStore((s) => s.startQueue);
-  const pushToast = useAppStore((s) => s.pushToast);
-
-  const validCount = files.filter((f) => !f.error && f.hasAudio).length;
-  const busy = Array.from(jobs.values()).some((j) =>
-    ["waiting", "processing"].includes(j.status),
-  );
-
-  const disabled =
-    validCount === 0 ||
-    busy ||
-    starting ||
-    (isLossy(options.format) && options.quality === "custom" && !options.customBitrateKbps) ||
-    (options.splitEnabled &&
-      (options.splitDurationSecs === null ||
-        !Number.isFinite(options.splitDurationSecs) ||
-        options.splitDurationSecs <= 0)) ||
-    (options.outputMode === "custom_folder" && !options.customOutputDir);
-
-  const onStart = () => {
-    if (disabled) return;
-    if (validCount < files.length) pushToast("warning", "errSomeFilesInvalid");
-    void startQueue();
-  };
-
-  return (
-    <button
-      onClick={onStart}
-      disabled={disabled}
-      data-testid="start-conversion"
-      className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition-all duration-200 hover:brightness-105 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-    >
-      {busy || starting ? (
-        <span className="inline-flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-white" />
-          <span>{translate(lang, "statusProcessing")}</span>
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-2">
-          <Play className="h-4 w-4 fill-current" strokeWidth={0} />
-          <span>{translate(lang, "startConversion")}</span>
-        </span>
-      )}
-    </button>
-  );
-}
+import { ConverterWizard } from "./components/converter-wizard/ConverterWizard";
 
 export default function App(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const activeTool = useAppStore((s) => s.activeTool);
   const setActiveTool = useAppStore((s) => s.setActiveTool);
-  const files = useAppStore((s) => s.files);
   const addPaths = useAppStore((s) => s.addPaths);
   const loadSettings = useAppStore((s) => s.loadSettings);
   const initEventListeners = useAppStore((s) => s.initEventListeners);
@@ -363,16 +304,7 @@ export default function App(): React.JSX.Element {
 
       <main className="relative z-10 flex w-full flex-1 flex-col min-h-0 overflow-hidden">
         <KeepAlivePane active={isConverter} lazy={false}>
-          <div
-            className={`mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 pt-4 md:gap-5 md:px-6 min-h-0 py-5 ${
-              files.length > 0 ? "pb-64" : "pb-28"
-            }`}
-          >
-            {files.length === 0 && <DropZone />}
-            <FileList />
-            <OptionsPanel />
-            <JobsPanel />
-          </div>
+          <ConverterWizard />
         </KeepAlivePane>
         <KeepAlivePane active={!isConverter} lazy={false}>
           <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col min-h-0 overflow-hidden px-4 pt-4 md:px-6 pb-4">
@@ -380,15 +312,6 @@ export default function App(): React.JSX.Element {
           </div>
         </KeepAlivePane>
       </main>
-
-      {/* Converter Start Bar (stacked above the bottom nav) */}
-      {isConverter && files.length > 0 && (
-        <div className="fixed bottom-[88px] left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
-          <div className="mx-auto w-full max-w-4xl">
-            <StartBar />
-          </div>
-        </div>
-      )}
 
       {/* Unified bottom navigation (converter + player tabs), hidden in
           fullscreen so sheets sit on top without nav bleeding through */}

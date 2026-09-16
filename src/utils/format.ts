@@ -12,12 +12,12 @@ export function formatDuration(totalSeconds: number): string {
 }
 
 /**
- * Format seconds as an editor timecode: M:SS.t (or H:MM:SS.t past an hour).
- * One decimal — the trim editor's precision. Round-trips through
- * parseTimeInput.
+ * Format seconds as an editor timecode: MM:SS.t (or H:MM:SS.t past an hour).
+ * One decimal everywhere + zero-padded minutes (01:17.9) so badges, inputs
+ * and chips stay in sync. Round-trips through parseTimeInput.
  */
 export function formatTimecode(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "0:00.0";
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "00:00.0";
   const tenths = Math.round(totalSeconds * 10);
   const whole = Math.floor(tenths / 10);
   const frac = tenths % 10;
@@ -26,7 +26,7 @@ export function formatTimecode(totalSeconds: number): string {
   const sec = whole % 60;
   const tail = `:${String(sec).padStart(2, "0")}.${frac}`;
   if (h > 0) return `${h}:${String(m).padStart(2, "0")}${tail}`;
-  return `${m}${tail}`;
+  return `${String(m).padStart(2, "0")}${tail}`;
 }
 
 /** Human file size: B / KB / MB / GB with one decimal where useful. */
@@ -104,4 +104,24 @@ export function parseTimeInput(raw: string): number | null {
   let secs = 0;
   for (const part of parts) secs = secs * 60 + Number(part);
   return Number.isFinite(secs) ? secs : null;
+}
+
+export function mimeForOutput(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  switch (ext) {
+    case "mp3":
+      return "audio/mpeg";
+    case "m4a":
+      return "audio/mp4";
+    case "wav":
+      return "audio/wav";
+    case "flac":
+      return "audio/flac";
+    case "opus":
+      return "audio/ogg";
+    case "aac":
+      return "audio/aac";
+    default:
+      return "audio/mpeg";
+  }
 }
