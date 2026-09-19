@@ -13,19 +13,8 @@ import type {
   BoosterPreset,
   VolumeAnalysis,
   AbPreviewResult,
-  BoosterJobSpec,
   AudioTrackInfo,
   LibraryPermissionStatus,
-  TranscriptionJob,
-  TranscriptionMode,
-  TranscriptionRequestConfig,
-  TranscriptionResult,
-  TranscriptionStatus,
-  TranscribeSettings,
-  UsageStats,
-  ObservedQuota,
-  WordInfo,
-  GeminiErrorKind,
 } from "./generated";
 
 export type {
@@ -39,36 +28,9 @@ export type {
   BoosterPreset,
   VolumeAnalysis,
   AbPreviewResult,
-  BoosterJobSpec,
   AudioTrackInfo,
   LibraryPermissionStatus,
-  TranscriptionJob,
-  TranscriptionMode,
-  TranscriptionRequestConfig,
-  TranscriptionResult,
-  TranscriptionStatus,
-  TranscribeSettings,
-  UsageStats,
-  ObservedQuota,
-  WordInfo,
-  GeminiErrorKind,
 };
-
-/**
- * Payload of the backend `transcription-event` channel. Mirrors the Rust
- * `TranscriptionEvent` struct (events are not part of the Specta command
- * surface, so this is declared here to match it exactly).
- */
-export interface TranscriptionEvent {
-  id: string;
-  sourcePath: string;
-  status: TranscriptionStatus;
-  percent: number | null;
-  error: string | null;
-  technical: string | null;
-  errorKind: GeminiErrorKind | null;
-  result: TranscriptionResult | null;
-}
 
 export type ConversionOptions = GeneratedConversionOptions;
 export type TrimSpec = GeneratedTrimSpec;
@@ -104,7 +66,6 @@ export interface AlbumItem {
 }
 
 export const LOSSY_FORMATS: AudioFormat[] = ["mp3", "aac", "m4a", "opus"];
-export const LOSSLESS_FORMATS: AudioFormat[] = ["wav", "flac"];
 
 export type MediaKind = "audio" | "video";
 
@@ -131,7 +92,6 @@ export const MP3_BITRATES = [64, 96, 128, 160, 192, 256, 320] as const;
 export const AAC_OPUS_BITRATES = [48, 64, 96, 128, 160, 192, 256] as const;
 
 export const SILENCE_THRESHOLDS_DB = [-20, -25, -30, -35, -40, -45] as const;
-export const SILENCE_MIN_DURATIONS = [0.5, 1, 1.5, 2, 3, 5] as const;
 
 export const SAMPLE_RATES = [8000, 22050, 44100, 48000] as const;
 

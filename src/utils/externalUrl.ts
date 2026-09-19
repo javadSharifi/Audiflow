@@ -13,8 +13,8 @@ export async function openExternalUrl(url: string): Promise<void> {
       await mod.openUrl(url);
       return;
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   try {
     window.open(url, "_blank", "noopener,noreferrer");
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }

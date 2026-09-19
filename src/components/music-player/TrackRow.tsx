@@ -1,6 +1,6 @@
 import { memo, useEffect, useState, useRef } from "react";
 import { useAppStore } from "../../stores/useAppStore";
-import { useMusicPlayerStore, isTrackLiked } from "../../stores/useMusicPlayerStore";
+import { useMusicPlayerStore, isTrackLiked, playbackIdentityKey } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { TrackCover } from "./TrackCover";
 import { TrackOptionsSheet } from "./TrackOptionsSheet";
@@ -16,17 +16,31 @@ interface TrackRowProps {
 
 export const TrackRow = memo(function TrackRow({ track, playlist }: TrackRowProps): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
-  const likedPaths = useMusicPlayerStore((s) => s.likedPaths);
-  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
+  // Per-track boolean selectors: re-render ONLY when THIS row's liked /
+  // selection / now-playing state flips — not on every store write (the
+  // previous whole-Set/currentTrack subscriptions re-rendered all visible
+  // rows on every like, seek, or rescan).
+  const isLiked = useMusicPlayerStore((s) => isTrackLiked(track, s.likedPaths));
+  const playingKey = useMusicPlayerStore((s) => s.playingKey);
   const isPlaying = useMusicPlayerStore((s) => s.isPlaying);
   const playTrack = useMusicPlayerStore((s) => s.playTrack);
   const togglePlayTrack = useMusicPlayerStore((s) => s.togglePlayTrack);
   const setFullscreenOpen = useMusicPlayerStore((s) => s.setFullscreenOpen);
 
   const isSelectionMode = useMusicPlayerStore((s) => s.isSelectionMode);
-  const selectedTrackKeys = useMusicPlayerStore((s) => s.selectedTrackKeys);
+  const trackKey = track.uri || track.path || track.id;
+  const isSelected = useMusicPlayerStore(
+    (s) =>
+      s.selectedTrackKeys.has(trackKey) ||
+      s.selectedTrackKeys.has(track.id) ||
+      s.selectedTrackKeys.has(track.uri),
+  );
   const enterSelectionMode = useMusicPlayerStore((s) => s.enterSelectionMode);
   const toggleSelectTrack = useMusicPlayerStore((s) => s.toggleSelectTrack);
+
+  const isCurrentTrack =
+    playingKey !== "" && playingKey === playbackIdentityKey(track);
+  const isNowPlaying = isCurrentTrack && isPlaying;
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsOpenRef = useRef(false);
@@ -48,18 +62,6 @@ export const TrackRow = memo(function TrackRow({ track, playlist }: TrackRowProp
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
   }, []);
 
-  const trackKey = track.uri || track.path || track.id;
-  const isSelected =
-    selectedTrackKeys.has(trackKey) ||
-    selectedTrackKeys.has(track.id) ||
-    selectedTrackKeys.has(track.uri);
-
-  const isLiked = isTrackLiked(track, likedPaths);
-  const isCurrentTrack =
-    currentTrack !== null &&
-    (currentTrack.id === track.id || currentTrack.uri === track.uri);
-  const isNowPlaying = isCurrentTrack && isPlaying;
-
   // Long-press and hold detection
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -75,7 +77,7 @@ export const TrackRow = memo(function TrackRow({ track, playlist }: TrackRowProp
         if (typeof navigator !== "undefined" && navigator.vibrate) {
           navigator.vibrate(40);
         }
-      } catch {}
+      } catch { /* best-effort: ignore */ }
       enterSelectionMode(track);
     }, 450);
   };

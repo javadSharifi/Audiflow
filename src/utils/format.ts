@@ -74,11 +74,6 @@ export function parseDurationInput(raw: string): number | null {
   return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 : null;
 }
 
-/** Clamp helper used by numeric inputs. */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
 /**
  * Parse a trim timestamp ("HH:MM:SS", "MM:SS", "SS" or decimal seconds)
  * into seconds. Unlike parseDurationInput (split duration, minutes-based),

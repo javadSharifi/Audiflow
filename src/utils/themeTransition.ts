@@ -10,8 +10,6 @@
  * runs when the API is available.
  */
 
-export const THEME_REVEAL_DURATION_MS = 300;
-
 interface ViewTransitionLike {
   readonly finished: Promise<void>;
 }

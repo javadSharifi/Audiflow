@@ -39,7 +39,7 @@ function formatClock(secs: number): string {
 
 function safeConvertFileSrc(filePath: string): string {
   try {
-    if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+    if (typeof window !== "undefined" && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
       return convertFileSrc(filePath);
     }
   } catch {
@@ -269,6 +269,7 @@ export function SetRingtoneModal({
   // 1. Resolve Audio File & Waveform Peaks
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of peaks/preview when a new track is loaded
     setPeaks(null);
     setSrcUrl(null);
 
@@ -277,7 +278,7 @@ export function SetRingtoneModal({
       if (!alive) return;
       setSrcUrl(resolvedSrc || null);
 
-      let localPath = track.path || track.uri;
+      const localPath = track.path || track.uri;
       if (localPath) {
         api
           .waveformPeaks(

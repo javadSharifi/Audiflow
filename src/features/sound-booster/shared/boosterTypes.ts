@@ -1,9 +1,10 @@
 import type { BoosterPreset, VolumeAnalysis, AbPreviewResult, AudioFormat, QualityPreset, OutputMode } from "../../../types";
+import type { TranslationKey } from "../../../i18n";
 
 export interface PresetInfo {
   id: BoosterPreset;
-  labelKey: string;
-  descKey: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
   icon: string;
   badge?: string;
   accentColor: string;

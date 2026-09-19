@@ -30,12 +30,37 @@ fn stable_hash(input: &str) -> u64 {
     hash
 }
 
+/// Album tiles render at ≤64dp; a 256px square JPEG is visually lossless
+/// for them yet ~10–40× smaller and faster to decode than the full-res
+/// embedded picture (Namida's full-size artwork cache famously grew to
+/// 2 GB on large libraries — never cache at source resolution).
+const THUMBNAIL_SIZE: u32 = 256;
+
+/// Legacy full-res extractions above this size are treated as cache
+/// misses so they are lazily re-extracted at thumbnail size on display.
+/// A 256px JPEG lands well under 100 KB; 512 KB is a generous ceiling.
+const MAX_CACHE_FILE_BYTES: u64 = 512 * 1024;
+
+#[cfg(not(target_os = "android"))]
+fn thumbnail_filter() -> String {
+    format!(
+        "scale={s}:{s}:force_original_aspect_ratio=increase,crop={s}:{s}",
+        s = THUMBNAIL_SIZE
+    )
+}
+
 #[cfg(not(target_os = "android"))]
 fn cache_file_name(cache_key: &str) -> String {
     format!("art_{:016x}.jpg", stable_hash(cache_key))
 }
 
 /// Directory holding one cached JPEG per track. Created on demand.
+///
+/// Desktop uses the OS *cache* dir (not temp): temp dirs are subject to
+/// automatic cleanup between sessions, which silently discarded every
+/// extracted cover and forced a full re-extraction on the next cold start.
+/// A legacy temp-dir copy (if present) is still accepted as a cache hit and
+/// migrated lazily, so nothing is re-extracted on upgrade.
 pub fn artwork_cache_dir() -> Option<PathBuf> {
     #[cfg(target_os = "android")]
     {
@@ -46,17 +71,32 @@ pub fn artwork_cache_dir() -> Option<PathBuf> {
     }
     #[cfg(not(target_os = "android"))]
     {
-        let dir = std::env::temp_dir().join("audio-converter-artworks");
+        let base = directories::ProjectDirs::from("com", "AudioConverter", "audio-converter")
+            .map(|p| p.cache_dir().to_path_buf())
+            .unwrap_or_else(std::env::temp_dir);
+        let dir = base.join("artworks");
         std::fs::create_dir_all(&dir).ok()?;
         Some(dir)
     }
+}
+
+/// Pre-migration cache location (temp dir). Reads accepted; new writes go
+/// to the durable cache dir.
+#[cfg(not(target_os = "android"))]
+fn legacy_artwork_cache_dir() -> Option<PathBuf> {
+    let dir = std::env::temp_dir().join("audio-converter-artworks");
+    if dir.is_dir() { Some(dir) } else { None }
 }
 
 #[cfg(not(target_os = "android"))]
 fn cached_hit(dir: &PathBuf, name: &str) -> Option<String> {
     let path = dir.join(name);
     match std::fs::metadata(&path) {
-        Ok(m) if m.is_file() && m.len() > 0 => Some(path.to_string_lossy().into_owned()),
+        // Oversized files are legacy full-res extractions: serve nothing so
+        // the caller re-extracts at thumbnail size (converges in one pass).
+        Ok(m) if m.is_file() && m.len() > 0 && m.len() <= MAX_CACHE_FILE_BYTES => {
+            Some(path.to_string_lossy().into_owned())
+        }
         _ => None,
     }
 }
@@ -93,6 +133,21 @@ pub fn get_track_artwork(path_or_uri: &str) -> Option<String> {
         if let Some(hit) = cached_hit(&dir, &name) {
             return Some(hit);
         }
+        // Lazy migration: a hit in the legacy temp cache is moved into the
+        // durable cache dir so it survives OS temp cleanup going forward.
+        if let Some(legacy_dir) = legacy_artwork_cache_dir() {
+            if let Some(legacy_hit) = cached_hit(&legacy_dir, &name) {
+                let target = dir.join(&name);
+                if std::fs::rename(&legacy_hit, &target).is_ok()
+                    || std::fs::copy(&legacy_hit, &target).is_ok()
+                {
+                    if let Some(hit) = cached_hit(&dir, &name) {
+                        return Some(hit);
+                    }
+                }
+                return Some(legacy_hit);
+            }
+        }
 
         let local_path = if let Some(stripped) = path_or_uri.strip_prefix("file://") {
             crate::music_library::percent_encoding_decode(stripped)
@@ -121,6 +176,8 @@ pub fn get_track_artwork(path_or_uri: &str) -> Option<String> {
                 "1",
                 "-q:v",
                 "4",
+                "-vf",
+                &thumbnail_filter(),
                 &out_str,
             ])
             .status()
@@ -175,6 +232,31 @@ mod tests {
         assert_eq!(
             get_track_artwork("file:///definitely/not/here/song.mp3"),
             None
+        );
+    }
+
+    #[test]
+    fn thumbnail_filter_produces_square_256() {
+        // The extraction must downscale: full-res embedded art made caches
+        // grow enormous and slowed WebView decode for ≤64dp tiles.
+        assert_eq!(
+            thumbnail_filter(),
+            "scale=256:256:force_original_aspect_ratio=increase,crop=256:256"
+        );
+    }
+
+    #[test]
+    fn desktop_cache_dir_is_durable_and_not_os_temp() {
+        // The artwork cache must live in the OS cache dir, not the temp dir —
+        // temp is auto-cleaned between sessions, which silently discarded
+        // every extracted cover on the next cold start.
+        let dir = artwork_cache_dir().expect("cache dir must resolve");
+        let temp = std::env::temp_dir();
+        assert!(
+            !dir.starts_with(&temp),
+            "artwork cache dir {:?} must not live under temp {:?}",
+            dir,
+            temp
         );
     }
 }

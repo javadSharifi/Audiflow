@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BOOT_PREFS_KEY, readBootPrefs, writeBootPrefs } from "./bootPrefs";
+import {
+  BOOT_PREFS_KEY,
+  FIRST_RUN_DONE_KEY,
+  REDUCED_BLUR_KEY,
+  TRACKS_CACHE_KEY,
+  checkAndGrandfatherFirstRun,
+  isFirstRunDone,
+  markFirstRunDone,
+  readBootPrefs,
+  writeBootPrefs,
+} from "./bootPrefs";
 
 // In-memory localStorage mock (same pattern as HeaderBar.test.tsx).
 const storageMock = (() => {
@@ -43,5 +53,40 @@ describe("bootPrefs", () => {
     expect(readBootPrefs()).toBeNull();
     localStorage.setItem(BOOT_PREFS_KEY, JSON.stringify({ language: "de", theme: "dark" }));
     expect(readBootPrefs()).toBeNull();
+  });
+
+  describe("checkAndGrandfatherFirstRun", () => {
+    it("returns false on clean slate (fresh install)", () => {
+      expect(checkAndGrandfatherFirstRun()).toBe(false);
+      expect(isFirstRunDone()).toBe(false);
+    });
+
+    it("returns true when first run is already marked done", () => {
+      markFirstRunDone();
+      expect(localStorage.getItem(FIRST_RUN_DONE_KEY)).toBe("1");
+      expect(checkAndGrandfatherFirstRun()).toBe(true);
+      expect(isFirstRunDone()).toBe(true);
+    });
+
+    it("grandfathers when ac:ui-prefs is present without first-run flag", () => {
+      localStorage.setItem(BOOT_PREFS_KEY, JSON.stringify({ language: "en", theme: "dark" }));
+      expect(checkAndGrandfatherFirstRun()).toBe(true);
+      expect(isFirstRunDone()).toBe(true);
+    });
+
+    it("grandfathers when ac:reduced-blur is present without first-run flag", () => {
+      localStorage.setItem(REDUCED_BLUR_KEY, "1");
+      expect(checkAndGrandfatherFirstRun()).toBe(true);
+      expect(isFirstRunDone()).toBe(true);
+    });
+
+    it("grandfathers when cached tracks exist without first-run flag", () => {
+      localStorage.setItem(
+        TRACKS_CACHE_KEY,
+        JSON.stringify([{ id: "t1", uri: "file:///music/t1.mp3" }]),
+      );
+      expect(checkAndGrandfatherFirstRun()).toBe(true);
+      expect(isFirstRunDone()).toBe(true);
+    });
   });
 });

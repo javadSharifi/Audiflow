@@ -18,7 +18,7 @@ export function loadLikedPaths(): Set<string> {
         }
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return new Set();
 }
 
@@ -27,7 +27,7 @@ export function persistLikedPaths(set: Set<string>) {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(Array.from(set)));
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 export function loadSavedSort(): MusicSortOption {
@@ -38,7 +38,7 @@ export function loadSavedSort(): MusicSortOption {
         return saved;
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return "newest";
 }
 
@@ -47,7 +47,7 @@ export function persistSavedSort(sort: MusicSortOption) {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(SORT_STORAGE_KEY, sort);
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 export function loadCustomFolders(): string[] {
@@ -59,7 +59,7 @@ export function loadCustomFolders(): string[] {
         if (Array.isArray(arr)) return arr;
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return [];
 }
 
@@ -68,7 +68,7 @@ export function persistCustomFolders(folders: string[]) {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders));
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 export function loadCustomAlbums(): CustomAlbum[] {
@@ -80,7 +80,7 @@ export function loadCustomAlbums(): CustomAlbum[] {
         if (Array.isArray(arr)) return arr;
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return [];
 }
 
@@ -89,7 +89,7 @@ export function persistCustomAlbums(albums: CustomAlbum[]) {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(ALBUMS_STORAGE_KEY, JSON.stringify(albums));
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 /** Instantly-available snapshot of the last successful library scan. */
@@ -110,7 +110,7 @@ export function loadCachedTracks(): AudioTrackInfo[] {
         }
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return [];
 }
 
@@ -127,7 +127,7 @@ export function persistCachedTracks(tracks: AudioTrackInfo[]) {
         const slim = tracks.slice(0, 1000);
         localStorage.setItem(TRACKS_CACHE_KEY, JSON.stringify(slim));
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
 }
 
@@ -144,7 +144,7 @@ export function loadSavedBoosterGain(): number {
         }
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return 100;
 }
 
@@ -153,5 +153,5 @@ export function persistSavedBoosterGain(gain: number): void {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(BOOSTER_GAIN_KEY, String(gain));
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }

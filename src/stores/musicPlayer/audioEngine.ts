@@ -5,6 +5,7 @@ import { initMediaSession, syncMediaSession } from "../../utils/mediaSession";
 import type { AudioTrackInfo } from "../../types";
 import type { useMusicPlayerStore } from "../useMusicPlayerStore";
 import { createAdvanceGuard, clearUnplayable, trackKey } from "./autoAdvance";
+import { playbackIdentityKey } from "./trackUtils";
 
 type MusicStore = typeof useMusicPlayerStore;
 
@@ -68,7 +69,7 @@ function ensureAudioGraph(): GainNode | null {
     if (!audio.getAttribute("crossorigin")) {
       try {
         audio.crossOrigin = "anonymous";
-      } catch {}
+      } catch { /* best-effort: ignore */ }
     }
     const AudioCtx =
       window.AudioContext ||
@@ -93,7 +94,7 @@ function ensureAudioGraph(): GainNode | null {
     // Keep element volume at max — loudness is driven by the GainNode.
     try {
       audio.volume = 1;
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   } catch (e) {
     // createMediaElementSource throws if the element is already bound
     // (e.g. HMR re-init). Don't retry forever; fall back to element volume.
@@ -116,33 +117,41 @@ export function getGlobalGainNode(): GainNode | null {
 }
 
 /**
- * Convert a 0-400% boost level to a LoudnessEnhancer target gain in dB.
- * 100% (and anything below) is 0 dB — plain volume covers that range;
- * 200% ~= +6 dB, 400% ~= +12 dB. Pure so it stays unit-testable.
+ * Convert a 0-400% boost level to a LoudnessEnhancer target gain in millibels (mB).
+ * 100% (and anything below) is 0 mB — plain volume covers that range;
+ * 101-400% maps aggressively up to 8000 mB (+80 dB nominal) matching competitor apps.
+ */
+export function boosterMbForPercent(percent: number): number {
+  if (percent <= 100) return 0;
+  const clamped = Math.min(400, Math.max(100, percent));
+  const fraction = (clamped - 100) / 300;
+  return Math.round(fraction * 8000);
+}
+
+/**
+ * Convert a 0-400% boost level to nominal dB (1 dB = 100 mB).
+ * 100% = 0.0 dB, 200% = +26.7 dB, 400% = +80.0 dB.
  */
 export function boosterDbForPercent(percent: number): number {
-  const fraction = Math.max(1, Math.min(4, percent / 100));
-  if (fraction <= 1) return 0;
-  return 20 * Math.log10(fraction);
+  const mb = boosterMbForPercent(percent);
+  return mb / 100;
 }
 
 /** Apply a 0-400% boost level to the live graph (with volume fallback). */
 export function applyGainPercent(percent: number): void {
   const clamped = Math.max(0, Math.min(400, percent));
   if (isAndroid()) {
-    // 0-100% rides native volume fraction; >100% rides BoostEngine via ONE
-    // dB-honest gain call (003-volume-boost-accuracy: the former parallel
-    // linear-mB call overwrote this one on every tick).
+    // 0-100% rides native volume fraction; >100% rides BoostEngine via
+    // aggressive 0..8000 mB LoudnessEnhancer target gain (008-real-volume-boost-400).
     try {
       if (clamped > 100) {
         void api.androidPlayerSetVolume(1).catch(() => {});
-        void api.androidPlayerSetBoosterGain(boosterDbForPercent(clamped)).catch(() => {});
+        void api.androidPlayerSetBoosterGainMb(boosterMbForPercent(clamped)).catch(() => {});
       } else {
         void api.androidPlayerSetBoosterGainMb(0).catch(() => {});
-        void api.androidPlayerSetBoosterGain(0).catch(() => {});
         void api.androidPlayerSetVolume(Math.max(0, Math.min(1, clamped / 100))).catch(() => {});
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     return;
   }
   const audio = getGlobalAudio();
@@ -165,14 +174,14 @@ export function applyGainPercent(percent: number): void {
         audio.muted = clamped === 0 ? true : false;
         if (clamped === 0) node.gain.value = 0;
         else if (audio.muted) audio.muted = false;
-      } catch {}
+      } catch { /* best-effort: ignore */ }
     }
   } else if (audio) {
     // WebAudio unavailable — best-effort fallback so sound never goes silent.
     try {
       audio.muted = false;
       audio.volume = Math.max(0, Math.min(1, clamped / 100));
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
   if (globalAudioContext && globalAudioContext.state === "suspended") {
     void globalAudioContext.resume().catch(() => {});
@@ -188,7 +197,7 @@ export function getGlobalAudio(): HTMLAudioElement | null {
       // Must be set before any src assignment for WebAudio CORS to work.
       globalAudio.crossOrigin = "anonymous";
       globalAudio.volume = 1;
-    } catch {}
+    } catch { /* best-effort: ignore */ }
 
     const state = () => boundStore?.getState();
 
@@ -210,10 +219,22 @@ export function getGlobalAudio(): HTMLAudioElement | null {
           ? globalAudio.duration
           : 0;
 
-      boundStore?.setState({
-        currentTime: cur,
-        duration: dur,
-      });
+      // Coarse 1-second quantization (same rationale as
+      // applyNativeStateToStore): subscribers render whole seconds, so
+      // sub-second store writes are pure re-render waste.
+      const prev = boundStore?.getState();
+      if (!prev) return;
+      const patch: { currentTime?: number; duration?: number } = {};
+      const quantizedCur = Math.floor(cur);
+      if (Math.floor(prev.currentTime) !== quantizedCur) {
+        patch.currentTime = quantizedCur;
+      }
+      if (Math.abs(prev.duration - dur) > 0.5) {
+        patch.duration = dur;
+      }
+      if (patch.currentTime !== undefined || patch.duration !== undefined) {
+        boundStore?.setState(patch);
+      }
 
       const s = state();
       if (!s) return;
@@ -263,7 +284,7 @@ export function getGlobalAudio(): HTMLAudioElement | null {
       try {
         const cur = boundStore?.getState().currentTrack;
         if (cur) clearUnplayable(trackKey(cur));
-      } catch {}
+      } catch { /* best-effort: ignore */ }
       boundStore?.setState({ isPlaying: true });
       const s = state();
       if (!s) return;
@@ -346,18 +367,20 @@ export function startSmoothTime(): void {
       if (!s.isPlaying) return;
       const t = smoothAnchorSecs + (Date.now() - smoothAnchorAt) / 1000;
       const capped = s.duration > 0 ? Math.min(t, s.duration) : t;
-      if (capped - s.currentTime > 0.05) {
-        boundStore.setState({ currentTime: capped });
+      // Whole-second store writes only (seekbar renders MM:SS).
+      const quantized = Math.floor(capped);
+      if (Math.floor(s.currentTime) !== quantized) {
+        boundStore.setState({ currentTime: quantized });
       }
-    } catch {}
-  }, 500);
+    } catch { /* best-effort: ignore */ }
+  }, 250);
 }
 
 export function stopSmoothTime(): void {
   if (smoothTimer) {
     try {
       clearInterval(smoothTimer);
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     smoothTimer = null;
   }
 }
@@ -380,8 +403,15 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
   const seekSettled =
     Date.now() - lastUserSeekAt >= SEEK_SETTLE_MS ||
     curSecs >= lastUserSeekTargetSecs - 0.3;
-  if (seekSettled && Math.abs(currentStoreState.currentTime - curSecs) > 0.3) {
-    patch.currentTime = curSecs;
+  // Coarse 1-second quantization: the MiniPlayer/NowPlaying seekbar displays
+  // whole seconds, so sub-second deltas would only re-render subscribers
+  // without ever changing a visible pixel.
+  const quantizedSecs = Math.floor(curSecs);
+  if (
+    seekSettled &&
+    Math.floor(currentStoreState.currentTime) !== quantizedSecs
+  ) {
+    patch.currentTime = quantizedSecs;
   }
   // Re-anchor the smooth ticker on every settled snapshot so local
   // progression never drifts; while a seek is landing the anchor keeps
@@ -406,7 +436,7 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
     } else if (typeof rawTrack === "string" && rawTrack.length > 2) {
       try {
         nativeTrack = JSON.parse(rawTrack) as AudioTrackInfo;
-      } catch {}
+      } catch { /* best-effort: ignore */ }
     }
     if (nativeTrack && (nativeTrack.id || nativeTrack.uri)) {
       const nt: AudioTrackInfo = nativeTrack;
@@ -436,12 +466,13 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
           durationSecs: (nt.durationSecs ?? durSecs) || durSecs,
         };
         patch.currentTrack = adopted as AudioTrackInfo;
+        patch.playingKey = playbackIdentityKey(adopted);
         patch.currentTime = 0;
         if (durSecs > 0) patch.duration = durSecs;
         else if (matched?.durationSecs) patch.duration = matched.durationSecs;
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 
   // Keep repeat/shuffle/rate consistent when changed from system UI
   // (notification, lock screen, Bluetooth) instead of our buttons.
@@ -457,7 +488,7 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
     if (typeof rate === "number" && Number.isFinite(rate) && Math.abs(currentStoreState.playbackRate - rate) > 0.01) {
       patch.playbackRate = Math.max(0.25, Math.min(4.0, rate));
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 
   // Surface native decoder/source failures instead of a silent freeze.
   // Cleared natively on transition/fresh play (see PlaybackService).
@@ -467,7 +498,7 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
       const errMsg = typeof state.errorMessage === "string" ? (state.errorMessage as string) : "";
       console.warn(`Android player error ${errCode}: ${errMsg}`);
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 
   if (Object.keys(patch).length > 0) {
     boundStore.setState(patch);
@@ -521,7 +552,7 @@ function startAndroidStateSync(): void {
     };
     document.removeEventListener("visibilitychange", onVisible);
     document.addEventListener("visibilitychange", onVisible);
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 function stopAndroidStateSync(): void {
@@ -574,15 +605,15 @@ async function playViaWebAudio(track: AudioTrackInfo): Promise<void> {
   if (globalAudioContext && globalAudioContext.state === "suspended") {
     try {
       await globalAudioContext.resume();
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
 
   try {
     audio.pause();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   try {
     audio.currentTime = 0;
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   // Re-apply the stored boost + speed on every fresh src.
   try {
     const s = boundStore?.getState();
@@ -592,7 +623,7 @@ async function playViaWebAudio(track: AudioTrackInfo): Promise<void> {
     } else {
       audio.volume = 1;
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 
   try {
     const src = await resolveAudioSource(track);
@@ -632,7 +663,7 @@ export async function unifiedPause(): Promise<void> {
   if (audio) {
     try {
       audio.pause();
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
 }
 
@@ -652,7 +683,7 @@ export async function unifiedResume(): Promise<void> {
   if (globalAudioContext && globalAudioContext.state === "suspended") {
     try {
       await globalAudioContext.resume();
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
   const audio = getGlobalAudio();
   if (audio && audio.src) {
@@ -661,7 +692,7 @@ export async function unifiedResume(): Promise<void> {
       if (p && typeof p.catch === "function") {
         p.catch((err) => console.warn("WebAudio resume error:", err));
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
 }
 
@@ -682,7 +713,7 @@ export async function unifiedSeekTo(timeSecs: number): Promise<void> {
       if (Number.isFinite(timeSecs) && boundStore) {
         boundStore.setState({ currentTime: Math.max(0, timeSecs) });
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     return;
   }
   const audio = getGlobalAudio();
@@ -748,21 +779,6 @@ export async function unifiedSetSpeed(speed: number): Promise<void> {
   }
 }
 
-export async function unifiedSetVolume(volume01: number): Promise<void> {
-  if (isAndroid()) {
-    try {
-      await api.androidPlayerSetVolume(volume01);
-    } catch (err) {
-      console.warn("Android native setVolume failed:", err);
-    }
-    return;
-  }
-  // Desktop: loudness rides the WebAudio GainNode (0-400%).
-  try {
-    applyGainPercent(Math.max(0, Math.min(400, volume01 * 100)));
-  } catch {}
-}
-
 /**
  * Publish an explicit stopped state to the system media session after the
  * queue is spent (or every candidate failed). The element fires no further
@@ -795,7 +811,7 @@ export async function unifiedStop(): Promise<void> {  stopAndroidStateSync();
     try {
       audio.pause();
       audio.src = "";
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
 }
 

@@ -51,6 +51,7 @@ export function WizardResultList({ lang }: { lang: Lang }): React.JSX.Element {
   useEffect(() => {
     const paths = okOutputs.map((o) => o.outputPath);
     if (paths.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when there is nothing to stat
       setSizes({});
       return;
     }

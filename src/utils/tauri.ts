@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands } from "../types/generated";
-import type { AppSettings, ConversionOptions, FileMeta, QueueItem, TrimSpec } from "../types";
+import type { AppSettings, ConversionOptions, FileMeta, TrimSpec } from "../types";
 import type { ResolvedMediaPath, StatMediaPath } from "../types/generated";
 
 function formatAppError(err: unknown): string {
@@ -34,15 +34,6 @@ export async function resolveMediaPaths(paths: string[]): Promise<ResolvedMediaP
  */
 export async function statMediaPaths(paths: string[]): Promise<StatMediaPath[]> {
   return commands.statMediaPaths(paths);
-}
-
-/** Whether required media permissions are granted (always true on desktop). */
-export async function hasMediaPermissions(): Promise<boolean> {
-  try {
-    return await commands.hasMediaPermissions();
-  } catch {
-    return true;
-  }
 }
 
 /** Trigger the Android runtime permission dialog (no-op on desktop). */
@@ -104,16 +95,8 @@ export async function cancelAll(): Promise<void> {
   await commands.cancelAllJobs();
 }
 
-export async function cancelAllJobs(): Promise<void> {
-  await commands.cancelAllJobs();
-}
-
 export async function clearFinished(): Promise<void> {
   await commands.clearFinished();
-}
-
-export async function getQueue(): Promise<QueueItem[]> {
-  return commands.getQueue();
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -131,26 +114,6 @@ export async function logFrontend(level: "INFO" | "WARN" | "ERROR", msg: string)
   await commands.logFrontend(level, msg).catch(() => {});
 }
 
-export async function diskFree(path: string): Promise<number> {
-  const res = await commands.diskFree(path);
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data.free_bytes;
-}
-
-export async function analyzeAudioVolume(
-  path: string,
-  startSecs: number | null = null,
-  durationSecs: number | null = null,
-): Promise<import("../types").VolumeAnalysis> {
-  const res = await commands.analyzeAudioVolume(path, startSecs, durationSecs);
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
 export async function generateAbPreview(
   path: string,
   preset: import("../types").BoosterPreset,
@@ -165,18 +128,6 @@ export async function generateAbPreview(
     startTimeSecs,
     durationSecs,
   );
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
-export async function startSoundBoost(
-  items: import("../types").BoosterJobSpec[],
-  options: ConversionOptions,
-  concurrency?: number,
-): Promise<string[]> {
-  const res = await commands.startSoundBoost(items, options, concurrency ?? null);
   if (res.status === "error") {
     throw new Error(formatAppError(res.error));
   }
@@ -362,46 +313,6 @@ export async function androidPlayerSetBoosterGainMb(gainMb: number): Promise<str
   return res.data;
 }
 
-export async function androidPlayerGetBoosterGainMb(): Promise<number> {
-  const res = await commands.androidPlayerGetBoosterGainMb();
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
-export async function androidGetStreamVolume(): Promise<number> {
-  const res = await commands.androidGetStreamVolume();
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
-export async function androidGetStreamMaxVolume(): Promise<number> {
-  const res = await commands.androidGetStreamMaxVolume();
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
-export async function androidSetStreamVolume(volume: number, showUi = false): Promise<string> {
-  const res = await commands.androidSetStreamVolume(Math.round(volume), showUi);
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
-export async function androidApplyReduceHurt(): Promise<string> {
-  const res = await commands.androidApplyReduceHurt();
-  if (res.status === "error") {
-    throw new Error(formatAppError(res.error));
-  }
-  return res.data;
-}
-
 export async function androidPlayerStop(): Promise<string> {
   const res = await commands.androidPlayerStop();
   if (res.status === "error") {
@@ -453,127 +364,6 @@ export async function exitApp(): Promise<void> {
     await commands.exitApp();
   } catch (e) {
     console.warn("exitApp failed:", e);
-  }
-}
-
-// --- Transcribe Studio (Gemini cloud transcription) ---------------------------
-
-import type {
-  AppError,
-  GeminiErrorKind,
-  TranscriptionJob,
-  TranscriptionRequestConfig,
-  UsageStats,
-} from "../types/generated";
-
-/**
- * Error carrying the structured backend failure. `geminiKind` is set for
- * classified Gemini failures (drives the exact translated ErrorBanner copy);
- * plain backend/transport failures surface via `message`.
- */
-export class GeminiApiError extends Error {
-  readonly geminiKind: GeminiErrorKind | null;
-  constructor(readonly appError: AppError | unknown) {
-    super(formatAppError(appError));
-    const ae = appError as { kind?: unknown; message?: unknown } | null;
-    this.geminiKind =
-      typeof ae === "object" && ae !== null && ae.kind === "Gemini"
-        ? (ae.message as GeminiErrorKind)
-        : null;
-  }
-}
-
-function throwGemini(err: unknown): never {
-  if (err instanceof GeminiApiError) throw err;
-  throw new GeminiApiError(err);
-}
-
-/** Structured Gemini kind from any transcribe-call failure (null = plain error). */
-export function geminiKindOf(err: unknown): GeminiErrorKind | null {
-  if (err instanceof GeminiApiError) return err.geminiKind;
-  return null;
-}
-
-export async function saveGeminiApiKey(key: string): Promise<void> {
-  try {
-    const res = await commands.saveGeminiApiKey(key);
-    if (res.status === "error") throw new GeminiApiError(res.error);
-  } catch (err) {
-    throwGemini(err);
-  }
-}
-
-export async function validateGeminiApiKey(key: string): Promise<boolean> {
-  try {
-    const res = await commands.validateGeminiApiKey(key);
-    if (res.status === "error") throw new GeminiApiError(res.error);
-    return res.data;
-  } catch (err) {
-    throwGemini(err);
-  }
-}
-
-export async function hasGeminiApiKey(): Promise<boolean> {
-  try {
-    return await commands.hasGeminiApiKey();
-  } catch {
-    return false;
-  }
-}
-
-export async function clearGeminiApiKey(): Promise<void> {
-  try {
-    const res = await commands.clearGeminiApiKey();
-    if (res.status === "error") throw new GeminiApiError(res.error);
-  } catch (err) {
-    throwGemini(err);
-  }
-}
-
-export async function startTranscription(
-  filePath: string,
-  config: TranscriptionRequestConfig,
-): Promise<string> {
-  try {
-    const res = await commands.startTranscription(filePath, config);
-    if (res.status === "error") throw new GeminiApiError(res.error);
-    return res.data;
-  } catch (err) {
-    throwGemini(err);
-  }
-}
-
-export async function cancelTranscription(jobId: string): Promise<void> {
-  await commands.cancelTranscription(jobId).catch(() => {});
-}
-
-export async function getTranscriptionQueue(): Promise<TranscriptionJob[]> {
-  try {
-    return await commands.getTranscriptionQueue();
-  } catch {
-    return [];
-  }
-}
-
-export async function clearFinishedTranscriptions(): Promise<void> {
-  await commands.clearFinishedTranscriptions().catch(() => {});
-}
-
-export async function getUsageStats(): Promise<UsageStats | null> {
-  try {
-    return await commands.getUsageStats();
-  } catch {
-    return null;
-  }
-}
-
-export async function exportTranscript(jobId: string, format: "txt" | "srt" | "vtt"): Promise<string> {
-  try {
-    const res = await commands.exportTranscript(jobId, format);
-    if (res.status === "error") throw new GeminiApiError(res.error);
-    return res.data;
-  } catch (err) {
-    throwGemini(err);
   }
 }
 

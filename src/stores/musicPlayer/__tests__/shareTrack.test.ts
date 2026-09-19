@@ -45,13 +45,13 @@ function stubNavigatorShare(impl?: (...args: never[]) => Promise<void>) {
       configurable: true,
       writable: true,
     });
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 function unstubNavigatorShare() {
   try {
     delete (window.navigator as unknown as Record<string, unknown>)["share"];
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 beforeEach(() => {

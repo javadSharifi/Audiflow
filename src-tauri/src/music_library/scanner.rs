@@ -62,8 +62,9 @@ pub fn scan_local_directory(
     max_depth: usize,
     results: &mut Vec<AudioTrackInfo>,
     max_results: usize,
+    memo: &mut super::ScanResultMemo,
 ) {
-    scan_recursive(dir, 0, max_depth, results, max_results);
+    scan_recursive(dir, 0, max_depth, results, max_results, memo);
 }
 
 fn scan_recursive(
@@ -72,6 +73,7 @@ fn scan_recursive(
     max_depth: usize,
     results: &mut Vec<AudioTrackInfo>,
     max_results: usize,
+    memo: &mut super::ScanResultMemo,
 ) {
     if depth > max_depth || results.len() >= max_results {
         return;
@@ -106,7 +108,7 @@ fn scan_recursive(
         }
 
         if path.is_dir() {
-            scan_recursive(&path, depth + 1, max_depth, results, max_results);
+            scan_recursive(&path, depth + 1, max_depth, results, max_results, memo);
         } else if path.is_file() {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                 if is_audio_ext(ext) {
@@ -118,6 +120,18 @@ fn scan_recursive(
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| d.as_millis() as u64)
                         .unwrap_or(0);
+
+                    memo.note_bytes(size_bytes);
+                    let path_key = path.to_string_lossy().into_owned();
+
+                    // Incremental memo: unchanged files reuse the previous
+                    // record verbatim — no cover lookup, no parsing.
+                    if let Some(reused) =
+                        memo.reuse_if_unchanged(&path_key, size_bytes, modified_timestamp_ms)
+                    {
+                        results.push(reused);
+                        continue;
+                    }
                     let created_timestamp_ms = entry
                         .metadata()
                         .and_then(|m| m.created())
@@ -143,7 +157,7 @@ fn scan_recursive(
                     let ext_lower = ext.to_ascii_lowercase();
                     let cover_url = find_local_cover_image(&path);
 
-                    results.push(AudioTrackInfo {
+                    let track = AudioTrackInfo {
                         id: format!("local_{}", path_str),
                         uri,
                         path: Some(path_str),
@@ -158,7 +172,10 @@ fn scan_recursive(
                         format: ext_lower.clone(),
                         mime_type: mime_for_ext(&ext_lower),
                         cover_url,
-                    });
+                    };
+                    // Fresh parse — remember it for the next scan's memo.
+                    memo.remember(path_key, &track);
+                    results.push(track);
                 }
             }
         }

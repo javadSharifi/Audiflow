@@ -1,6 +1,6 @@
 # Reference — frontend-features
 
-Domain: Sound Booster + Transcribe Studio UI. Part of `PROJECT_GRAPH.md` domain-split map.
+Domain: Sound Booster UI. Part of `PROJECT_GRAPH.md` domain-split map.
 
 ## Files
 
@@ -8,11 +8,10 @@ Domain: Sound Booster + Transcribe Studio UI. Part of `PROJECT_GRAPH.md` domain-
 | ---- | ------- |
 | `src/features/sound-booster/file-booster/ABPreview.tsx` | Original/boosted A/B player + visualizer; exports `ABPreview`. |
 | `src/features/sound-booster/file-booster/FileBoosterInline.tsx` | Per-converter-file inline booster; exports `FileBoosterInline`. |
-| `src/features/sound-booster/file-booster/FileBoosterPage.tsx` | Thin 4-section composition shell (upload/configs/progress/result); exports `FileBoosterPage`. DEAD CODE in converter (kept unmounted; booster feature unused). |
 | `src/components/SectionShell.tsx` | Numbered section wrapper (badge + title + data-state); shared by booster + converter sections; exports `SectionShell`. |
 | `src/components/converter-wizard/WizardResultList.tsx` | Result list: all outputs (name/format/size) + error rows + folder banner, no actions/preview; exports `WizardResultList`. |
 | `src/components/converter-wizard/ConverterWizard.tsx` | Converter 4-step wizard shell (step state, guided nav, auto-advance 3→4); exports `ConverterWizard`. |
-| `src/components/converter-wizard/WizardStepper.tsx` | Clickable 4-dot stepper (visited steps 1-2 only, locked while busy); exports `WizardStepper`, `WizardStep`. |
+| `src/components/converter-wizard/WizardStepper.tsx` | Type-only module; exports `WizardStep` (component removed 2026-09: never rendered, test asserts absence). |
 | `src/components/converter-wizard/WizardUploadStep.tsx` | Wizard step 1: DropZone/FileList + capability cards + next CTA; exports `WizardUploadStep`. |
 | `src/components/converter-wizard/WizardConfigsStep.tsx` | Wizard step 2: OptionsPanel + back/convert CTAs; exports `WizardConfigsStep`, `useConvertDisabled`. |
 | `src/components/converter-wizard/WizardProgressStep.tsx` | Wizard step 3: SVG percent ring + current file + JobsPanel bare; exports `WizardProgressStep`. |
@@ -29,23 +28,7 @@ Domain: Sound Booster + Transcribe Studio UI. Part of `PROJECT_GRAPH.md` domain-
 | `src/features/sound-booster/file-booster/__tests__/ConfigsSection.test.tsx` | Vitest for section 2 disabled/ready/locked states. |
 | `src/features/sound-booster/file-booster/__tests__/ProgressSection.test.tsx` | Vitest for section 3 idle/running/error states. |
 | `src/features/sound-booster/file-booster/__tests__/ResultSection.test.tsx` | Vitest for section 4 empty/done/actions + mime helper. |
-| `src/features/sound-booster/file-booster/hooks/useFileBooster.ts` | Page hook pick/analyze/preview/export + events; exports `useFileBooster`. |
 | `src/features/sound-booster/shared/boosterTypes.ts` | Preset catalog + file-booster state types; exports `BOOSTER_PRESETS`, `FileBoosterState`. |
 | `src/features/sound-booster/stores/__tests__/useFileBoosterStore.test.ts` | Vitest for booster store defaults/reset. |
 | `src/features/sound-booster/stores/useFileBoosterStore.ts` | Zustand file/preset/preview/export state; exports `useFileBoosterStore`. |
-| `src/features/transcribe/CustomVocabularyInput.tsx` | Custom vocab input capped 100 terms; exports `CustomVocabularyInput`. |
-| `src/features/transcribe/DiarizationToggle.tsx` | Speaker-diarization switch; exports `DiarizationToggle`, `Switch`. |
-| `src/features/transcribe/ErrorBanner.tsx` | Localized Gemini error banner + tech toggle; exports `ErrorBanner`. |
-| `src/features/transcribe/FastModeToggle.tsx` | Fast-mode switch; exports `FastModeToggle`. |
-| `src/features/transcribe/LanguageSelect.tsx` | Transcription language dropdown; exports `LanguageSelect`. |
-| `src/features/transcribe/ModeToggle.tsx` | Verbatim/smart segmented control; exports `ModeToggle`. |
-| `src/features/transcribe/OnboardingCard.tsx` | Gemini API-key onboarding + verify; exports `OnboardingCard`. |
-| `src/features/transcribe/TimestampToggle.tsx` | Word-timestamps switch; exports `TimestampToggle`. |
-| `src/features/transcribe/TranscribeConsentSheet.tsx` | Upload-consent bottom sheet; exports `TranscribeConsentSheet`. |
-| `src/features/transcribe/TranscribePage.tsx` | Transcribe flow key-gate/options/result/usage; exports `TranscribePage`. |
-| `src/features/transcribe/TranscriptResultView.tsx` | Transcript display + copy/export; exports `TranscriptResultView`. |
-| `src/features/transcribe/UsageDashboard.tsx` | Daily-minutes + quota dashboard; exports `UsageDashboard`. |
-| `src/features/transcribe/hooks/useTranscribe.ts` | Orchestration key/usage/pick/events/export; exports `useTranscribe`. |
-| `src/features/transcribe/stores/__tests__/useTranscribeStore.test.ts` | Vitest for fast-mode coupling/vocab cap/reset. |
-| `src/features/transcribe/stores/useTranscribeStore.ts` | Zustand options/job/result/usage; exports `useTranscribeStore`. |
 

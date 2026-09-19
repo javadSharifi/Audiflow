@@ -14,7 +14,7 @@ function getInitialActiveTool(): AppTool {
         return stored;
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return "player";
 }
 
@@ -26,7 +26,7 @@ function getInitialReducedBlur(): boolean {
         return stored === "1";
       }
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   return isAndroid();
 }
 
@@ -82,7 +82,7 @@ export const createSettingsSlice: StateCreator<
       if (typeof localStorage !== "undefined") {
         localStorage.setItem("active-tool", tool);
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     set({ activeTool: tool });
   },
 
@@ -91,7 +91,7 @@ export const createSettingsSlice: StateCreator<
       if (typeof localStorage !== "undefined") {
         localStorage.setItem("ac:reduced-blur", enabled ? "1" : "0");
       }
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     set({ reducedBlur: enabled });
   },
 
@@ -107,13 +107,22 @@ export const createSettingsSlice: StateCreator<
       isAndroid() && settings.defaultOutputMode === "custom_folder"
         ? "same_as_source"
         : settings.defaultOutputMode;
+
+    // Constraint per data-model.md:
+    // "auto-open-output-folder coerced to false on settings load, with the correction persisted when a stored true is found (one-time self-healing migration)"
+    let coercedSettings = settings;
+    if (settings.autoOpenOutputFolder) {
+      coercedSettings = { ...settings, autoOpenOutputFolder: false };
+      void api.saveSettings(coercedSettings).catch(() => {});
+    }
+
     // Mirror to the sync boot cache so the next cold start paints the
     // correct dir/theme before React even mounts (no LTR flash).
-    writeBootPrefs({ language: settings.language, theme: settings.theme });
+    writeBootPrefs({ language: coercedSettings.language, theme: coercedSettings.theme });
     set({
-      settings,
-      lang: settings.language,
-      theme: settings.theme,
+      settings: coercedSettings,
+      lang: coercedSettings.language,
+      theme: coercedSettings.theme,
       options: {
         ...get().options,
         format: settings.defaultFormat,

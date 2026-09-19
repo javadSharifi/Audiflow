@@ -68,8 +68,17 @@ export const commands = {
 	/**
 	 *  Scan system audio files across platforms (MediaStore on Android, standard music/user directories on desktop).
 	 *  Sorted by default by latest date added (created/modified timestamp descending).
+	 * 
+	 *  Incremental rescans: unchanged files (same path, size, mtime) reuse the
+	 *  previous scan's track record from a durable cache — only new/changed
+	 *  files are stat'ed and parsed.
 	 */
 	scanAudioFiles: (customDirs: string[] | null) => __TAURI_INVOKE<AudioTrackInfo[]>("scan_audio_files", { customDirs }),
+	/**
+	 *  Statistics from the last native library scan (walk cost vs reuse rate).
+	 *  Diagnostic companion for the frontend boot-pref timeline.
+	 */
+	scanResultCacheStats: () => __TAURI_INVOKE<ScanResultCacheStats>("scan_result_cache_stats"),
 	/**  Check music permission status across platforms. */
 	getMusicPermissionStatus: () => __TAURI_INVOKE<LibraryPermissionStatus>("get_music_permission_status"),
 	/**  Delete audio track from the device library. */
@@ -323,6 +332,22 @@ export type ResolvedMediaPath = {
 	input: string,
 	resolved: string,
 	error: string | null,
+};
+
+/**
+ *  Diagnostics for the last native scan (IPC-exported).
+ * 
+ *  All counters are u32 on the wire: specta forbids u64 (BigInt precision
+ *  loss in JS). A library would need 4 billion files to overflow — the scan
+ *  itself caps at 5000 records per root.
+ */
+export type ScanResultCacheStats = {
+	walkedFiles: number,
+	scannedFiles: number,
+	reusedFiles: number,
+	bytesRead: number,
+	trackRecords: number,
+	scanMillis: number,
 };
 
 export type Settings = {

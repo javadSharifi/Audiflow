@@ -1,10 +1,10 @@
 # Project Graph
 
-_Last updated: 2026-09-16_
+_Last updated: 2026-09-19_
 
 ## Architecture overview
 
-Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
+Audiflow (audio-converter v1.5.0) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
 
 ## Folder structure
 
@@ -13,7 +13,6 @@ Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React 19 + Rust 
 | `src/` | React 19 SPA (Tailwind v4, Zustand 5); never invokes ffmpeg/raw `invoke` |
 | `src/components/` | Converter presentation + `music-player/` library UI |
 | `src/features/sound-booster/` | File booster UI + store |
-| `src/features/transcribe/` | Transcribe Studio UI (opt-in Gemini) + store |
 | `src/stores/` | `useAppStore` converter slices + `useMusicPlayerStore` + `musicPlayer/` engine |
 | `src/utils/tauri.ts` | SOLE typed IPC facade; all commands funnel here |
 | `src/types/generated.ts` | Specta OUTPUT, CI-pinned; do not edit |
@@ -27,7 +26,7 @@ Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React 19 + Rust 
 | `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen |
 | `.github/workflows/` | ci + release pipelines |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
-| `specs/` | Feature specs (tracked; deleted in workdir) |
+| `specs/` | Feature specs (tracked; latest `011-first-run-onboarding` — First-run onboarding start page, grand-fathering, simplified settings) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |
 | `src/fonts/` + `public/` | IRANSans fonts + static assets |
 
@@ -35,7 +34,7 @@ Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React 19 + Rust 
 
 | Domain | File | Files |
 | ---- | ---- | ----- |
-| Converter shell + queue UI + converter stores | `.agents/references/frontend-converter.md` | 21 |
+| Converter shell + queue UI + converter stores | `.agents/references/frontend-converter.md` | 35 |
 | Music library / player UI + player stores | `.agents/references/frontend-player.md` | 49 |
 | Sound Booster + Transcribe Studio UI | `.agents/references/frontend-features.md` | 34 |
 | IPC facade, utils, i18n, types, styles | `.agents/references/frontend-infra.md` | 24 |
@@ -125,14 +124,14 @@ hand-written sources an agent would actually navigate to or edit.
 
 | If you want to... | Start here | Also inspect | Usually avoid |
 | --- | --- | --- | --- |
+| First-run onboarding | `src/components/onboarding/OnboardingGate.tsx` | `OnboardingGate.tsx`, `PermissionSection.tsx`, `ThemeSection.tsx`, `LanguageSection.tsx`, `PerformanceSection.tsx`, `utils/bootPrefs.ts` | player internals |
 | Convert/trim/split/silence behavior | `src-tauri/src/processing/pipeline.rs` | `processing/silence.rs`, `processing/split.rs`, `processing/naming.rs`, `ffmpeg/` | player UI |
 | Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | transcribe queue |
 | Converter UI/options | `src/components/converter-wizard/ConverterWizard.tsx` (4-step wizard: upload/configs/progress/result) | `converter-wizard/Wizard*Step.tsx`, `OptionsPanel.tsx`, `FileList.tsx`, `JobsPanel.tsx` (bare), `ConverterResultSection.tsx` | Rust internals |
 | Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |
-| File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | transcribe |
-| Transcribe Studio | `src/features/transcribe/` | `src-tauri/src/processing/transcribe/`, `transcribe_queue.rs`, `secrets.rs` | DSP presets |
+| File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |
 | Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |
 | Settings/secrets | `src-tauri/src/settings.rs`, `src-tauri/src/secrets.rs` | `src/stores/slices/settingsSlice.ts`, `utils/bootPrefs.ts` | fonts |
 | Android build/run | `scripts/build-android-local.sh`, `scripts/dev-android.sh` | `src-tauri/android/`, `utils/platform.ts`, `utils/androidBack.ts` | desktop bundling |

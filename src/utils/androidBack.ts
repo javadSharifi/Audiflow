@@ -13,7 +13,7 @@ const CONSUMED_KEY = "__acBackConsumed";
 export function markBackConsumed(): void {
   try {
     (window as unknown as Record<string, number>)[CONSUMED_KEY] = Date.now();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }
 
 export function wasBackConsumed(maxAgeMs = 750): boolean {

@@ -2,12 +2,10 @@ import { useState, useMemo, useRef, useCallback } from "react";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { useAppStore } from "../../stores/useAppStore";
 import { translate } from "../../i18n";
-import { boosterDbForPercent } from "../../stores/musicPlayer/audioEngine";
 import {
   Flame,
   VolumeX,
   ShieldAlert,
-  SlidersHorizontal,
   AlertTriangle,
 } from "lucide-react";
 
@@ -45,9 +43,6 @@ export function BoosterView(): React.JSX.Element {
   const [pendingHighBoostVal, setPendingHighBoostVal] = useState<number | null>(null);
 
   const isEnabled = volumeGainPercent > 100;
-  const dbValue = useMemo(() => {
-    return boosterDbForPercent(volumeGainPercent).toFixed(1);
-  }, [volumeGainPercent]);
 
   // Request volume change with >200% safety gate
   const requestVolumeChange = useCallback(
@@ -189,7 +184,29 @@ export function BoosterView(): React.JSX.Element {
       setIsDraggingDial(false);
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {}
+      } catch { /* best-effort: ignore */ }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    let nextVal: number | null = null;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+      nextVal = Math.min(400, volumeGainPercent + 5);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+      nextVal = Math.max(100, volumeGainPercent - 5);
+    } else if (e.key === "PageUp") {
+      nextVal = Math.min(400, volumeGainPercent + 25);
+    } else if (e.key === "PageDown") {
+      nextVal = Math.max(100, volumeGainPercent - 25);
+    } else if (e.key === "Home") {
+      nextVal = 100;
+    } else if (e.key === "End") {
+      nextVal = 400;
+    }
+
+    if (nextVal !== null) {
+      e.preventDefault();
+      requestVolumeChange(nextVal);
     }
   };
 
@@ -200,7 +217,6 @@ export function BoosterView(): React.JSX.Element {
         accent: "#10b981",
         glow: "rgba(16, 185, 129, 0.2)",
         stroke: "url(#boostGreenGrad)",
-        badgeBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
       };
     }
     if (volumeGainPercent <= 175) {
@@ -208,7 +224,6 @@ export function BoosterView(): React.JSX.Element {
         accent: "#f59e0b",
         glow: "rgba(245, 158, 11, 0.25)",
         stroke: "url(#boostAmberGrad)",
-        badgeBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
       };
     }
     if (volumeGainPercent <= 250) {
@@ -216,14 +231,12 @@ export function BoosterView(): React.JSX.Element {
         accent: "#f97316",
         glow: "rgba(249, 115, 22, 0.3)",
         stroke: "url(#boostOrangeGrad)",
-        badgeBg: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
       };
     }
     return {
       accent: "#ef4444",
       glow: "rgba(239, 68, 68, 0.4)",
       stroke: "url(#boostRedGrad)",
-      badgeBg: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
     };
   }, [volumeGainPercent]);
 
@@ -315,11 +328,19 @@ export function BoosterView(): React.JSX.Element {
           <div
             ref={dialContainerRef}
             dir="ltr"
+            role="slider"
+            tabIndex={0}
+            aria-label={translate(lang, "boosterTitle")}
+            aria-valuemin={100}
+            aria-valuemax={400}
+            aria-valuenow={volumeGainPercent}
+            aria-valuetext={`${volumeGainPercent}%`}
+            onKeyDown={handleKeyDown}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            className="relative w-68 h-68 mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+            className="relative w-68 h-68 mx-auto flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full"
             title="برای تغییر، دایره را بچرخانید یا لمس کنید"
           >
             {/* SVG Arc Gauge & Percentage Markers */}
@@ -435,54 +456,15 @@ export function BoosterView(): React.JSX.Element {
 
               {/* Central Values HUD */}
               <div className="flex flex-col items-center justify-center text-center px-2 pointer-events-none">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight text-zinc-900 dark:text-zinc-50 flex items-baseline">
-                  {volumeGainPercent}
-                  <span className="text-lg font-bold ml-0.5 text-zinc-400 dark:text-zinc-500">%</span>
-                </span>
                 <span
-                  className={`text-[11px] font-bold px-2 py-0.5 mt-1 rounded-full border transition-all ${boostTheme.badgeBg}`}
+                  data-testid="booster-percent-display"
+                  className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-900 dark:text-zinc-50 flex items-baseline"
                 >
-                  {isEnabled
-                    ? translate(lang, "boosterGainDb", { db: dbValue })
-                    : translate(lang, "boosterNormal")}
+                  {volumeGainPercent}
+                  <span className="text-xl font-bold ml-0.5 text-zinc-400 dark:text-zinc-500">%</span>
                 </span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* 3. ADJUST SOUND BOOST LEVEL SLIDER CARD                           */}
-        {/* ================================================================= */}
-        <div className="flex flex-col gap-2 p-4 rounded-3xl bg-white/90 dark:bg-zinc-900/90 border border-black/10 dark:border-white/10 shadow-sm">
-          <div className="flex items-center justify-between text-xs font-bold text-zinc-800 dark:text-zinc-200">
-            <div className="flex items-center gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5 text-zinc-500" />
-              <span>{translate(lang, "boosterSliderLabel")}</span>
-            </div>
-            <span className="text-orange-500 font-extrabold">{volumeGainPercent}%</span>
-          </div>
-
-          {/* Strict LTR Range Slider */}
-          <div dir="ltr" className="relative flex items-center w-full py-2">
-            <input
-              type="range"
-              role="slider"
-              min="100"
-              max="400"
-              step="5"
-              value={volumeGainPercent}
-              aria-label={translate(lang, "boosterSliderLabel")}
-              onChange={(e) => requestVolumeChange(parseInt(e.target.value, 10))}
-              className="w-full h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-orange-500 transition-all focus:outline-none"
-            />
-          </div>
-
-          <div dir="ltr" className="flex justify-between text-[10px] text-zinc-500 font-medium px-1">
-            <span>100% ({translate(lang, "boosterPresetNormal")})</span>
-            <span>200%</span>
-            <span>300%</span>
-            <span>400% ({translate(lang, "boosterPresetMax")})</span>
           </div>
         </div>
 

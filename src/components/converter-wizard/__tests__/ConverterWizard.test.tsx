@@ -49,7 +49,7 @@ describe("ConverterWizard", () => {
   it("starts on upload step with next disabled when empty", () => {
     render(<ConverterWizard />);
 
-    expect(screen.getByTestId("wizard-stepper")).toBeDefined();
+    expect(screen.queryByTestId("wizard-stepper")).toBeNull();
     expect(screen.getByTestId("wizard-step-1")).toBeDefined();
     expect(screen.getByTestId("dropzone")).toBeDefined();
     expect((screen.getByTestId("wizard-next") as HTMLButtonElement).disabled).toBe(true);

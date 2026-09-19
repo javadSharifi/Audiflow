@@ -19,7 +19,7 @@ describe("BoosterView", () => {
 
     expect(screen.getByText(/افزایش صدای سراسری گوشی/i)).toBeTruthy();
     expect(screen.getByText(/تقویت صدا خاموش است/i)).toBeTruthy();
-    expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("booster-percent-display").textContent).toBe("100%");
 
     const toggle = screen.getByRole("switch", { name: /Toggle Sound Booster/i });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
@@ -37,39 +37,40 @@ describe("BoosterView", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("updates volume when slider value changes up to 200%", () => {
+  it("updates volume when dial value changes up to 200%", () => {
     render(<BoosterView />);
 
-    const slider = screen.getByRole("slider", { name: /تنظیم نوار افزایش صدا/i });
-    fireEvent.change(slider, { target: { value: "180" } });
+    const dial = screen.getByRole("slider");
+    fireEvent.keyDown(dial, { key: "PageUp" });
+    fireEvent.keyDown(dial, { key: "PageUp" });
 
-    expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(180);
-    expect(screen.getAllByText("180%").length).toBeGreaterThan(0);
+    expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(150);
+    expect(screen.getByTestId("booster-percent-display").textContent).toBe("150%");
   });
 
   it("shows warning modal when attempting >200% and unlocks up to 400% on confirm", () => {
     render(<BoosterView />);
 
-    const slider = screen.getByRole("slider", { name: /تنظیم نوار افزایش صدا/i });
-    fireEvent.change(slider, { target: { value: "300" } });
+    const dial = screen.getByRole("slider");
+    fireEvent.keyDown(dial, { key: "End" });
 
     // Capped at 200% while modal is shown
     expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(200);
     expect(screen.getByText(/هشدار افزایش توان صدا به بیش از ۲۰۰٪/i)).toBeTruthy();
 
-    // Clicking confirm unlocks and applies 300%
+    // Clicking confirm unlocks and applies 400%
     const confirmBtn = screen.getByRole("button", { name: /تأیید و افزایش توان/i });
     fireEvent.click(confirmBtn);
 
-    expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(300);
+    expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(400);
     expect(screen.queryByText(/هشدار افزایش توان صدا به بیش از ۲۰۰٪/i)).toBeNull();
   });
 
   it("keeps volume at 200% when high boost modal is cancelled", () => {
     render(<BoosterView />);
 
-    const slider = screen.getByRole("slider", { name: /تنظیم نوار افزایش صدا/i });
-    fireEvent.change(slider, { target: { value: "350" } });
+    const dial = screen.getByRole("slider");
+    fireEvent.keyDown(dial, { key: "End" });
 
     expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(200);
     expect(screen.getByText(/هشدار افزایش توان صدا به بیش از ۲۰۰٪/i)).toBeTruthy();

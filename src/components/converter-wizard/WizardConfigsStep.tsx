@@ -4,7 +4,7 @@ import { translate, type Lang } from "../../i18n";
 import { useAppStore } from "../../stores/useAppStore";
 import { isLossy } from "../../types";
 
-export function useConvertDisabled(): boolean {
+function useConvertDisabled(): boolean {
   const files = useAppStore((s) => s.files);
   const options = useAppStore((s) => s.options);
   const jobs = useAppStore((s) => s.jobs);

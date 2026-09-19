@@ -1,28 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, lazy, Suspense, useRef, useState } from "react";
 import { HeaderBar } from "./components/HeaderBar";
 import { MusicPlayerView } from "./components/music-player/MusicPlayerView";
 import { MusicPlayerNav, type PlayerTab } from "./components/music-player/MusicPlayerNav";
 import { KeepAlivePane } from "./components/music-player/KeepAlivePane";
-import { PermissionGate } from "./components/music-player/PermissionGate";
-import {
-  FirstRunFoldersGate,
-  isFirstRunDone,
-  markFirstRunDone,
-} from "./components/music-player/FirstRunFoldersGate";
+import { checkAndGrandfatherFirstRun, isFirstRunDone, markFirstRunDone } from "./utils/bootPrefs";
 import { Toasts } from "./components/Toasts";
 import { useAppStore } from "./stores/useAppStore";
 import { useMusicPlayerStore } from "./stores/useMusicPlayerStore";
 import { translate } from "./i18n";
 import { useTheme, useDirection } from "./hooks/useTheme";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { isAndroid } from "./utils/platform";
 import * as api from "./utils/tauri";
 import { useNativeDragDrop } from "./hooks/useNativeDragDrop";
 import { handleIncomingFiles } from "./utils/openWith";
 import { ANDROID_BACK_EVENT, wasBackConsumed } from "./utils/androidBack";
-import type { QueueItem } from "./types";
 import { ConverterWizard } from "./components/converter-wizard/ConverterWizard";
+import { markBoot, logBootSummary } from "./utils/bootPerf";
+
+// Module scope: everything before this line (store creation, cached-track
+// JSON parse, artwork-manifest hydration) lands in this first delta.
+markBoot("app-module");
+
+// Unified first-run onboarding gate loads on demand.
+const OnboardingGate = lazy(() =>
+  import("./components/onboarding/OnboardingGate").then((m) => ({
+    default: m.OnboardingGate,
+  })),
+);
+
+function GateFallback(): React.JSX.Element {
+  return <div className="fixed inset-0 z-[95] bg-zinc-100 dark:bg-[#09090b]" />;
+}
 
 export default function App(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
@@ -32,56 +41,13 @@ export default function App(): React.JSX.Element {
   const loadSettings = useAppStore((s) => s.loadSettings);
   const initEventListeners = useAppStore((s) => s.initEventListeners);
 
-  // First-launch permission gate: while media access is denied and the
-  // library is empty, a dedicated screen asks for access BEFORE entering
-  // the app. Skipping is session-scoped (converter stays usable via the
-  // in-list banner); a fresh grant auto-scans and dismisses the gate.
-  const permStatus = useMusicPlayerStore((s) => s.permissionStatus);
-  const libTracksEmpty = useMusicPlayerStore((s) => s.tracks.length === 0);
-  const libHasScanned = useMusicPlayerStore((s) => s.hasScanned);
-  const libLoading = useMusicPlayerStore((s) => s.loading);
-  const [gateSkipped, setGateSkipped] = useState(() => {
-    try {
-      return sessionStorage.getItem("ac:perm-gate-skipped") === "1";
-    } catch {
-      return false;
-    }
-  });
-  const skipGate = useCallback(() => {
-    try {
-      sessionStorage.setItem("ac:perm-gate-skipped", "1");
-    } catch {}
-    setGateSkipped(true);
-  }, []);
-  // Gate on the settled scan (not the boot race): showing it mid-scan would
-  // flash it away seconds later, like the old banner-flash bug.
-  const showGate =
-    isAndroid() &&
-    (permStatus === "denied" || permStatus === "permanentlyDenied") &&
-    libTracksEmpty &&
-    libHasScanned &&
-    !libLoading &&
-    !gateSkipped;
-  const gateRef = useRef({ show: false, skip: () => {} });
-  gateRef.current = { show: showGate, skip: skipGate };
+  // Unified first-run onboarding gate:
+  // Shows on fresh install (no prior-use evidence). Boot scan is deferred while gate is up;
+  // completing or skipping the gate marks completion and kicks off background library scan.
+  const [firstRunDone, setFirstRunDone] = useState(() => checkAndGrandfatherFirstRun());
+  const showOnboarding = !firstRunDone;
 
-  // Desktop first-run folders gate: on a fresh install (persistent flag
-  // unset, empty library) let the user pick scan folders BEFORE the boot
-  // scan, so each macOS folder-access prompt arrives with context. Android
-  // keeps its own PermissionGate flow. The boot scan below is deferred while
-  // the gate is up; onDone/onSkip run the scan instead (single call —
-  // scanLibrary replaces tracks, and the gate already persisted customFolders).
-  const [firstRunDone, setFirstRunDone] = useState(() => isFirstRunDone());
-  const showFirstRun = !firstRunDone && !isAndroid() && libTracksEmpty;
-  const handleFirstRunDone = useCallback((dirs: string[]) => {
-    markFirstRunDone();
-    setFirstRunDone(true);
-    void useMusicPlayerStore
-      .getState()
-      .scanLibrary(dirs.length > 0 ? dirs : undefined)
-      .catch(() => {});
-  }, []);
-  const handleFirstRunSkip = useCallback(() => {
+  const handleOnboardingComplete = useCallback(() => {
     markFirstRunDone();
     setFirstRunDone(true);
     void useMusicPlayerStore.getState().scanLibrary().catch(() => {});
@@ -105,12 +71,6 @@ export default function App(): React.JSX.Element {
       if (musicState.fullscreenOpen) {
         // Safety net (NowPlayingView normally consumes this first).
         musicState.setFullscreenOpen(false);
-        return;
-      }
-      if (gateRef.current.show) {
-        // Back on the permission gate = "later": enter the app, the
-        // in-list banner keeps offering the grant.
-        gateRef.current.skip();
         return;
       }
       // No player → converter navigation: music and converter are both
@@ -189,14 +149,18 @@ export default function App(): React.JSX.Element {
   const [bootReady, setBootReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
+    // Effects run post-mount — this is the first reliable "React painted" mark.
+    markBoot("react-mounted");
     const finishBoot = () => {
       if (cancelled) return;
       // The failsafe timer can outlive the JS environment (e.g. test
       // teardown) — never touch window/document blindly from it.
       if (typeof window === "undefined" || typeof document === "undefined") return;
+      markBoot("splash-removed");
+      logBootSummary();
       try {
         document.getElementById("boot-splash")?.remove();
-      } catch {}
+      } catch { /* best-effort: ignore */ }
       setBootReady(true);
     };
     const boot = async () => {
@@ -205,7 +169,8 @@ export default function App(): React.JSX.Element {
       // keeps one remembered color-scheme source to avoid recomposition storms.
       try {
         await loadSettings();
-      } catch {}
+      } catch { /* best-effort: ignore */ }
+      markBoot("settings-loaded");
       if (cancelled) return;
       // Library: cached tracks (if any) are already in the store and render
       // instantly — refresh them in the background. Only a truly empty
@@ -213,20 +178,22 @@ export default function App(): React.JSX.Element {
       try {
         const music = useMusicPlayerStore.getState();
         await music.checkPermission().catch(() => {});
+        markBoot("permission-checked");
         if (cancelled) return;
-        // First-run gate pending: leave the initial scan to its
-        // onDone/onSkip handlers (they scan once with the user selection).
-        if (!isFirstRunDone() && !isAndroid() && useMusicPlayerStore.getState().tracks.length === 0) {
+        // First-run onboarding gate pending: leave initial scan to completion handler
+        if (!isFirstRunDone()) {
           finishBoot();
           return;
         }
         const cached = useMusicPlayerStore.getState().tracks.length;
         if (cached > 0) {
           void useMusicPlayerStore.getState().scanLibrary().catch(() => {});
+          markBoot("scan-started-background");
         } else {
           await useMusicPlayerStore.getState().scanLibrary().catch(() => {});
+          markBoot("scan-settled-blocking");
         }
-      } catch {}
+      } catch { /* best-effort: ignore */ }
       finishBoot();
     };
     const failsafe =
@@ -234,7 +201,7 @@ export default function App(): React.JSX.Element {
     const clearFailsafe = () => {
       try {
         if (typeof window !== "undefined") window.clearTimeout(failsafe);
-      } catch {}
+      } catch { /* best-effort: ignore */ }
     };
     void boot().finally(clearFailsafe);
     return () => {
@@ -247,24 +214,8 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     let cleanup: (() => void) | null = null;
     void initEventListeners().then((fn) => (cleanup = fn));
-
-    let unlistenIdle: (() => void) | null = null;
-    void listen<boolean>("queue-idle", () => {
-      if (isAndroid()) return;
-      const { settings, jobs } = useAppStore.getState();
-      if (!settings?.autoOpenOutputFolder) return;
-      const done = Array.from(jobs.values()).find(
-        (j: QueueItem) => j.status === "completed" && j.outputs.length > 0,
-      );
-      if (done) {
-        const dir = done.outputs[0].replace(/[\\/][^\\/]+$/, "");
-        void openPath(dir);
-      }
-    }).then((fn) => (unlistenIdle = fn));
-
     return () => {
       cleanup?.();
-      unlistenIdle?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -321,12 +272,11 @@ export default function App(): React.JSX.Element {
 
       <Toasts />
 
-      {/* First-launch permission gate (Android, denied + empty library) */}
-      {showGate && <PermissionGate onSkip={skipGate} />}
-
-      {/* First-run folders gate (desktop, unset flag + empty library) */}
-      {showFirstRun && (
-        <FirstRunFoldersGate onDone={handleFirstRunDone} onSkip={handleFirstRunSkip} />
+      {/* Unified first-run onboarding gate */}
+      {showOnboarding && (
+        <Suspense fallback={<GateFallback />}>
+          <OnboardingGate onComplete={handleOnboardingComplete} />
+        </Suspense>
       )}
     </div>
   );

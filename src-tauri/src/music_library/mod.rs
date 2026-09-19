@@ -1,9 +1,13 @@
 pub mod artwork;
 pub mod models;
 pub mod platform;
+pub mod scan_memo;
 pub mod scanner;
 
 pub use models::{AudioTrackInfo, LibraryPermissionStatus};
+pub use scan_memo::{
+    last_scan_stats, record_deleted_path, ScanResultCacheStats, ScanResultMemo,
+};
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -71,9 +75,12 @@ pub fn scan_music_library(custom_dirs: Option<Vec<String>>) -> Vec<AudioTrackInf
     let mut results = Vec::new();
     let mut seen_uris = HashSet::new();
 
+    // Incremental memo: unchanged files skip parsing entirely.
+    let started = std::time::Instant::now();
+    let mut memo = ScanResultMemo::load();
     for root in scan_roots {
         let mut batch = Vec::new();
-        scanner::scan_local_directory(&root, 5, &mut batch, 5000);
+        scanner::scan_local_directory(&root, 5, &mut batch, 5000, &mut memo);
         for track in batch {
             if seen_uris.insert(track.uri.clone()) {
                 results.push(track);
@@ -88,7 +95,20 @@ pub fn scan_music_library(custom_dirs: Option<Vec<String>>) -> Vec<AudioTrackInf
         time_b.cmp(&time_a)
     });
 
+    // Retire memo records for files gone from disk (aligned with the
+    // frontend rule that background scans must reflect deletions).
+    memo.prune_missing(&seen_paths(&results));
+    memo.finish(results.len(), started.elapsed().as_millis() as u64);
+
     results
+}
+
+/// Canonical path keys of the current scan, for memo pruning.
+fn seen_paths(results: &[AudioTrackInfo]) -> HashSet<String> {
+    results
+        .iter()
+        .filter_map(|t| t.path.clone())
+        .collect()
 }
 
 pub fn delete_audio_track(path_or_uri: &str) -> Result<(), String> {
@@ -111,7 +131,11 @@ pub fn delete_audio_track(path_or_uri: &str) -> Result<(), String> {
 
     let p = std::path::Path::new(&local_path);
     if p.exists() {
-        std::fs::remove_file(p).map_err(|e| format!("Failed to delete file: {e}"))
+        std::fs::remove_file(p).map_err(|e| format!("Failed to delete file: {e}"))?;
+        // Keep the scan memo honest: a deleted file must never resurrect
+        // from the incremental cache.
+        record_deleted_path(&local_path);
+        Ok(())
     } else {
         Err(format!("File does not exist: {local_path}"))
     }

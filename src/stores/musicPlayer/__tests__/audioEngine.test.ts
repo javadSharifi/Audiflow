@@ -12,6 +12,7 @@ import {
   resolveAudioSource,
   applyGainPercent,
   boosterDbForPercent,
+  boosterMbForPercent,
   bindMusicStore,
   noteUserSeek,
   applyNativeStateToStore,
@@ -124,13 +125,20 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       vi.spyOn(platform, "isAndroid").mockReturnValue(true);
     });
 
-    it("maps boost percent to LoudnessEnhancer dB", () => {
+    it("maps boost percent to LoudnessEnhancer mB and nominal dB", () => {
+      expect(boosterMbForPercent(0)).toBe(0);
+      expect(boosterMbForPercent(50)).toBe(0);
+      expect(boosterMbForPercent(100)).toBe(0);
+      expect(boosterMbForPercent(200)).toBe(2667);
+      expect(boosterMbForPercent(400)).toBe(8000);
+      expect(boosterMbForPercent(999)).toBe(8000);
+
       expect(boosterDbForPercent(0)).toBe(0);
       expect(boosterDbForPercent(50)).toBe(0);
       expect(boosterDbForPercent(100)).toBe(0);
-      expect(boosterDbForPercent(200)).toBeCloseTo(6.02, 2);
-      expect(boosterDbForPercent(400)).toBeCloseTo(12.04, 2);
-      expect(boosterDbForPercent(999)).toBeCloseTo(12.04, 2);
+      expect(boosterDbForPercent(200)).toBeCloseTo(26.67, 1);
+      expect(boosterDbForPercent(400)).toBe(80);
+      expect(boosterDbForPercent(999)).toBe(80);
     });
 
     it("routes <=100% to volume and disables the enhancer", async () => {
@@ -138,41 +146,38 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(0.8);
-      expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledWith(0);
       expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(0);
     });
 
-    it("routes >100% to full volume plus a single enhancer dB call (US1)", async () => {
+    it("routes >100% to full volume plus an aggressive enhancer mB call (US1)", async () => {
       applyGainPercent(200);
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
-      const gainDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls[0][0];
-      expect(gainDb).toBeCloseTo(6.02, 2);
-      // The parallel linear-mB path was deleted: single writer only.
-      expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledTimes(1);
-      expect(api.androidPlayerSetBoosterGainMb).not.toHaveBeenCalled();
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(2667);
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("003-volume-boost-accuracy: honest single-path gain (US1)", () => {
+  describe("008-real-volume-boost-400: aggressive 8000 mB gain (US1)", () => {
     beforeEach(() => {
       vi.spyOn(platform, "isAndroid").mockReturnValue(true);
     });
 
     it("T003 gain mapping is monotonic with contract anchors", () => {
-      // Anchors from contracts/booster-gain-mapping.contract.md.
-      expect(boosterDbForPercent(100)).toBe(0);
-      expect(boosterDbForPercent(150)).toBeCloseTo(3.52, 2);
-      expect(boosterDbForPercent(200)).toBeCloseTo(6.02, 2);
-      expect(boosterDbForPercent(250)).toBeCloseTo(7.96, 2);
-      expect(boosterDbForPercent(300)).toBeCloseTo(9.54, 2);
-      expect(boosterDbForPercent(350)).toBeCloseTo(10.88, 2);
-      expect(boosterDbForPercent(400)).toBeCloseTo(12.04, 2);
+      // Anchors from contracts/booster-loudness-mapping.contract.md.
+      expect(boosterMbForPercent(100)).toBe(0);
+      expect(boosterMbForPercent(150)).toBe(1333);
+      expect(boosterMbForPercent(200)).toBe(2667);
+      expect(boosterMbForPercent(250)).toBe(4000);
+      expect(boosterMbForPercent(300)).toBe(5333);
+      expect(boosterMbForPercent(350)).toBe(6667);
+      expect(boosterMbForPercent(400)).toBe(8000);
+
       const steps = [100, 125, 150, 175, 200, 250, 300, 350, 400];
-      const dbs = steps.map(boosterDbForPercent);
-      for (let i = 1; i < dbs.length; i++) {
-        expect(dbs[i]).toBeGreaterThan(dbs[i - 1]);
+      const mbs = steps.map(boosterMbForPercent);
+      for (let i = 1; i < mbs.length; i++) {
+        expect(mbs[i]).toBeGreaterThan(mbs[i - 1]);
       }
     });
 
@@ -185,6 +190,7 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
         vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length +
         vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.length;
       expect(totalGainCalls).toBe(1);
+      expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(2667);
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(1);
     });
 
@@ -194,7 +200,6 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       await Promise.resolve();
 
       expect(api.androidPlayerSetVolume).toHaveBeenCalledWith(0.8);
-      expect(api.androidPlayerSetBoosterGain).toHaveBeenCalledWith(0);
       expect(api.androidPlayerSetBoosterGainMb).toHaveBeenCalledWith(0);
     });
   });
@@ -236,10 +241,9 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
         // Leading apply fired synchronously; glide the rest out fully.
         vi.advanceTimersByTime(5000);
 
-        // Was 10 (one full engine apply per tick = the chop source).
-        expect(vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length).toBeLessThanOrEqual(3);
-        const lastDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.at(-1)?.[0];
-        expect(lastDb).toBeCloseTo(boosterDbForPercent(240), 2);
+        expect(vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.length).toBeLessThanOrEqual(3);
+        const lastMb = vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.at(-1)?.[0];
+        expect(lastMb).toBe(boosterMbForPercent(240));
       } finally {
         vi.useRealTimers();
       }
@@ -256,11 +260,11 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
         // UI number is live on every movement (US2)...
         expect(useMusicPlayerStore.getState().volumeGainPercent).toBe(250);
         // ...while the engine applied only the leading value so far.
-        expect(vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.length).toBe(1);
+        expect(vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.length).toBe(1);
 
         vi.advanceTimersByTime(5000);
-        const lastDb = vi.mocked(api.androidPlayerSetBoosterGain).mock.calls.at(-1)?.[0];
-        expect(lastDb).toBeCloseTo(boosterDbForPercent(250), 2);
+        const lastMb = vi.mocked(api.androidPlayerSetBoosterGainMb).mock.calls.at(-1)?.[0];
+        expect(lastMb).toBe(boosterMbForPercent(250));
       } finally {
         vi.useRealTimers();
       }
@@ -289,7 +293,8 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
     it("adopts the native position once it catches up to the seek target", () => {
       noteUserSeek(30.31);
       applyNativeStateToStore({ isPlaying: true, currentTimeMs: 31500, durationMs: 117265 });
-      expect(useMusicPlayerStore.getState().currentTime).toBeCloseTo(31.5, 2);
+      // Store writes are quantized to whole seconds (seekbar renders MM:SS).
+      expect(useMusicPlayerStore.getState().currentTime).toBe(31);
     });
 
     it("adopts lagging positions again after the settle window expires", () => {

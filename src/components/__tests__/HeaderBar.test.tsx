@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { HeaderBar } from "../HeaderBar";
 import { useAppStore } from "../../stores/useAppStore";
 
@@ -22,7 +22,7 @@ beforeEach(() => {
   cleanup();
   try {
     localStorage.clear();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   useAppStore.setState({
     activeTool: "converter",
     lang: "en",
@@ -98,3 +98,41 @@ describe("HeaderBar Update Notice", () => {
     expect(screen.getByRole("button", { name: "Download update" })).not.toBeNull();
   });
 });
+
+describe("HeaderBar Simplified Settings Dialog", () => {
+  it("renders Settings dialog without theme and auto-open-folder rows (English)", async () => {
+    useAppStore.setState({ activeTool: "converter", lang: "en" });
+    render(<HeaderBar />);
+
+    const settingsBtn = screen.getByTitle("Settings");
+    fireEvent.click(settingsBtn);
+
+    // Retained rows are present
+    expect(screen.getByText("Language")).toBeTruthy();
+    expect(screen.getByText("High Performance Mode")).toBeTruthy();
+    expect(screen.getByText("Concurrent tasks")).toBeTruthy();
+
+    // Removed rows MUST be absent
+    expect(screen.queryByText("Open output folder when finished")).toBeNull();
+    // Verify no theme row in settings dialog options list
+    expect(screen.queryByText("Theme")).toBeNull();
+  });
+
+  it("renders Settings dialog without theme and auto-open-folder rows (Persian)", async () => {
+    useAppStore.setState({ activeTool: "converter", lang: "fa" });
+    render(<HeaderBar />);
+
+    const settingsBtn = screen.getByTitle("تنظیمات");
+    fireEvent.click(settingsBtn);
+
+    // Retained rows are present
+    expect(screen.getByText("زبان")).toBeTruthy();
+    expect(screen.getByText("حالت عملکرد بالا")).toBeTruthy();
+    expect(screen.getByText("تسک‌های همزمان")).toBeTruthy();
+
+    // Removed rows MUST be absent
+    expect(screen.queryByText("باز کردن خودکار پوشه خروجی بعد از اتمام")).toBeNull();
+    expect(screen.queryByText("پوسته")).toBeNull();
+  });
+});
+

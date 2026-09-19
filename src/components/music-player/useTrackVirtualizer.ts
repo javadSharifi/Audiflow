@@ -19,6 +19,7 @@ export function useTrackVirtualizer({
   estimateSize = 64,
   overscan = 6,
 }: UseTrackVirtualizerOptions) {
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual returns non-memoizable functions; compiler memoization is intentionally skipped
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => parentRef.current,

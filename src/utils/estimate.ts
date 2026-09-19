@@ -1,5 +1,4 @@
 import type { AudioFormat, ConversionOptions, InputFile, QualityPreset } from "../types";
-import { isLossy } from "../types";
 
 /**
  * Effective bitrate (kbps) used for size estimation.
@@ -77,6 +76,3 @@ export function growthHint(
   if (Math.abs(pct) < 1) return "±0%";
   return pct > 0 ? `+${pct}%` : `${pct}%`;
 }
-
-// Re-export so callers don't need two imports for one check.
-export { isLossy };

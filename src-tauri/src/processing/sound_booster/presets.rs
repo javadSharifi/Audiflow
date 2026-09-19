@@ -66,12 +66,19 @@ pub fn build_preset_filter_chain(
             format!("volume=14dB,{STRICT_LIMITER}")
         }
         BoosterPreset::Manual => {
-            // Percentage: 0% = 0.0 (mute), 100% = 1.0 (0dB), 200% = 2.0 (+6.02dB),
-            // 400% = 4.0 (+12.04dB), clamp 0..400 — unified with the live
-            // player scale (003-volume-boost-accuracy).
+            // Percentage: 0% to 100% = linear volume attenuation + limiter;
+            // 101% to 400% = dynamic normalization with max gain scaling
+            // from 1.0 up to 10.0 (+20 dB) + mandatory alimiter ceiling
+            // (008-real-volume-boost-400: prevents peak limiter choke).
             let pct = manual_gain_percent.unwrap_or(100.0).clamp(0.0, 400.0);
-            let multiplier = pct / 100.0;
-            format!("volume={multiplier:.3},{DEFAULT_LIMITER}")
+            if pct <= 100.0 {
+                let multiplier = pct / 100.0;
+                format!("volume={multiplier:.3},{DEFAULT_LIMITER}")
+            } else {
+                let fraction = (pct - 100.0) / 300.0;
+                let max_gain = 1.0 + fraction * 9.0;
+                format!("dynaudnorm=f=150:g=15:m={max_gain:.1}:r=0.9,{DEFAULT_LIMITER}")
+            }
         }
     }
 }
@@ -104,26 +111,28 @@ mod tests {
     fn test_manual_gain_math() {
         let chain_100 = build_preset_filter_chain(BoosterPreset::Manual, Some(100.0), None);
         assert!(chain_100.contains("volume=1.000"));
+        assert!(chain_100.contains("alimiter"));
 
         let chain_200 = build_preset_filter_chain(BoosterPreset::Manual, Some(200.0), None);
-        assert!(chain_200.contains("volume=2.000"));
+        assert!(chain_200.contains("dynaudnorm"));
+        assert!(chain_200.contains("m=4.0"));
+        assert!(chain_200.contains("alimiter"));
     }
 
     #[test]
     fn test_manual_gain_400_matches_live_scale() {
-        // 003-volume-boost-accuracy US1 (T005): offline Manual range unified
-        // with the live 100-400% scale — linear amplitude, honest step.
+        // 008-real-volume-boost-400: offline Manual range unified with
+        // dynaudnorm dynamic normalization up to max gain 10.0 (+20 dB).
         let chain_400 = build_preset_filter_chain(BoosterPreset::Manual, Some(400.0), None);
         assert!(
-            chain_400.contains("volume=4.000"),
-            "Manual 400% must map to 4x amplitude, got: {chain_400}"
+            chain_400.contains("dynaudnorm") && chain_400.contains("m=10.0"),
+            "Manual 400% must dynamic normalize with max gain 10.0, got: {chain_400}"
         );
     }
 
     #[test]
     fn test_manual_400_ends_in_limiter_ceiling() {
-        // 003-volume-boost-accuracy US3 (T014): honesty wins below full scale;
-        // the mandatory alimiter stays as a full-scale-only ceiling.
+        // 008-real-volume-boost-400: Constitution Principle II mandatory alimiter ceiling.
         let chain_400 = build_preset_filter_chain(BoosterPreset::Manual, Some(400.0), None);
         assert!(
             chain_400.contains("alimiter"),

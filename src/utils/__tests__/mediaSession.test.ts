@@ -21,7 +21,7 @@ const mockTrack: AudioTrackInfo = {
 };
 
 describe("MediaSession & Lock Screen synchronization", () => {
-  let actionHandlers: Record<string, Function> = {};
+  let actionHandlers: Record<string, (...args: unknown[]) => void> = {};
 
   beforeEach(() => {
     actionHandlers = {};
@@ -31,7 +31,7 @@ describe("MediaSession & Lock Screen synchronization", () => {
       value: {
         metadata: null,
         playbackState: "none",
-        setActionHandler: vi.fn((action: string, handler: Function) => {
+        setActionHandler: vi.fn((action: string, handler: (...args: unknown[]) => void) => {
           actionHandlers[action] = handler;
         }),
         setPositionState: vi.fn(),
@@ -79,7 +79,7 @@ describe("MediaSession & Lock Screen synchronization", () => {
     expect(onSeek).toHaveBeenCalledWith(65);
 
     // Trigger seekforward action (e.g. +15s from current position 50s)
-    let currentTime = 50;
+    const currentTime = 50;
     initMediaSession({
       onPlay,
       onPause,

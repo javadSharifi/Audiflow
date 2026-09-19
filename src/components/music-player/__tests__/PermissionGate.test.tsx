@@ -57,7 +57,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   try {
     sessionStorage.clear();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   mockedGetMusicPermissionStatus.mockResolvedValue("denied");
   mockedScanAudioFiles.mockResolvedValue([]);
   useAppStore.setState({ lang: "en" });

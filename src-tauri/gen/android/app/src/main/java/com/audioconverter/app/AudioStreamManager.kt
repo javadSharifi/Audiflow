@@ -91,19 +91,15 @@ object AudioStreamManager {
   }
 
   /**
-   * "Reduce Hurt" safety flow (verified from production booster reference):
-   * When excessive boost is applied or speaker overload is detected, scales down
-   * the base stream volume (e.g. x0.3) or dampens extreme gain to prevent permanent
-   * acoustic distortion and speaker damage.
+   * "Reduce Hurt" safety flow:
+   * Safely resets boost gain to safe baseline (0 mB = 100%) without altering
+   * the operating system's hardware media stream volume (STREAM_MUSIC).
    */
   fun applyReduceHurt(context: Context): String {
     return try {
-      val current = getStreamVolume(context)
-      val safeTarget = Math.max(1, Math.round(current * 0.3f))
-      setStreamVolume(context, safeTarget, showUi = true)
-      // Reset boost gain to safe baseline
+      // Reset boost gain to safe baseline (0 mB = 100%)
       BoostEngine.setGainMb(0)
-      Log.i(TAG, "Reduce hurt safety protection applied (volume: $current -> $safeTarget)")
+      Log.i(TAG, "Reduce hurt safety protection applied (boost gain reset to 0 mB, hardware stream volume preserved)")
       "OK"
     } catch (t: Throwable) {
       Log.e(TAG, "applyReduceHurt failed", t)

@@ -93,6 +93,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::generate_ab_preview,
         commands::start_sound_boost,
         commands::scan_audio_files,
+        commands::scan_result_cache_stats,
         commands::get_music_permission_status,
         commands::delete_audio_track,
         commands::set_as_ringtone,

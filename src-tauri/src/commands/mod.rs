@@ -573,6 +573,10 @@ pub use crate::music_library::models::{AudioTrackInfo, LibraryPermissionStatus};
 
 /// Scan system audio files across platforms (MediaStore on Android, standard music/user directories on desktop).
 /// Sorted by default by latest date added (created/modified timestamp descending).
+///
+/// Incremental rescans: unchanged files (same path, size, mtime) reuse the
+/// previous scan's track record from a durable cache — only new/changed
+/// files are stat'ed and parsed.
 #[tauri::command]
 #[specta::specta]
 pub async fn scan_audio_files(custom_dirs: Option<Vec<String>>) -> Vec<AudioTrackInfo> {
@@ -581,6 +585,14 @@ pub async fn scan_audio_files(custom_dirs: Option<Vec<String>>) -> Vec<AudioTrac
     })
     .await
     .unwrap_or_default()
+}
+
+/// Statistics from the last native library scan (walk cost vs reuse rate).
+/// Diagnostic companion for the frontend boot-pref timeline.
+#[tauri::command]
+#[specta::specta]
+pub fn scan_result_cache_stats() -> crate::music_library::ScanResultCacheStats {
+    crate::music_library::last_scan_stats()
 }
 
 /// Check music permission status across platforms.

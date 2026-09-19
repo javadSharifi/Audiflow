@@ -68,6 +68,7 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
   // Debounced preview generation on preset, gain, or file change
   useEffect(() => {
     if (!isBoostEnabled || !file.path) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when boosting is disabled or no file is selected
       setPreview(null);
       return;
     }
@@ -88,6 +89,7 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
         audioRef.current.pause();
         audioRef.current.src = "";
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional playback-state reset when preview is cleared
       setIsPlaying(false);
       setCurrentTime(0);
       return;
@@ -219,10 +221,10 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
           </div>
           <div>
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-              {translate(lang, "fileBoosterTitle" as any)}
+              {translate(lang, "fileBoosterTitle")}
             </h3>
             <p className="text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">
-              {translate(lang, "fileBoosterSubtitle" as any)}
+              {translate(lang, "fileBoosterSubtitle")}
             </p>
           </div>
         </div>
@@ -233,10 +235,10 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
               type="button"
               onClick={handleResetBoost}
               className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-red-500 transition-colors"
-              title={translate(lang, "reset" as any)}
+              title={translate(lang, "reset")}
             >
               <RotateCcw className="h-3 w-3" />
-              <span>{translate(lang, "reset" as any)}</span>
+              <span>{translate(lang, "reset")}</span>
             </button>
           )}
 

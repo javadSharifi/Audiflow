@@ -17,9 +17,11 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/utils/__tests__/mediaSession.test.ts` | Vitest for MediaSession sync. |
 | `src/utils/__tests__/openWith.test.ts` | Vitest for incoming-file routing. |
 | `src/utils/androidBack.ts` | Cooperative hardware-back flag/event; exports `markBackConsumed`, `ANDROID_BACK_EVENT`. |
-| `src/utils/artwork.ts` | LRU/deduped throttled cover-art resolver; exports `resolveArtwork`. |
+| `src/utils/artwork.ts` | LRU-500 + localStorage-manifest (negative) cover resolver + idle prefetch; exports `resolveArtworkSrc`, `evictArtworkCache`, `getCachedArtworkSrc`, `scheduleArtworkPrefetch`. |
 | `src/utils/bootPrefs.test.ts` | Vitest for boot prefs read/write. |
 | `src/utils/bootPrefs.ts` | localStorage boot lang/theme cache for `index.html`; exports `read/writeBootPrefs`. |
+| `src/utils/bootPerf.ts` | Namida-style boot phase marks + summary log; exports `markBoot`, `logBootSummary`. |
+| `src/utils/__tests__/bootPerf.test.ts` | Vitest for bootPerf mark/log (no-throw). |
 | `src/utils/dialog.ts` | Native media/dir pickers; exports `pickVideos`, `pickDirectories`. |
 | `src/utils/estimate.test.ts` | Vitest for output-size estimation. |
 | `src/utils/estimate.ts` | Bitrate/size estimator mirroring Rust presets; exports `estimateKbps`, `estimateOutputBytes`. |

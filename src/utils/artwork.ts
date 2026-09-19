@@ -9,9 +9,12 @@ type TrackLike = Partial<AudioTrackInfo> & {
   coverUrl?: string | null;
 };
 
-/** In-memory cover cache: artwork key -> resolved src (or null = known missing). LRU 100. */
+/** In-memory cover cache: artwork key -> resolved src (or null = known missing). LRU 500. */
 const memoryCache = new Map<string, string | null>();
-const LRU_LIMIT = 100;
+const LRU_LIMIT = 500;
+/** localStorage manifest backing the memory cache across sessions. */
+const ARTWORK_MANIFEST_KEY = "player-artwork-manifest-v1";
+const MANIFEST_LIMIT = 1500;
 /** Dedup concurrent extractions for the same track. */
 const inflight = new Map<string, Promise<string | null>>();
 /** Concurrency throttling for native IPC. */
@@ -35,7 +38,55 @@ function setCacheLru(key: string, value: string | null): void {
     if (oldest === undefined) break;
     memoryCache.delete(oldest);
   }
+  persistManifestEntry(key, value);
 }
+
+/** In-memory manifest mirror to avoid repeated JSON.parse across resolutions. */
+const manifestCache = new Map<string, string | null>();
+
+/** Persist one resolved artwork entry so the next cold start reuses it. */
+function persistManifestEntry(key: string, value: string | null): void {
+  manifestCache.set(key, value);
+  while (manifestCache.size > MANIFEST_LIMIT) {
+    const oldest = manifestCache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    manifestCache.delete(oldest);
+  }
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        ARTWORK_MANIFEST_KEY,
+        JSON.stringify(Object.fromEntries(manifestCache)),
+      );
+    }
+  } catch { /* best-effort: ignore */ }
+}
+
+/** Load the persisted manifest into the memory cache at module init. */
+function hydrateFromManifest(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const raw = localStorage.getItem(ARTWORK_MANIFEST_KEY);
+    if (!raw) return;
+    const manifest: Record<string, string | null> = JSON.parse(raw);
+    for (const [k, v] of Object.entries(manifest)) {
+      manifestCache.set(k, v);
+      if (!memoryCache.has(k)) setCacheLruNoPersist(k, v);
+    }
+  } catch { /* best-effort: ignore */ }
+}
+
+/** setCacheLru without manifest write (used during hydration). */
+function setCacheLruNoPersist(key: string, value: string | null): void {
+  memoryCache.set(key, value);
+  while (memoryCache.size > LRU_LIMIT) {
+    const oldest = memoryCache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    memoryCache.delete(oldest);
+  }
+}
+
+hydrateFromManifest();
 
 function runWithConcurrency<T>(fn: () => Promise<T>): Promise<T> {
   if (activeIpc < MAX_CONCURRENCY) {
@@ -185,21 +236,76 @@ export function resolveArtworkSrc(track: TrackLike): Promise<string | null> {
 export function evictArtworkCache(audioRefs?: string[]): void {
   if (!audioRefs) {
     memoryCache.clear();
+    manifestCache.clear();
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(ARTWORK_MANIFEST_KEY);
+      }
+    } catch { /* best-effort: ignore */ }
     return;
   }
   for (const ref of audioRefs) {
     memoryCache.delete(ref);
+    manifestCache.delete(ref);
     const prefix = `${ref}|`;
     for (const k of Array.from(memoryCache.keys())) {
       if (k.startsWith(prefix)) memoryCache.delete(k);
     }
+    for (const k of Array.from(manifestCache.keys())) {
+      if (k.startsWith(prefix)) manifestCache.delete(k);
+    }
   }
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        ARTWORK_MANIFEST_KEY,
+        JSON.stringify(Object.fromEntries(manifestCache)),
+      );
+    }
+  } catch { /* best-effort: ignore */ }
 }
 
 /** Test-only hook to reset module state. */
 export function __clearArtworkCachesForTests(): void {
   memoryCache.clear();
+  manifestCache.clear();
   inflight.clear();
+  prefetchScheduled.clear();
   activeIpc = 0;
   ipcQueue.length = 0;
+}
+
+/** Track refs already queued for idle prefetch (dedupe across rescans). */
+const prefetchScheduled = new Set<string>();
+
+/**
+ * Namida-style idle prefetch: after a scan completes, warm the artwork
+ * cache for the first screenful of tracks during browser idle time so the
+ * first paint already has covers instead of popping them in on demand.
+ * Deduped by track ref across calls; bounded by `count`; actual IPC is
+ * already throttled by the module's concurrency queue.
+ */
+export function scheduleArtworkPrefetch(tracks: TrackLike[], count = 50): void {
+  if (typeof window === "undefined") return;
+  const w = window as unknown as {
+    requestIdleCallback?: (cb: () => void) => number;
+  };
+  const idle =
+    typeof w.requestIdleCallback === "function"
+      ? (cb: () => void) => w.requestIdleCallback!(cb)
+      : (cb: () => void) => window.setTimeout(cb, 0);
+
+  let scheduled = 0;
+  for (const track of tracks) {
+    if (scheduled >= count) break;
+    const key = memoryKey(track);
+    if (!artworkCacheKey(track) || memoryCache.has(key) || prefetchScheduled.has(key)) {
+      continue;
+    }
+    prefetchScheduled.add(key);
+    scheduled++;
+    idle(() => {
+      void resolveArtworkSrc(track).catch(() => {});
+    });
+  }
 }

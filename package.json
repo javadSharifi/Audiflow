@@ -1,7 +1,7 @@
 {
   "name": "audio-converter",
   "private": true,
-  "version": "1.4.4",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,7 +18,9 @@
     "android:emulator:rebuild": "bash scripts/run-android-emulator.sh --rebuild",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.13",
@@ -31,6 +33,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.14",
     "@tauri-apps/cli": "^2.9.6",
     "@testing-library/dom": "^10.4.1",
@@ -38,9 +41,13 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.1.14",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
     "vite": "^7.1.10",
     "vitest": "^3.2.4"
   }

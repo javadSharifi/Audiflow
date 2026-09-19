@@ -40,6 +40,7 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
   const coverKey = track.id ?? track.coverUrl ?? null;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of fallback state when the track changes
     setImgFailed(false);
   }, [coverKey]);
 
@@ -50,6 +51,7 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
     let cancelled = false;
     const sync = getCachedArtworkSrc(track);
     if (sync !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync of cached artwork on key change
       setExtractedSrc(sync);
       return;
     }

@@ -1,15 +1,28 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { PlayerTab } from "./MusicPlayerNav";
 import { SongsView } from "./SongsView";
 import { LikedView } from "./LikedView";
 import { AlbumsView } from "./AlbumsView";
-import { BoosterView } from "./BoosterView";
 import { KeepAlivePane } from "./KeepAlivePane";
 import { MiniPlayer } from "./MiniPlayer";
-import { NowPlayingView } from "./NowPlayingView";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
 import { isAndroid } from "../../utils/platform";
+
+// Code splitting: the fullscreen player (largest component in the app) and
+// the booster dial are not part of first paint — load them on first use so
+// the initial chunk stays small (Vite warned about a >500 kB single chunk).
+const NowPlayingView = lazy(() =>
+  import("./NowPlayingView").then((m) => ({ default: m.NowPlayingView })),
+);
+const BoosterView = lazy(() =>
+  import("./BoosterView").then((m) => ({ default: m.BoosterView })),
+);
+
+/** Local chunk fetch is near-instant; no spinner needed. */
+function LazyFallback(): null {
+  return null;
+}
 
 export interface MusicPlayerViewProps {
   activeTab?: PlayerTab;
@@ -58,14 +71,18 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
         <LikedView />
       </KeepAlivePane>
       <KeepAlivePane active={activeTab === "boost"}>
-        <BoosterView />
+        <Suspense fallback={<LazyFallback />}>
+          <BoosterView />
+        </Suspense>
       </KeepAlivePane>
       <KeepAlivePane active={activeTab === "album"}>
         <AlbumsView />
       </KeepAlivePane>
 
       {/* Fullscreen Now Playing View (covers nav + mini player) */}
-      <NowPlayingView />
+      <Suspense fallback={<LazyFallback />}>
+        <NowPlayingView />
+      </Suspense>
 
       {/* Floating Mini Player (hidden in fullscreen so it never covers popups) */}
       {!fullscreenOpen && <MiniPlayer />}

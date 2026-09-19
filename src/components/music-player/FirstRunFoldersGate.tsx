@@ -7,23 +7,6 @@ import { persistCustomFolders } from "../../stores/musicPlayer/persistence";
 import { translate, type TranslationKey } from "../../i18n";
 import { pickDirectories } from "../../utils/dialog";
 
-/** Persistent first-run flag (localStorage: must survive restarts). */
-export const FIRST_RUN_DONE_KEY = "ac:first-run-done";
-
-export function isFirstRunDone(): boolean {
-  try {
-    return localStorage.getItem(FIRST_RUN_DONE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function markFirstRunDone(): void {
-  try {
-    localStorage.setItem(FIRST_RUN_DONE_KEY, "1");
-  } catch {}
-}
-
 interface FirstRunFoldersGateProps {
   onDone: (selectedDirs: string[]) => void;
   onSkip: () => void;
@@ -67,7 +50,7 @@ export function FirstRunFoldersGate({
         try {
           const path = await d.get();
           if (path) resolved.push({ key: d.key, labelKey: d.labelKey, path, checked: d.checked });
-        } catch {}
+        } catch { /* best-effort: ignore */ }
       }
       if (!cancelled) setRows(resolved);
     })();
@@ -113,7 +96,7 @@ export function FirstRunFoldersGate({
       const next = Array.from(new Set([...store.customFolders, ...checked]));
       persistCustomFolders(next);
       useMusicPlayerStore.setState({ customFolders: next });
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     onDone(checked);
   };
 

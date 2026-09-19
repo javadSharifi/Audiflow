@@ -62,7 +62,7 @@ export function useGithubUpdate(): GithubUpdateState {
         setLatest(release);
         try {
           storage()?.setItem(CACHE_KEY, JSON.stringify({ checkedAt: Date.now(), release } satisfies UpdateCache));
-        } catch {}
+        } catch { /* best-effort: ignore */ }
       }
     };
 

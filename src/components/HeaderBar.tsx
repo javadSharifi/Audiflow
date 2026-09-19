@@ -157,41 +157,6 @@ export function HeaderBar(): React.JSX.Element {
                   </button>
                 </div>
 
-                {/* Theme Mode Setting Row */}
-                <div className="flex items-center justify-between rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
-                      {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                    </div>
-                    <div>
-                      <span className="block font-semibold text-zinc-800 dark:text-zinc-200">
-                        {translate(lang, "theme")}
-                      </span>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {isDark ? translate(lang, "themeDark") : translate(lang, "themeLight")}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={toggleTheme}
-                    className="flex items-center gap-1.5 rounded-xl border border-black/5 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:border-white/5 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                  >
-                    {isDark ? (
-                      <>
-                        <Sun className="h-3.5 w-3.5 text-amber-400" />
-                        <span>{translate(lang, "themeLight")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Moon className="h-3.5 w-3.5 text-zinc-600" />
-                        <span>{translate(lang, "themeDark")}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
                 {/* Performance Mode (Reduced Blur) Setting Row */}
                 <div className="flex items-center justify-between rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
                   <div className="flex items-center gap-2.5">
@@ -232,21 +197,6 @@ export function HeaderBar(): React.JSX.Element {
                       })
                     }
                     className="w-20 rounded-xl border border-black/10 bg-white/70 px-3 py-1.5 text-center font-bold outline-none dark:border-white/10 dark:bg-black/30"
-                  />
-                </label>
-
-                {/* Auto Open Output Folder Setting */}
-                <label className="flex items-center justify-between rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.03]">
-                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                    {translate(lang, "autoOpenOutput")}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={settings?.autoOpenOutputFolder ?? false}
-                    onChange={(e) =>
-                      updateSettings({ autoOpenOutputFolder: e.target.checked })
-                    }
-                    className="h-5 w-5 rounded-md accent-orange-500 cursor-pointer"
                   />
                 </label>
 

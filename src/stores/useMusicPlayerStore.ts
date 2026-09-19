@@ -40,10 +40,16 @@ import {
 import { resolveNextTrack, noteUnplayable, snapshotUnplayableKeys, trackKey } from "./musicPlayer/autoAdvance";
 import { createSeekDebouncer } from "./musicPlayer/seekDebounce";
 import { createGainGlider } from "./musicPlayer/gainGlide";
-import { getTrackKey, getTrackAliases, isTrackLiked } from "./musicPlayer/trackUtils";
+import {
+  getTrackKey,
+  getTrackAliases,
+  isTrackLiked,
+  playbackIdentityKey,
+  computeAllAlbums,
+} from "./musicPlayer/trackUtils";
 import { useAppStore } from "./useAppStore";
 import { isAndroid } from "../utils/platform";
-import { evictArtworkCache } from "../utils/artwork";
+import { evictArtworkCache, scheduleArtworkPrefetch } from "../utils/artwork";
 
 /** Combined shuffle/repeat playback mode cycled by a single Now-Playing button. */
 export type PlaybackMode = "normal" | "shuffle" | "repeatAll" | "repeatOne";
@@ -65,6 +71,7 @@ export {
   isTrackLiked,
   filterAndSortTracks,
   computeAllAlbums,
+  playbackIdentityKey,
 } from "./musicPlayer/trackUtils";
 
 // ---------------------------------------------------------------------------
@@ -97,7 +104,7 @@ const gainGlider = createGainGlider((percent: number) => {
     try {
       const fallback = getGlobalGainNode();
       if (fallback) fallback.gain.value = percent / 100;
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   }
   persistSavedBoosterGain(percent);
 });
@@ -118,6 +125,13 @@ export interface MusicPlayerState {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  /**
+   * Derived, cheap playing-indicator key ("" when idle). Selectors should
+   * subscribe to THIS for row highlight / play-icon state instead of
+   * `currentTrack` — the full object identity changes on every library
+   * rescan and would re-render every visible row.
+   */
+  playingKey: string;
   currentPlaylist: AudioTrackInfo[];
   repeatMode: "off" | "all" | "one";
   shuffleMode: boolean;
@@ -193,21 +207,71 @@ export interface MusicPlayerState {
   isTrackInAlbum: (albumId: string, track: AudioTrackInfo) => boolean;
 }
 
+/**
+ * Warm the artwork cache across Songs, Albums, and Liked tabs in browser idle time
+ * so switching between tabs has covers ready immediately without pop-in delays.
+ */
+function warmLibraryArtwork(
+  tracks: AudioTrackInfo[],
+  customAlbums: CustomAlbum[] = [],
+  likedPaths: Set<string> = new Set(),
+): void {
+  if (tracks.length === 0) return;
+  const candidates: AudioTrackInfo[] = [];
+
+  // 1. First screenful of Songs tab (40 tracks)
+  candidates.push(...tracks.slice(0, 40));
+
+  // 2. First screenful of Albums tab (20 album covers)
+  try {
+    const { custom, auto } = computeAllAlbums(tracks, customAlbums);
+    const topAlbums = [...custom, ...auto].slice(0, 20);
+    for (const alb of topAlbums) {
+      if (alb.coverTrack) candidates.push(alb.coverTrack);
+    }
+  } catch { /* best-effort: ignore */ }
+
+  // 3. First screenful of Liked tab (20 tracks)
+  if (likedPaths.size > 0) {
+    let likedCount = 0;
+    for (const t of tracks) {
+      if (isTrackLiked(t, likedPaths)) {
+        candidates.push(t);
+        likedCount++;
+        if (likedCount >= 20) break;
+      }
+    }
+  }
+
+  scheduleArtworkPrefetch(candidates, candidates.length);
+}
+
+const initialCachedTracks = loadCachedTracks();
+const initialLikedPaths = loadLikedPaths();
+const initialCustomAlbums = loadCustomAlbums();
+
+if (typeof window !== "undefined" && initialCachedTracks.length > 0) {
+  setTimeout(() => {
+    warmLibraryArtwork(initialCachedTracks, initialCustomAlbums, initialLikedPaths);
+  }, 100);
+}
+
 export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
-  tracks: loadCachedTracks(),
+  tracks: initialCachedTracks,
   loading: false,
   hasScanned: false,
   searchQuery: "",
   sortBy: loadSavedSort(),
-  likedPaths: loadLikedPaths(),
+  likedPaths: initialLikedPaths,
   permissionStatus: "granted",
   customFolders: loadCustomFolders(),
-  customAlbums: loadCustomAlbums(),
+  customAlbums: initialCustomAlbums,
 
   currentTrack: null,
   isPlaying: false,
   currentTime: 0,
   duration: 0,
+  playingKey: "",
   currentPlaylist: [],
   repeatMode: "off",
   shuffleMode: false,
@@ -229,7 +293,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
   async requestMediaPermission() {
     try {
       api.requestMediaPermissions();
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     // The native dialog answers asynchronously with no callback — poll the
     // status so the grant is picked up without a second manual tap.
     const deadline = Date.now() + 15000;
@@ -270,7 +334,11 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
       // Cache in the background; never let quota errors break the scan.
       try {
         persistCachedTracks(tracks);
-      } catch {}
+      } catch { /* best-effort: ignore */ }
+      // Warm covers for top songs, albums, and liked tracks during browser idle
+      try {
+        warmLibraryArtwork(tracks, get().customAlbums, get().likedPaths);
+      } catch { /* best-effort: ignore */ }
     } catch (err) {
       console.warn("Library scan failed:", err);
       set({ loading: false, hasScanned: true });
@@ -289,7 +357,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
   toggleLike(trackOrKey) {
     set((state) => {
       const next = new Set(state.likedPaths);
-      let aliases: string[] = [];
+      let aliases: string[];
       let primaryKey: string;
 
       if (typeof trackOrKey === "string") {
@@ -386,6 +454,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
 
     set({
       currentTrack: track,
+      playingKey: playbackIdentityKey(track),
       isPlaying: true,
       currentTime: 0,
       duration: track.durationSecs || 0,
@@ -403,6 +472,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     void unifiedStop();
     set({
       currentTrack: null,
+      playingKey: "",
       isPlaying: false,
       currentTime: 0,
       duration: 0,
@@ -490,7 +560,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     noteUnplayable(trackKey(failedTrack));
     try {
       useAppStore.getState().pushToast("warning", "playerSkippedUnplayable");
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     const list = state.currentPlaylist.length > 0 ? state.currentPlaylist : state.tracks;
     const outcome =
       list.length === 0
@@ -672,7 +742,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     // in MainActivity.deleteAudioTrack).
     try {
       evictArtworkCache(Array.from(deleteKeySet));
-    } catch {}
+    } catch { /* best-effort: ignore */ }
 
     const current = get().currentTrack;
     if (
@@ -682,7 +752,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
         (current.path && deleteKeySet.has(current.path)))
     ) {
       get().pauseTrack();
-      set({ currentTrack: null, isPlaying: false, currentTime: 0 });
+      set({ currentTrack: null, playingKey: "", isPlaying: false, currentTime: 0 });
     }
 
     const deleteAliases = new Set(
@@ -724,7 +794,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     });
     try {
       persistCachedTracks(get().tracks);
-    } catch {}
+    } catch { /* best-effort: ignore */ }
   },
 
   addMultipleTracksToAlbum(albumId, tracksToAdd) {
@@ -755,13 +825,13 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     // See deleteMultipleTracks: keep the artwork cache free of stale covers.
     try {
       evictArtworkCache([targetKey]);
-    } catch {}
+    } catch { /* best-effort: ignore */ }
 
     // If currently playing, stop playback
     const current = get().currentTrack;
     if (current && (current.id === track.id || current.uri === track.uri)) {
       get().pauseTrack();
-      set({ currentTrack: null, isPlaying: false, currentTime: 0 });
+      set({ currentTrack: null, playingKey: "", isPlaying: false, currentTime: 0 });
     }
 
     // Remove from tracks and currentPlaylist
@@ -776,7 +846,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     });
     try {
       persistCachedTracks(get().tracks);
-    } catch {}
+    } catch { /* best-effort: ignore */ }
 
     // Remove from liked if present
     const isLiked = isTrackLiked(track, get().likedPaths);

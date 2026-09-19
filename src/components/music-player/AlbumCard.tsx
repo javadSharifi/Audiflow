@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../stores/useAppStore";
-import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
+import { useMusicPlayerStore, playbackIdentityKey } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { TrackCover } from "./TrackCover";
 import { Play, Pause, MoreVertical, Edit2, Trash2, Disc3, Sparkles } from "lucide-react";
@@ -28,16 +28,19 @@ export function AlbumCard({
   onDelete,
 }: AlbumCardProps): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
-  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
+  // Cheap key subscription: the card re-renders only when the playing
+  // *identity* flips — not on every seek/rescan replacing the currentTrack
+  // object (which previously re-rendered every album card).
+  const playingKey = useMusicPlayerStore((s) => s.playingKey);
   const isPlaying = useMusicPlayerStore((s) => s.isPlaying);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Check if any track from this album is currently playing
   const isThisAlbumPlaying =
-    currentTrack !== null &&
     isPlaying &&
-    album.tracks.some((t) => t.id === currentTrack.id || t.uri === currentTrack.uri);
+    playingKey !== "" &&
+    album.tracks.some((t) => playbackIdentityKey(t) === playingKey);
 
   return (
     <div

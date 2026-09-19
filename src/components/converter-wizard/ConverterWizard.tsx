@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { WizardStepper, type WizardStep } from "./WizardStepper";
+import type { WizardStep } from "./WizardStepper";
 import { WizardUploadStep } from "./WizardUploadStep";
 import { WizardConfigsStep } from "./WizardConfigsStep";
 import { WizardProgressStep } from "./WizardProgressStep";
@@ -15,13 +15,11 @@ export function ConverterWizard(): React.JSX.Element {
   const files = useAppStore((s) => s.files);
   const jobs = useAppStore((s) => s.jobs);
   const [step, setStep] = useState<WizardStep>(1);
-  const [maxVisited, setMaxVisited] = useState<WizardStep>(1);
 
   const busy = Array.from(jobs.values()).some((j) => j.status === "waiting" || j.status === "processing");
 
   const go = useCallback((n: WizardStep) => {
     setStep(n);
-    setMaxVisited((m) => (n > m ? n : m));
   }, []);
 
   const handleConvert = useCallback(() => {
@@ -51,18 +49,19 @@ export function ConverterWizard(): React.JSX.Element {
     const list = Array.from(jobs.values());
     if (list.length > 0 && list.every((j) => isTerminal(j.status))) {
       useAppStore.getState().clearFiles();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional auto-advance to the result step once the queue settles
       go(4);
     }
   }, [step, busy, jobs, go]);
 
   // Files removed externally while on configs -> back to upload.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional step guard: navigate back when inputs vanish
     if (step === 2 && files.length === 0) go(1);
   }, [step, files.length, go]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-4 pt-4 md:gap-5 md:px-6 min-h-0 py-5 pb-28">
-      <WizardStepper step={step} maxVisited={maxVisited} busy={busy} lang={lang} onGo={go} />
       <div key={step} className="wizard-step-in">
         {step === 1 && <WizardUploadStep lang={lang} onNext={() => go(2)} />}
         {step === 2 && <WizardConfigsStep lang={lang} onBack={() => go(1)} onConvert={handleConvert} />}

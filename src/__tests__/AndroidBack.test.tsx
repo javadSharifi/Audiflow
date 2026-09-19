@@ -38,7 +38,6 @@ vi.mock("../utils/tauri", async (importOriginal) => {
   const actual = await importOriginal<typeof tauriApi>();
   return {
     ...actual,
-    hasMediaPermissions: vi.fn(async () => true),
     requestMediaPermissions: vi.fn(),
     openAppSettings: vi.fn(),
     exitApp: vi.fn(async () => {}),
@@ -86,7 +85,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   try {
     sessionStorage.clear();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   useAppStore.setState({
     lang: "en",
     activeTool: "player",

@@ -32,7 +32,10 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const setSearchQuery = useMusicPlayerStore((s) => s.setSearchQuery);
   const setSortBy = useMusicPlayerStore((s) => s.setSortBy);
   const isSelectionMode = useMusicPlayerStore((s) => s.isSelectionMode);
-  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
+  // Cheap boolean instead of the whole currentTrack object — the list only
+  // needs to know "is anything playing" (bottom padding); subscribing to the
+  // object re-rendered the entire list on every rescan-track replacement.
+  const isPlayerActive = useMusicPlayerStore((s) => s.playingKey !== "");
 
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [notifDismissed, setNotifDismissed] = useState(() => {
@@ -45,7 +48,7 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const dismissNotifBanner = () => {
     try {
       sessionStorage.setItem("ac:notif-banner-dismissed", "1");
-    } catch {}
+    } catch { /* best-effort: ignore */ }
     setNotifDismissed(true);
   };
 
@@ -261,9 +264,9 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
           <div
             ref={parentRef}
             className={`flex-1 overflow-y-auto min-h-0 pr-1 ${
-              isSelectionMode && currentTrack
+              isSelectionMode && isPlayerActive
                 ? "pb-72"
-                : isSelectionMode || currentTrack
+                : isSelectionMode || isPlayerActive
                   ? "pb-44"
                   : "pb-24"
             }`}

@@ -150,7 +150,7 @@ export function syncMediaSession({
   // 2. Update Playback State (Lock Screen status)
   try {
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 
   // 3. Update Position State (Lock Screen Seekbar)
   try {
@@ -167,5 +167,5 @@ export function syncMediaSession({
         position: Math.min(Math.max(0, currentTime), Math.max(0, duration)),
       });
     }
-  } catch {}
+  } catch { /* best-effort: ignore */ }
 }

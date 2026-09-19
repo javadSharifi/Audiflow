@@ -174,7 +174,7 @@ describe("MusicPlayerView", () => {
     );
   }
 
-  it("switches tab content when clicking navigation items and defaults to Songs", () => {
+  it("switches tab content when clicking navigation items and defaults to Songs", async () => {
     render(<PlayerHarness />);
 
     // Default tab is Songs with search input
@@ -188,12 +188,14 @@ describe("MusicPlayerView", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Albums/i }));
     expect(screen.getAllByText(/My Custom Albums/i).length).toBeGreaterThan(0);
 
-    // Click Sound Boost -> renders BoosterView
+    // Click Sound Boost -> renders BoosterView (lazy chunk: await it)
     fireEvent.click(screen.getByRole("tab", { name: /Sound Boost/i }));
-    expect(screen.getByRole("switch", { name: /Toggle Sound Booster/i })).toBeTruthy();
+    expect(
+      await screen.findByRole("switch", { name: /Toggle Sound Booster/i }),
+    ).toBeTruthy();
   });
 
-  it("renders localized text in Persian (fa)", () => {
+  it("renders localized text in Persian (fa)", async () => {
     useAppStore.setState({ lang: "fa" });
     render(<PlayerHarness />);
 
@@ -202,8 +204,8 @@ describe("MusicPlayerView", () => {
     expect(screen.getByRole("tab", { name: /علاقه‌مندی‌ها/i })).toBeTruthy();
     expect(screen.getByRole("tab", { name: /افزایش صدا/i })).toBeTruthy();
 
-    // Click افزایش صدا -> renders Persian BoosterView
+    // Click افزایش صدا -> renders Persian BoosterView (lazy chunk: await it)
     fireEvent.click(screen.getByRole("tab", { name: /افزایش صدا/i }));
-    expect(screen.getByText(/افزایش صدای سراسری گوشی/i)).toBeTruthy();
+    expect(await screen.findByText(/افزایش صدای سراسری گوشی/i)).toBeTruthy();
   });
 });

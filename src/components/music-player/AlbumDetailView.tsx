@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useAppStore } from "../../stores/useAppStore";
-import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
+import { useMusicPlayerStore, playbackIdentityKey } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { TrackCover } from "./TrackCover";
 import { TrackRow } from "./TrackRow";
+import { useTrackVirtualizer } from "./useTrackVirtualizer";
 import {
   ArrowLeft,
   ArrowRight,
@@ -35,7 +36,8 @@ export function AlbumDetailView({ album, onBack }: AlbumDetailViewProps): React.
   const pushToast = useAppStore((s) => s.pushToast);
   const playTrack = useMusicPlayerStore((s) => s.playTrack);
   const pauseTrack = useMusicPlayerStore((s) => s.pauseTrack);
-  const currentTrack = useMusicPlayerStore((s) => s.currentTrack);
+  // Cheap playing-identity key: no re-render on track-object replacement.
+  const playingKey = useMusicPlayerStore((s) => s.playingKey);
   const isPlaying = useMusicPlayerStore((s) => s.isPlaying);
   const renameCustomAlbum = useMusicPlayerStore((s) => s.renameCustomAlbum);
   const deleteCustomAlbum = useMusicPlayerStore((s) => s.deleteCustomAlbum);
@@ -44,12 +46,22 @@ export function AlbumDetailView({ album, onBack }: AlbumDetailViewProps): React.
   const [editedName, setEditedName] = useState(album.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Virtualize the track list: custom albums can hold hundreds of rows and
+  // previously rendered ALL of them at once on open.
+  const listParentRef = useRef<HTMLDivElement>(null);
+  const trackVirtualizer = useTrackVirtualizer({
+    count: album.tracks.length,
+    parentRef: listParentRef,
+    estimateSize: 64,
+    overscan: 6,
+  });
+
   const isRtl = lang === "fa";
 
   const isThisAlbumPlaying =
-    currentTrack !== null &&
     isPlaying &&
-    album.tracks.some((t) => t.id === currentTrack.id || t.uri === currentTrack.uri);
+    playingKey !== "" &&
+    album.tracks.some((t) => playbackIdentityKey(t) === playingKey);
 
   const handlePlayAll = async () => {
     if (album.tracks.length === 0) return;
@@ -235,19 +247,42 @@ export function AlbumDetailView({ album, onBack }: AlbumDetailViewProps): React.
         </div>
 
         {/* Tracks List */}
-        <div className="flex flex-col gap-1 pb-44">
+        {/* Tracks List — virtualized so opening a large album renders only
+            the visible rows instead of the entire list at once. */}
+        <div ref={listParentRef} className="flex flex-col gap-1 pb-44">
           {album.tracks.length === 0 ? (
             <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
               {translate(lang, "emptyAlbum")}
             </div>
           ) : (
-            album.tracks.map((track) => (
-              <TrackRow
-                key={track.id || track.uri}
-                track={track}
-                playlist={album.tracks}
-              />
-            ))
+            <div
+              style={{
+                height: `${trackVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {trackVirtualizer.getVirtualItems().map((virtualRow) => {
+                const track = album.tracks[virtualRow.index];
+                return (
+                  <div
+                    key={virtualRow.key}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <TrackRow
+                      track={track}
+                      playlist={album.tracks}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

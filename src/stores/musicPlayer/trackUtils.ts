@@ -9,6 +9,16 @@ export function getTrackKey(track: Partial<AudioTrackInfo>): string {
   return track.uri || track.id || track.path || "";
 }
 
+/**
+ * Cheap, stable identity for the *playing indicator* of one row.
+ * Selection / highlight / play-icon equality must use THIS key — not the
+ * full `track` object — so store updates during rescans (which replace
+ * track object identities) don't cascade re-renders into every row.
+ */
+export function playbackIdentityKey(track: Partial<AudioTrackInfo>): string {
+  return track.id || track.uri || track.path || "";
+}
+
 export function getTrackAliases(track: Partial<AudioTrackInfo>): string[] {
   return [track.uri, track.id, track.path].filter(Boolean) as string[];
 }
@@ -104,26 +114,34 @@ export function computeAllAlbums(
   allTracks: AudioTrackInfo[],
   customAlbums: CustomAlbum[],
 ): { custom: AlbumItem[]; auto: AlbumItem[] } {
+  // O(n) lookup index once: custom-album resolution below used to do a
+  // linear find per key — O(n × keys) — which froze the Albums tab on
+  // large libraries whenever tracks changed.
+  const byKey = new Map<string, AudioTrackInfo>();
+  for (const t of allTracks) {
+    if (t.id) byKey.set(t.id, t);
+    if (t.uri) byKey.set(t.uri, t);
+    if (t.path) byKey.set(t.path, t);
+  }
+
   // 1. Compute Custom Albums (Row 1)
   const custom: AlbumItem[] = customAlbums.map((ca) => {
     const matchedTracks = ca.trackKeys
-      .map((key) =>
-        allTracks.find(
-          (t) => t.id === key || t.uri === key || (t.path && t.path === key),
-        ),
-      )
+      .map((key) => byKey.get(key))
       .filter((t): t is AudioTrackInfo => t !== undefined);
 
-    // Latest added track becomes cover
-    const coverTrack =
-      matchedTracks.length > 0
-        ? [...matchedTracks].sort((a, b) => latestTimestampMs(b) - latestTimestampMs(a))[0]
-        : null;
-
-    const totalDurationSecs = matchedTracks.reduce(
-      (acc, t) => acc + (t.durationSecs || 0),
-      0,
-    );
+    let coverTrack: AudioTrackInfo | null = matchedTracks[0] || null;
+    let maxTs = coverTrack ? latestTimestampMs(coverTrack) : -1;
+    let totalDurationSecs = coverTrack ? coverTrack.durationSecs || 0 : 0;
+    for (let i = 1; i < matchedTracks.length; i++) {
+      const t = matchedTracks[i];
+      const ts = latestTimestampMs(t);
+      if (ts > maxTs) {
+        maxTs = ts;
+        coverTrack = t;
+      }
+      totalDurationSecs += t.durationSecs || 0;
+    }
 
     return {
       id: ca.id,
@@ -147,11 +165,18 @@ export function computeAllAlbums(
   }
 
   const auto: AlbumItem[] = Array.from(artistMap.entries()).map(([artist, tracks]) => {
-    // Latest added track becomes cover
-    const coverTrack =
-      [...tracks].sort((a, b) => latestTimestampMs(b) - latestTimestampMs(a))[0] || null;
-
-    const totalDurationSecs = tracks.reduce((acc, t) => acc + (t.durationSecs || 0), 0);
+    let coverTrack: AudioTrackInfo | null = tracks[0] || null;
+    let maxTs = coverTrack ? latestTimestampMs(coverTrack) : -1;
+    let totalDurationSecs = coverTrack ? coverTrack.durationSecs || 0 : 0;
+    for (let i = 1; i < tracks.length; i++) {
+      const t = tracks[i];
+      const ts = latestTimestampMs(t);
+      if (ts > maxTs) {
+        maxTs = ts;
+        coverTrack = t;
+      }
+      totalDurationSecs += t.durationSecs || 0;
+    }
 
     return {
       id: `artist_${artist}`,

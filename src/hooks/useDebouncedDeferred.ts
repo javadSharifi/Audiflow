@@ -10,6 +10,7 @@ export function useDebouncedDeferred<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
     if (ms === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync: debounce with zero delay applies the value immediately
       setDebounced(value);
       return;
     }

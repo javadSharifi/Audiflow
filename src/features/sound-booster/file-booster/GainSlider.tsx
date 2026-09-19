@@ -1,12 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { SlidersHorizontal, ShieldCheck } from "lucide-react";
 import { translate } from "../../../i18n";
 import { useAppStore } from "../../../stores/useAppStore";
-
 import { ModernSlider } from "../../../components/ModernSlider";
+import { boosterDbForPercent } from "../../../stores/musicPlayer/audioEngine";
 
 interface GainSliderProps {
-  gainPercent: number; // 0 to 200
+  gainPercent: number; // 0 to 400
   onChangeGain: (gain: number) => void;
   disabled?: boolean;
 }
@@ -18,13 +18,13 @@ export function GainSlider({
 }: GainSliderProps): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
 
-  // Approximate dB calculation: 20 * log10(pct / 100)
-  const dbValue =
-    gainPercent > 0
-      ? (20 * Math.log10(gainPercent / 100)).toFixed(1)
-      : "-∞";
+  const dbValue = useMemo(() => {
+    if (gainPercent === 0) return "-∞";
+    if (gainPercent <= 100) return (20 * Math.log10(gainPercent / 100)).toFixed(1);
+    return boosterDbForPercent(gainPercent).toFixed(1);
+  }, [gainPercent]);
 
-  const isHighBoost = gainPercent > 150;
+  const isHighBoost = gainPercent > 200;
 
   return (
     <div className="flex flex-col gap-3.5 rounded-3xl border border-black/[0.08] bg-white/80 p-5 shadow-sm backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-900/80">
@@ -49,7 +49,7 @@ export function GainSlider({
         <ModernSlider
           value={gainPercent}
           min={0}
-          max={200}
+          max={400}
           step={5}
           disabled={disabled}
           onChange={onChangeGain}
@@ -60,9 +60,10 @@ export function GainSlider({
         />
 
         <div className="flex justify-between px-1 text-[9.5px] font-semibold text-zinc-400 dark:text-zinc-500">
-          <span>{translate(lang, "sliderMute")} (0%)</span>
-          <span>{translate(lang, "sliderOriginal")} (100%)</span>
-          <span>{translate(lang, "sliderMax")} (200%)</span>
+          <span>{translate(lang, "sliderMute")}</span>
+          <span>{translate(lang, "sliderOriginal")}</span>
+          <span>200%</span>
+          <span>{translate(lang, "sliderMax")}</span>
         </div>
       </div>
 

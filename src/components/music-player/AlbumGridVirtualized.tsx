@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plus } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
@@ -59,17 +59,62 @@ export function AlbumGridVirtualized({
 
   // Each grid row ~ 175px on mobile, ~210 on desktop — use conservative 210
   const estimateRow = 210;
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual returns non-memoizable functions; compiler memoization is intentionally skipped
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimateRow,
     overscan: 2,
+    // Same guard as useTrackVirtualizer: without an initial rect the
+    // virtualizer measures 0 rows when the scroll element is null/hidden on
+    // first paint (lazy KeepAlive mount + async scan) and stays empty until
+    // a scroll/resize forces re-measure — badge shows N but grid is blank.
+    initialRect: { width: 800, height: 600 },
     // virtualizer measures against scrollElement; padding for headers is
     // handled by staying inside same scroller with modest over-render.
   });
 
+  // The scroll element (parentRef) is null on first render and may be
+  // display:none while its KeepAlive tab is inactive. Re-measure once it is
+  // laid out and whenever the row count changes (e.g. async scan lands
+  // after the album tab already mounted).
+  useEffect(() => {
+    rowVirtualizer.measure();
+  }, [rowVirtualizer, rowCount, cols, albums.length]);
+
+  // Keep the virtualizer in sync when the KeepAlive pane toggles
+  // display:none -> flex (tab switch) — ResizeObserver on the scroller
+  // fires and forces a re-measure so rows appear without a second visit.
+  const [, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => rowVirtualizer.measure());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [parentRef, rowVirtualizer]);
+
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
+  // If measurement hasn't settled yet (scroll element null/hidden on first
+  // paint), the virtualizer reports 0 rows / 0 size while albums already
+  // exist — the badge counts N but the grid renders blank. Fall back to the
+  // first rows synchronously so content is visible immediately; once the
+  // virtualizer measures, it takes over for scrolling.
+  const fallbackRowCount = rowCount > 0 ? Math.min(rowCount, 6) : 0;
+  const effectiveRows =
+    virtualRows.length === 0 && rowCount > 0
+      ? Array.from({ length: fallbackRowCount }, (_, i) => ({
+          key: i,
+          index: i,
+          start: i * estimateRow,
+          size: estimateRow,
+        }))
+      : virtualRows;
+  const effectiveTotalSize = totalSize > 0 ? totalSize : rowCount * estimateRow;
 
   if (items.length === (showCreateCard ? 1 : 0) && rowCount === (showCreateCard ? 1 : 0)) {
     // Only the create card or empty — render directly without virtualization
@@ -93,24 +138,8 @@ export function AlbumGridVirtualized({
     }
   }
 
-  // Fallback for jsdom tests where scroll measurements are 0 → render first 2 rows synchronously
-  const isTest =
-    (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE === "test" ||
-    (typeof globalThis !== "undefined" &&
-      (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV ===
-        "test");
-  const effectiveRows =
-    isTest && virtualRows.length === 0 && rowCount > 0
-      ? Array.from({ length: Math.min(rowCount, 2) }, (_, i) => ({
-          key: i,
-          index: i,
-          start: i * estimateRow,
-          size: estimateRow,
-        }))
-      : virtualRows;
-
   return (
-    <div style={{ height: totalSize ? `${totalSize}px` : undefined, width: "100%", position: "relative" }}>
+    <div style={{ height: effectiveTotalSize ? `${effectiveTotalSize}px` : undefined, width: "100%", position: "relative" }}>
       {effectiveRows.map((vr) => {
         const startIdx = vr.index * cols;
         const rowItems = items.slice(startIdx, startIdx + cols);

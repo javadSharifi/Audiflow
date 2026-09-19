@@ -17,7 +17,7 @@ export interface SortItem {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 }
 
-export const SORT_OPTIONS: SortItem[] = [
+const SORT_OPTIONS: SortItem[] = [
   { id: "newest", labelKey: "sortNewest", icon: Sparkles },
   { id: "oldest", labelKey: "sortOldest", icon: Clock },
   { id: "liked", labelKey: "sortLiked", icon: Heart },

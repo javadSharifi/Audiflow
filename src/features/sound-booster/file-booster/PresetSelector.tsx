@@ -95,11 +95,11 @@ export function PresetSelector({
                       : "text-zinc-900 dark:text-zinc-100"
                   }`}
                 >
-                  {translate(lang, preset.labelKey as any)}
+                  {translate(lang, preset.labelKey)}
                 </h4>
 
                 <p className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed font-medium text-zinc-500 dark:text-zinc-400 text-start">
-                  {translate(lang, preset.descKey as any)}
+                  {translate(lang, preset.descKey)}
                 </p>
               </div>
             </button>

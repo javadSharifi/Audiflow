@@ -44,7 +44,7 @@ beforeEach(() => {
   mockedPickDirectories.mockResolvedValue([]);
   try {
     localStorage.clear();
-  } catch {}
+  } catch { /* best-effort: ignore */ }
   useAppStore.setState({ lang: "en" });
   useMusicPlayerStore.setState({
     tracks: [],

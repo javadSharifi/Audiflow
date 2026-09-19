@@ -101,7 +101,11 @@ function drawWaveform(canvas: HTMLCanvasElement, args: PaintArgs): void {
       // Draw rounded capsule bar
       ctx.beginPath();
       const r = Math.min(bw / 2, 2);
-      ctx.roundRect ? ctx.roundRect(cx - bw / 2, yTop, bw, barHeight, r) : ctx.rect(cx - bw / 2, yTop, bw, barHeight);
+      if (ctx.roundRect) {
+        ctx.roundRect(cx - bw / 2, yTop, bw, barHeight, r);
+      } else {
+        ctx.rect(cx - bw / 2, yTop, bw, barHeight);
+      }
       ctx.fill();
     }
   }
@@ -196,6 +200,10 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   const audioRef = useRef<HTMLAudioElement>(null);
   const draggingRef = useRef<DragTarget>(null);
   const playTimeRef = useRef<number | null>(null);
+  const previewStartRef = useRef<number | null>(null);
+  const previewEndRef = useRef<number | null>(null);
+  const hasEnteredRangeRef = useRef(false);
+  const playSelectionRef = useRef<() => void>(() => {});
 
   const [peaks, setPeaks] = useState<[number, number][] | null>(null);
   const [waveErr, setWaveErr] = useState(false);
@@ -220,6 +228,7 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   // ---- Load waveform + playable URL -------------------------------------
   useEffect(() => {
     let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of waveform state when a new file is loaded
     setPeaks(null);
     setWaveErr(false);
     setSrcUrl(null);
@@ -271,7 +280,7 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
     return () => {
       alive = false;
     };
-  }, [file.path, duration, probedDur, updateFileMeta]);
+  }, [file.path, file.durationSecs, duration, probedDur, updateFileMeta]);
 
   // ---- Painting (rAF only while needed) -----------------------------------
   const paint = useCallback(() => {
@@ -314,7 +323,14 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
     (t: number) => {
       const a = audioRef.current;
       if (!a || !srcUrl || duration <= 0) return;
-      a.currentTime = Math.max(0, clampT(t) - 0.08);
+      previewStartRef.current = null;
+      previewEndRef.current = null;
+      hasEnteredRangeRef.current = false;
+      try {
+        a.currentTime = Math.max(0, clampT(t) - 0.08);
+      } catch {
+        /* ignore */
+      }
       if (a.paused) void a.play().catch(() => {});
     },
     [clampT, duration, srcUrl],
@@ -323,6 +339,9 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   const stopAudition = useCallback(() => {
     const a = audioRef.current;
     if (a && !a.paused) a.pause();
+    previewEndRef.current = null;
+    previewStartRef.current = null;
+    hasEnteredRangeRef.current = false;
   }, []);
 
   // Stop playback when leaving the editor or switching files.
@@ -376,10 +395,6 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
     },
     [clampT, duration, file.path, selEnd, selStart, setTrim],
   );
-
-  // Stable ref to selection playback for pointer-down handler.
-  const playSelectionRef = useRef<() => void>(() => {});
-  const previewEndRef = useRef<number | null>(null);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -456,28 +471,94 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
     (from: number, to: number) => {
       const a = audioRef.current;
       if (!a || !srcUrl) return;
-      const cleanFrom = Math.max(0, Math.min(duration, from));
-      const cleanTo = Math.max(cleanFrom, Math.min(duration, to));
+
+      const effDur =
+        Number.isFinite(a.duration) && a.duration > 0
+          ? Math.min(duration, a.duration)
+          : duration;
+
+      const cleanFrom = Math.max(0, Math.min(effDur, from));
+      const cleanTo = Math.max(cleanFrom, Math.min(effDur, to));
       if (cleanTo - cleanFrom <= 0.01) return;
 
+      previewStartRef.current = cleanFrom;
       previewEndRef.current = cleanTo;
-      a.currentTime = cleanFrom;
-      void a.play().catch(() => {});
+      hasEnteredRangeRef.current = false;
+
+      // Pause existing playback before seek so playPromise isn't interrupted mid-flight
+      if (!a.paused) {
+        try {
+          a.pause();
+        } catch {
+          /* ignore */
+        }
+      }
+
+      try {
+        a.currentTime = cleanFrom;
+      } catch {
+        /* ignore */
+      }
+
+      // Re-assert target start if browser reset currentTime to 0 on play
+      const onPlaying = () => {
+        if (Math.abs(a.currentTime - cleanFrom) > 0.4) {
+          try {
+            a.currentTime = cleanFrom;
+          } catch {
+            /* ignore */
+          }
+        }
+        a.removeEventListener("playing", onPlaying);
+      };
+      a.addEventListener("playing", onPlaying);
+
+      const playPromise = a.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setPlaying(true);
+            if (Math.abs(a.currentTime - cleanFrom) > 0.4) {
+              try {
+                a.currentTime = cleanFrom;
+              } catch {
+                /* ignore */
+              }
+            }
+          })
+          .catch((err) => {
+            console.warn("Play preview failed:", err);
+            setPlaying(false);
+            hasEnteredRangeRef.current = false;
+            previewStartRef.current = null;
+            previewEndRef.current = null;
+          });
+      }
     },
     [duration, srcUrl],
   );
 
-  const previewFirst10 = useCallback(() => {
+  const previewFirst5 = useCallback(() => {
+    const a = audioRef.current;
+    const effDur =
+      a && Number.isFinite(a.duration) && a.duration > 0
+        ? Math.min(duration, a.duration)
+        : duration;
     const start = selStart ?? 0;
-    const end = selEnd ?? duration;
-    const targetEnd = Math.min(start + 10, end);
+    const end = selEnd ?? effDur;
+    const targetEnd = Math.min(start + 5, end);
     playPreviewRange(start, targetEnd);
   }, [duration, playPreviewRange, selEnd, selStart]);
 
-  const previewLast10 = useCallback(() => {
+  const previewLast5 = useCallback(() => {
+    const a = audioRef.current;
+    const effDur =
+      a && Number.isFinite(a.duration) && a.duration > 0
+        ? Math.min(duration, a.duration)
+        : duration;
     const start = selStart ?? 0;
-    const end = selEnd ?? duration;
-    const targetStart = Math.max(end - 10, start);
+    const end = selEnd ?? effDur;
+    const targetStart = Math.max(end - 5, start);
     playPreviewRange(targetStart, end);
   }, [duration, playPreviewRange, selEnd, selStart]);
 
@@ -490,6 +571,7 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
 
     if (!a.paused) {
       a.pause();
+      setPlaying(false);
       return;
     }
     playPreviewRange(from, to);
@@ -502,12 +584,29 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   // Enforce the selection end during playback.
   const onAudioTimeUpdate = useCallback(() => {
     const a = audioRef.current;
-    if (!a || a.paused) return;
+    if (!a || a.paused || a.seeking) return;
+
+    const targetStart = previewStartRef.current;
     const targetEnd = previewEndRef.current ?? (selEnd ?? duration);
+
+    // If a preview start was requested, ensure the playhead has actually
+    // arrived inside the preview window before enforcing targetEnd.
+    if (targetStart != null && !hasEnteredRangeRef.current) {
+      if (Math.abs(a.currentTime - targetStart) <= 0.6) {
+        hasEnteredRangeRef.current = true;
+      } else {
+        // Audio has not yet arrived at targetStart (e.g. still at old position or seeking).
+        return;
+      }
+    }
+
     if (draggingRef.current == null && a.currentTime >= targetEnd) {
       a.pause();
       a.currentTime = targetEnd;
       previewEndRef.current = null;
+      previewStartRef.current = null;
+      hasEnteredRangeRef.current = false;
+      setPlaying(false);
     }
   }, [duration, selEnd]);
 
@@ -563,11 +662,6 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   return (
     // Flat section (no nested card — the file card is the only card).
     <div className="flex flex-col gap-6">
-      {/* Guide — readable: 14px+, leading-relaxed, high contrast */}
-      <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-[#CBD5E1]">
-        {translate(lang, "trimTitle")}
-      </p>
-
       {/* ── Section: tools — 1+3 grid, 44px targets, single-line ── */}
       <div className="flex flex-col gap-2">
         <button
@@ -587,25 +681,27 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
         </button>
 
         <div className="grid grid-cols-3 gap-2">
-          {duration >= 10.05 && (
+          {duration >= 5.05 && (
             <>
               <button
-                onClick={previewFirst10}
+                onClick={previewFirst5}
+                disabled={!srcUrl}
                 data-testid={`trim-cut-first-${file.name}`}
-                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
-                title={lang === "fa" ? "پیش‌نمایش ۱۰ ثانیه اول بازه انتخاب‌شده" : "Preview first 10s of selection"}
+                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
+                title={translate(lang, "trimCutFirst5Tip")}
               >
                 <Play className="h-3 w-3 shrink-0 fill-current" strokeWidth={0} />
-                <span className="truncate">{translate(lang, "trimCutFirst10")}</span>
+                <span className="truncate">{translate(lang, "trimCutFirst5")}</span>
               </button>
               <button
-                onClick={previewLast10}
+                onClick={previewLast5}
+                disabled={!srcUrl}
                 data-testid={`trim-cut-last-${file.name}`}
-                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
-                title={lang === "fa" ? "پیش‌نمایش ۱۰ ثانیه آخر بازه انتخاب‌شده" : "Preview last 10s of selection"}
+                className="glass-card flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-xs font-semibold text-zinc-700 transition-all hover:border-orange-400 hover:text-orange-600 active:scale-95 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-orange-500 dark:text-[#CBD5E1]"
+                title={translate(lang, "trimCutLast5Tip")}
               >
                 <Play className="h-3 w-3 shrink-0 fill-current" strokeWidth={0} />
-                <span className="truncate">{translate(lang, "trimCutLast10")}</span>
+                <span className="truncate">{translate(lang, "trimCutLast5")}</span>
               </button>
             </>
           )}
@@ -615,12 +711,12 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
             <button
               onClick={clearTrim}
               data-testid={`trim-clear-${file.name}`}
-              className={`${duration >= 10.05 ? "" : "col-span-3"} flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-black/10 bg-transparent px-2 py-2.5 text-xs font-semibold text-slate-600 transition-all hover:border-slate-400 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:border-white/15 dark:text-[#CBD5E1]`}
+              className={`${duration >= 5.05 ? "" : "col-span-3"} flex min-h-[44px] cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-black/10 bg-transparent px-2 py-2.5 text-xs font-semibold text-slate-600 transition-all hover:border-slate-400 active:scale-95 focus-visible:outline-2 focus-visible:outline-orange-500 dark:border-white/15 dark:text-[#CBD5E1]`}
             >
               <RotateCcw className="h-3 w-3 shrink-0" strokeWidth={2.2} />
               <span className="truncate">{translate(lang, "trimClear")}</span>
             </button>
-          ) : duration < 10.05 ? null : (
+          ) : duration < 5.05 ? null : (
             <span className="flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl border border-dashed border-black/10 px-2 py-2.5 text-[11px] text-slate-500 dark:border-white/10 dark:text-[#CBD5E1]">
               {translate(lang, "trimFullFile")}
             </span>
@@ -717,6 +813,10 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
         )}
       </div>
 
+      <p className="text-center text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+        {translate(lang, "trimWaveformHint")}
+      </p>
+
       {/* ── Section: summary — compact: از/تا inputs + duration in one line ── */}
       <div
         dir={lang === "fa" ? "rtl" : "ltr"}
@@ -809,13 +909,19 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
           preload="auto"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            previewStartRef.current = null;
+            previewEndRef.current = null;
+            hasEnteredRangeRef.current = false;
+          }}
           onTimeUpdate={onAudioTimeUpdate}
           onError={() => {
             // Broken/missing preview (e.g. staged file already deleted):
             // disable playback instead of silently no-op'ing.
             setSrcUrl(null);
             setPlaying(false);
+            hasEnteredRangeRef.current = false;
           }}
         />
       )}
