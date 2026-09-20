@@ -4,10 +4,15 @@ export interface KeepAlivePaneProps {
   active: boolean;
   children: React.ReactNode;
   /**
-   * If true (default), defers initial mounting until the tab is first visited.
+   * If true (default), defers initial mounting until the tab is first visited or pre-warmed.
    * Once activated, the container remains mounted in the DOM permanently.
    */
   lazy?: boolean;
+  /**
+   * If true, mounts the tab into the DOM in the background (display: none)
+   * so it is warm and ready before the user clicks it.
+   */
+  prewarm?: boolean;
 }
 
 /**
@@ -20,16 +25,22 @@ export const KeepAlivePane = memo(function KeepAlivePane({
   active,
   children,
   lazy = true,
+  prewarm = false,
 }: KeepAlivePaneProps): React.JSX.Element | null {
-  const [hasBeenActive, setHasBeenActive] = useState(!lazy || active);
+  const [hasMounted, setHasMounted] = useState(!lazy || active || prewarm);
+
+  if ((active || prewarm) && !hasMounted) {
+    setHasMounted(true);
+  }
 
   useEffect(() => {
-    if (active && !hasBeenActive) {
-      setHasBeenActive(true);
+    if ((active || prewarm) && !hasMounted) {
+      setHasMounted(true);
     }
-  }, [active, hasBeenActive]);
+  }, [active, prewarm, hasMounted]);
 
-  if (!hasBeenActive) {
+  const shouldRender = hasMounted || active || prewarm;
+  if (!shouldRender) {
     return null;
   }
 

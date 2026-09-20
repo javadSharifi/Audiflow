@@ -8,11 +8,18 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openPath: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../../../utils/platform", () => ({
+  isAndroid: vi.fn(() => false),
+}));
+
 vi.mock("../../../utils/tauri", () => ({
   statMediaPaths: vi.fn().mockResolvedValue([{ input: "/music/out/converted.mp3", name: "converted.mp3", sizeBytes: 1024, durationSecs: 10, error: null }]),
   fileToAssetUrl: vi.fn().mockResolvedValue("asset://localhost/converted.mp3"),
   shareAudioTrack: vi.fn().mockResolvedValue(undefined),
   deleteStagedInput: vi.fn().mockResolvedValue(undefined),
+  getVideoPermissionStatus: vi.fn().mockResolvedValue("granted"),
+  requestVideoPermissions: vi.fn(),
+  openAppSettings: vi.fn(),
 }));
 
 const demoFile = {
@@ -117,5 +124,24 @@ describe("ConverterWizard", () => {
     fireEvent.click(screen.getByTestId("wizard-restart"));
     expect(screen.getByTestId("wizard-step-1")).toBeDefined();
     expect(useAppStore.getState().files.length).toBe(0);
+  });
+
+  it("shows video permission banner on Android when denied and allows dismissing", async () => {
+    const { isAndroid } = await import("../../../utils/platform");
+    const { getVideoPermissionStatus } = await import("../../../utils/tauri");
+    vi.mocked(isAndroid).mockReturnValue(true);
+    vi.mocked(getVideoPermissionStatus).mockResolvedValue("denied");
+
+    render(<ConverterWizard />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: /با دادن دسترسی فیلم|By granting video access/ })).toBeDefined();
+    });
+
+    // Dismiss the banner
+    const dismissBtn = screen.getByRole("button", { name: "Dismiss" });
+    fireEvent.click(dismissBtn);
+
+    expect(screen.queryByRole("region", { name: /با دادن دسترسی فیلم|By granting video access/ })).toBeNull();
   });
 });

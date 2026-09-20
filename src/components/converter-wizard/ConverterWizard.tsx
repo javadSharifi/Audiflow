@@ -6,6 +6,10 @@ import { WizardProgressStep } from "./WizardProgressStep";
 import { WizardResultStep } from "./WizardResultStep";
 import { useAppStore } from "../../stores/useAppStore";
 
+import { isFirstRunDone } from "../../utils/bootPrefs";
+import { isAndroid } from "../../utils/platform";
+import { getVideoPermissionStatus, requestVideoPermissions } from "../../utils/tauri";
+
 function isTerminal(status: string): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
 }
@@ -14,7 +18,18 @@ export function ConverterWizard(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const files = useAppStore((s) => s.files);
   const jobs = useAppStore((s) => s.jobs);
+  const activeTool = useAppStore((s) => s.activeTool);
   const [step, setStep] = useState<WizardStep>(1);
+
+  // Request video permissions ONLY when user actively enters converter tab and onboarding is complete
+  useEffect(() => {
+    if (!isAndroid() || activeTool !== "converter" || !isFirstRunDone()) return;
+    void getVideoPermissionStatus().then((status) => {
+      if (status !== "granted" && status !== "notRequired") {
+        requestVideoPermissions();
+      }
+    });
+  }, [activeTool]);
 
   const busy = Array.from(jobs.values()).some((j) => j.status === "waiting" || j.status === "processing");
 

@@ -61,13 +61,54 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, fullscreenOpen, setFullscreenOpen]);
 
+  // Cooperative idle pre-warming: quietly mount inactive secondary tabs (like, album)
+  // in the background during system idle time after the active tab has rendered,
+  // so first-time tab switching is instantaneous (<10ms) without cold-start hitching.
+  const [idlePrewarm, setIdlePrewarm] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timerHandle: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerPrewarm = () => {
+      if (!cancelled) {
+        setIdlePrewarm(true);
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleHandle = (
+        window as unknown as {
+          requestIdleCallback: (cb: () => void, opts: { timeout: number }) => number;
+        }
+      ).requestIdleCallback(triggerPrewarm, { timeout: 400 });
+    } else if (typeof window !== "undefined") {
+      timerHandle = setTimeout(triggerPrewarm, 200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle !== null && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        (
+          window as unknown as {
+            cancelIdleCallback: (id: number) => void;
+          }
+        ).cancelIdleCallback(idleHandle);
+      }
+      if (timerHandle !== null) {
+        clearTimeout(timerHandle);
+      }
+    };
+  }, []);
+
   return (
     <div className="flex flex-col flex-1 w-full gap-3 min-h-0 overflow-hidden relative">
       {/* Persistent Keep-Alive Tab Panes (Instant switching, zero DOM thrash) */}
       <KeepAlivePane active={activeTab === "songs"}>
         <SongsView />
       </KeepAlivePane>
-      <KeepAlivePane active={activeTab === "like"}>
+      <KeepAlivePane active={activeTab === "like"} prewarm={idlePrewarm}>
         <LikedView />
       </KeepAlivePane>
       <KeepAlivePane active={activeTab === "boost"}>
@@ -75,7 +116,7 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
           <BoosterView />
         </Suspense>
       </KeepAlivePane>
-      <KeepAlivePane active={activeTab === "album"}>
+      <KeepAlivePane active={activeTab === "album"} prewarm={idlePrewarm}>
         <AlbumsView />
       </KeepAlivePane>
 

@@ -7,6 +7,7 @@ import {
 } from "../../../stores/useMusicPlayerStore";
 import { useAppStore } from "../../../stores/useAppStore";
 import { AlbumsView } from "../AlbumsView";
+import { KeepAlivePane } from "../KeepAlivePane";
 import { AddToAlbumModal } from "../AddToAlbumModal";
 import type { AudioTrackInfo, CustomAlbum } from "../../../types";
 
@@ -178,6 +179,29 @@ describe("AlbumsView Component", () => {
     fireEvent.click(pauseBtns[0]);
 
     expect(useMusicPlayerStore.getState().isPlaying).toBe(false);
+  });
+
+  it("mounts and computes albums cleanly inside a pre-warmed KeepAlivePane", () => {
+    const { container, rerender } = render(
+      <KeepAlivePane active={false} prewarm={true}>
+        <AlbumsView />
+      </KeepAlivePane>
+    );
+
+    // Mounted in background (display: none)
+    const pane = container.firstElementChild as HTMLElement;
+    expect(pane.style.display).toBe("none");
+    expect(screen.getByText(/Wedding Songs/i)).toBeTruthy();
+
+    // Toggle to active
+    rerender(
+      <KeepAlivePane active={true} prewarm={true}>
+        <AlbumsView />
+      </KeepAlivePane>
+    );
+
+    expect(pane.style.display).not.toBe("none");
+    expect(screen.getByText(/Wedding Songs/i)).toBeTruthy();
   });
 });
 

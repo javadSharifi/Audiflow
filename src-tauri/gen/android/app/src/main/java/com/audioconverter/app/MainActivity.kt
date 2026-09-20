@@ -78,9 +78,6 @@ class MainActivity : TauriActivity() {
       // Notify Rust directly via JNI (idempotent; retried in onResume)
       initNativePathsSafe()
 
-      // Check and request media permissions if needed
-      checkAndRequestMediaPermissions()
-
       // Handle incoming Open With (ACTION_VIEW) and share sheet (ACTION_SEND)
       handleIncomingIntent(intent)
     } catch (e: Throwable) {
@@ -307,10 +304,10 @@ class MainActivity : TauriActivity() {
     grantResults: IntArray
   ) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    if (requestCode != PERMISSION_REQ_CODE) return
+    if (requestCode != AUDIO_PERMISSION_REQ_CODE && requestCode != VIDEO_PERMISSION_REQ_CODE && requestCode != PERMISSION_REQ_CODE) return
 
     if (grantResults.isEmpty()) {
-      Log.w(TAG, "Permission request was cancelled/interrupted")
+      Log.w(TAG, "Permission request was cancelled/interrupted (code $requestCode)")
       return
     }
 
@@ -318,25 +315,23 @@ class MainActivity : TauriActivity() {
       grantResults[i] != PackageManager.PERMISSION_GRANTED
     }
     if (denied.isEmpty()) {
-      Log.i(TAG, "Media permissions granted")
+      Log.i(TAG, "Permissions granted for requestCode $requestCode")
     } else {
-      Log.w(TAG, "Media permissions denied: $denied")
-      toastMain(R.string.permission_denied_hint)
+      Log.w(TAG, "Permissions denied for requestCode $requestCode: $denied")
+      // Never show a toast on audio request result — the UI handles audio status feedback cleanly.
+      // Only show hint if video permission was explicitly requested and denied.
+      if (requestCode == VIDEO_PERMISSION_REQ_CODE) {
+        toastMain(R.string.permission_denied_hint)
+      }
     }
   }
 
-  fun checkAndRequestMediaPermissions(): Boolean {
+  fun checkAndRequestAudioPermission(): Boolean {
     val neededPermissions = mutableListOf<String>()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+ (API 33+)
       if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
         neededPermissions.add(Manifest.permission.READ_MEDIA_AUDIO)
-      }
-      if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
-        neededPermissions.add(Manifest.permission.READ_MEDIA_VIDEO)
-      }
-      if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-        neededPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
       }
     } else { // Android 12 and below
       if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -345,17 +340,45 @@ class MainActivity : TauriActivity() {
     }
 
     if (neededPermissions.isNotEmpty()) {
-      Log.i(TAG, "Requesting media and notification permissions: $neededPermissions")
-      ActivityCompat.requestPermissions(this, neededPermissions.toTypedArray(), PERMISSION_REQ_CODE)
+      Log.i(TAG, "Requesting audio permission: $neededPermissions")
+      ActivityCompat.requestPermissions(this, neededPermissions.toTypedArray(), AUDIO_PERMISSION_REQ_CODE)
       return false
     }
 
     return true
   }
 
+  fun checkAndRequestVideoPermission(): Boolean {
+    val neededPermissions = mutableListOf<String>()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+ (API 33+)
+      if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+        neededPermissions.add(Manifest.permission.READ_MEDIA_VIDEO)
+      }
+    } else { // Android 12 and below
+      if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+        neededPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+      }
+    }
+
+    if (neededPermissions.isNotEmpty()) {
+      Log.i(TAG, "Requesting video permission: $neededPermissions")
+      ActivityCompat.requestPermissions(this, neededPermissions.toTypedArray(), VIDEO_PERMISSION_REQ_CODE)
+      return false
+    }
+
+    return true
+  }
+
+  fun checkAndRequestMediaPermissions(): Boolean {
+    return checkAndRequestAudioPermission()
+  }
+
   @Keep
   companion object {
     private const val TAG = "AudioConverter"
+    private const val AUDIO_PERMISSION_REQ_CODE = 1001
+    private const val VIDEO_PERMISSION_REQ_CODE = 1002
     private const val PERMISSION_REQ_CODE = 1001
     private const val BUFFER_SIZE = 64 * 1024 // 64 KB buffer for fast stream transfers
     private const val SAFETY_MARGIN_BYTES = 50L * 1024 * 1024 // 50 MB safety margin
@@ -436,7 +459,48 @@ class MainActivity : TauriActivity() {
     fun requestMediaPermissions() {
       val act = instance ?: return
       android.os.Handler(android.os.Looper.getMainLooper()).post {
-        act.checkAndRequestMediaPermissions()
+        act.checkAndRequestAudioPermission()
+      }
+    }
+
+    @JvmStatic
+    fun requestAudioPermissions() {
+      val act = instance ?: return
+      android.os.Handler(android.os.Looper.getMainLooper()).post {
+        act.checkAndRequestAudioPermission()
+      }
+    }
+
+    @JvmStatic
+    fun requestVideoPermissions() {
+      val act = instance ?: return
+      android.os.Handler(android.os.Looper.getMainLooper()).post {
+        act.checkAndRequestVideoPermission()
+      }
+    }
+
+    @JvmStatic
+    fun checkVideoPermission(): String {
+      val context = appContext ?: instance?.applicationContext ?: return "granted"
+      val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_VIDEO
+      } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+      }
+      return if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+        "granted"
+      } else {
+        "denied"
+      }
+    }
+
+    @JvmStatic
+    fun hasVideoPermissions(): Boolean {
+      val ctx = appContext ?: instance?.applicationContext ?: return true
+      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+      } else {
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
       }
     }
 

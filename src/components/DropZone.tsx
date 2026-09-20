@@ -3,6 +3,8 @@ import { UploadCloud, Plus, Loader2 } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { pickVideos } from "../utils/dialog";
+import { isAndroid } from "../utils/platform";
+import { getVideoPermissionStatus, requestVideoPermissions } from "../utils/tauri";
 
 export function DropZone(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
@@ -10,12 +12,22 @@ export function DropZone(): React.JSX.Element {
   const probing = useAppStore((s) => s.probing);
   const [hover, setHover] = useState(false);
 
+  const handlePick = async () => {
+    if (isAndroid()) {
+      const status = await getVideoPermissionStatus();
+      if (status !== "granted" && status !== "notRequired") {
+        requestVideoPermissions();
+      }
+    }
+    void pickVideos().then(addPaths);
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => void pickVideos().then(addPaths)}
-      onKeyDown={(e) => e.key === "Enter" && void pickVideos().then(addPaths)}
+      onClick={() => void handlePick()}
+      onKeyDown={(e) => e.key === "Enter" && void handlePick()}
       onDragOver={(e) => {
         e.preventDefault();
         setHover(true);

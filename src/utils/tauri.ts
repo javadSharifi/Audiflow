@@ -36,9 +36,14 @@ export async function statMediaPaths(paths: string[]): Promise<StatMediaPath[]> 
   return commands.statMediaPaths(paths);
 }
 
-/** Trigger the Android runtime permission dialog (no-op on desktop). */
+/** Trigger the Android runtime permission dialog for audio (no-op on desktop). */
 export function requestMediaPermissions(): void {
   void commands.requestMediaPermissions().catch(() => {});
+}
+
+/** Trigger the Android runtime permission dialog for videos/photos (no-op on desktop). */
+export function requestVideoPermissions(): void {
+  void commands.requestVideoPermissions().catch(() => {});
 }
 
 /** Open the system app settings page for this app (no-op on desktop). */
@@ -146,6 +151,14 @@ export async function scanAudioFiles(customDirs?: string[]): Promise<import("../
 export async function getMusicPermissionStatus(): Promise<import("../types").LibraryPermissionStatus> {
   try {
     return await commands.getMusicPermissionStatus();
+  } catch {
+    return "notRequired";
+  }
+}
+
+export async function getVideoPermissionStatus(): Promise<import("../types").LibraryPermissionStatus> {
+  try {
+    return await commands.getVideoPermissionStatus();
   } catch {
     return "notRequired";
   }

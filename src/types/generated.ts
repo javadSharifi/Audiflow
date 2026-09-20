@@ -81,6 +81,10 @@ export const commands = {
 	scanResultCacheStats: () => __TAURI_INVOKE<ScanResultCacheStats>("scan_result_cache_stats"),
 	/**  Check music permission status across platforms. */
 	getMusicPermissionStatus: () => __TAURI_INVOKE<LibraryPermissionStatus>("get_music_permission_status"),
+	/**  Trigger the Android runtime video/photos permission dialog (no-op on desktop). */
+	requestVideoPermissions: () => __TAURI_INVOKE<void>("request_video_permissions"),
+	/**  Check Android video permission status across platforms. */
+	getVideoPermissionStatus: () => __TAURI_INVOKE<LibraryPermissionStatus>("get_video_permission_status"),
 	/**  Delete audio track from the device library. */
 	deleteAudioTrack: (pathOrUri: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_audio_track", { pathOrUri })),
 	/**  Set track as default ringtone (Android). */

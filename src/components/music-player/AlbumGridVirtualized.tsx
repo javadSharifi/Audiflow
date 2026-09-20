@@ -6,15 +6,23 @@ import { useAppStore } from "../../stores/useAppStore";
 import { translate } from "../../i18n";
 import type { AlbumItem } from "../../types";
 
-function useAlbumColumns(): number {
-  const [cols, setCols] = useState(3);
+export function getResponsiveAlbumCols(w: number): number {
+  if (w >= 1024) return 6;
+  if (w >= 768) return 5;
+  if (w >= 640) return 4;
+  return 3;
+}
+
+export function useAlbumColumns(): number {
+  const [cols, setCols] = useState(() => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 0;
+    return getResponsiveAlbumCols(w);
+  });
+
   useEffect(() => {
     const upd = () => {
       const w = typeof window !== "undefined" ? window.innerWidth : 0;
-      if (w >= 1024) setCols(6);
-      else if (w >= 768) setCols(5);
-      else if (w >= 640) setCols(4);
-      else setCols(3);
+      setCols(getResponsiveAlbumCols(w));
     };
     upd();
     window.addEventListener("resize", upd);

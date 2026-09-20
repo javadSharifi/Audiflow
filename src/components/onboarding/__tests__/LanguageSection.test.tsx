@@ -49,15 +49,30 @@ describe("LanguageSection", () => {
 
   it("renders Persian and English options", () => {
     render(<LanguageSection />);
-    expect(screen.getByRole("button", { name: /فارسی/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /English/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /فارسی/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /English/i })).toBeTruthy();
   });
 
   it("selects Persian immediately on click and updates store lang", () => {
     render(<LanguageSection />);
-    const faBtn = screen.getByRole("button", { name: /فارسی/i });
+    const faBtn = screen.getByRole("radio", { name: /فارسی/i });
     fireEvent.click(faBtn);
 
     expect(useAppStore.getState().lang).toBe("fa");
+  });
+
+  it("exposes a labeled radiogroup with radio roles and aria-checked selected state", () => {
+    render(<LanguageSection />);
+
+    screen.getByRole("radiogroup", { name: /Language/i });
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(2);
+
+    const checked = radios.filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("radio", { name: /English/i }));
+    expect(screen.getByRole("radio", { name: /English/i }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: /فارسی/i }).getAttribute("aria-checked")).toBe("false");
   });
 });

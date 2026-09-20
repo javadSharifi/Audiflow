@@ -180,6 +180,41 @@ pub fn request_media_permissions() {
     let _ = crate::android_fs::call_static_void("requestMediaPermissions");
 }
 
+/// Trigger the Android runtime video/photos permission dialog (no-op on desktop).
+#[tauri::command]
+#[specta::specta]
+pub fn request_video_permissions() {
+    #[cfg(target_os = "android")]
+    let _ = crate::android_fs::call_static_void("requestVideoPermissions");
+}
+
+/// Check Android video permission status across platforms.
+#[tauri::command]
+#[specta::specta]
+pub fn get_video_permission_status() -> LibraryPermissionStatus {
+    #[cfg(target_os = "android")]
+    {
+        let mut res = String::new();
+        for _ in 0..4 {
+            match crate::android_fs::call_static_string_no_arg("checkVideoPermission") {
+                Ok(s) if !s.is_empty() => {
+                    res = s;
+                    break;
+                }
+                _ => {}
+            }
+            std::thread::sleep(std::time::Duration::from_millis(150));
+        }
+        match res.as_str() {
+            "granted" => LibraryPermissionStatus::Granted,
+            "permanently_denied" => LibraryPermissionStatus::PermanentlyDenied,
+            _ => LibraryPermissionStatus::Denied,
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    LibraryPermissionStatus::NotRequired
+}
+
 /// Open the system app-settings page so the user can grant permissions.
 #[tauri::command]
 #[specta::specta]

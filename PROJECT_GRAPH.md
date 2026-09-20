@@ -4,7 +4,7 @@ _Last updated: 2026-09-19_
 
 ## Architecture overview
 
-Audiflow (audio-converter v1.5.0) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
+Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
 
 ## Folder structure
 
@@ -26,7 +26,7 @@ Audiflow (audio-converter v1.5.0) is an offline-first Tauri 2 + React 19 + Rust 
 | `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen |
 | `.github/workflows/` | ci + release pipelines |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
-| `specs/` | Feature specs (tracked; latest `011-first-run-onboarding` — First-run onboarding start page, grand-fathering, simplified settings) |
+| `specs/` | Feature specs (tracked; latest `013-fix-cold-start-tab-lag` — Eliminate cold-start tab switching lag on Albums and Liked tabs) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |
 | `src/fonts/` + `public/` | IRANSans fonts + static assets |
 
@@ -87,6 +87,16 @@ git status --short  # workdir changes since sync
 - branch: main
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
+
+Workdir driftsince sync (2026-09-20, spec 012 implemented): onboarding layout rework —
+`src/components/onboarding/OnboardingGate.tsx` (clipped decor layer + x-hidden scroller +
+min-h-full column + safe-area header/footer), `ThemeSection.tsx` / `LanguageSection.tsx` /
+`PerformanceSection.tsx` (radiogroup a11y migration); corresponding `__tests__` (17→22 tests).
+Mock-faithful restyle (2026-09-20): `OnboardingGate.tsx` (hero EQ emblem w/ ripple, mock bg
+layers, gradient CTA + shine, max-w-[440px]), all 4 sections (glass cards, required/emerald/exotic
+badges, check-dot pills, dark+light), `src/index.css` (+`onboard-ripple`), `src/i18n/*.ts`
+(+lead/accent/tail title, badge, section-tag, sublabel keys). APK rebuilt + installed on
+Pixel_6_API_34.
 
 Critical files (blob hashes at sync commit; re-verify these explicitly on each sync):
 

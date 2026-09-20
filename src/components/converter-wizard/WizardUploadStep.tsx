@@ -1,8 +1,11 @@
-import { ArrowLeft, ArrowRight, FolderUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, FolderUp, Film, X } from "lucide-react";
 import { DropZone } from "../DropZone";
 import { FileList } from "../FileList";
 import { translate, type Lang } from "../../i18n";
 import { useAppStore } from "../../stores/useAppStore";
+import { isAndroid } from "../../utils/platform";
+import { getVideoPermissionStatus, requestVideoPermissions, openAppSettings } from "../../utils/tauri";
 
 interface WizardUploadStepProps {
   lang: Lang;
@@ -15,8 +18,83 @@ export function WizardUploadStep({ lang, onNext }: WizardUploadStepProps): React
   const canNext = validCount > 0;
   const Arrow = lang === "fa" ? ArrowLeft : ArrowRight;
 
+  const [videoPermStatus, setVideoPermStatus] = useState<string>("granted");
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!isAndroid()) return;
+    const check = () => {
+      void getVideoPermissionStatus().then(setVideoPermStatus);
+    };
+    check();
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, []);
+
+  const handleRequestPerm = async () => {
+    if (videoPermStatus === "permanentlyDenied") {
+      try {
+        openAppSettings();
+      } catch (err) {
+        console.warn("Open settings failed:", err);
+      }
+      return;
+    }
+    requestVideoPermissions();
+    for (let i = 0; i < 12; i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      const s = await getVideoPermissionStatus();
+      setVideoPermStatus(s);
+      if (s === "granted") break;
+    }
+  };
+
+  const showBanner =
+    isAndroid() &&
+    (videoPermStatus === "denied" || videoPermStatus === "permanentlyDenied") &&
+    !dismissed;
+
   return (
     <div className="flex flex-col gap-4" data-testid="wizard-step-1">
+      {showBanner && (
+        <div
+          role="region"
+          aria-label={translate(lang, "converterVideoPermBanner")}
+          className="shrink-0 flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25 text-amber-950 dark:text-amber-100 shadow-sm transition-all"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              <Film className="h-4 w-4" />
+            </div>
+            <p className="text-xs font-semibold leading-relaxed">
+              {translate(lang, "converterVideoPermBanner")}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handleRequestPerm()}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              {videoPermStatus === "permanentlyDenied"
+                ? translate(lang, "onboardingPermOpenSettings")
+                : translate(lang, "converterVideoPermAction")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {files.length === 0 ? (
         <DropZone />
       ) : (

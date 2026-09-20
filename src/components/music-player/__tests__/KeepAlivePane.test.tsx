@@ -80,4 +80,66 @@ describe("KeepAlivePane", () => {
     expect(pane.style.display).not.toBe("none");
     expect((screen.getByTestId("test-input") as HTMLInputElement).value).toBe("persisted-value");
   });
+
+  it("mounts in background with display: none and aria-hidden when prewarm is true", () => {
+    const { container } = render(
+      <KeepAlivePane active={false} prewarm={true}>
+        <div data-testid="prewarmed-child">Prewarmed Content</div>
+      </KeepAlivePane>
+    );
+
+    const child = screen.getByTestId("prewarmed-child");
+    expect(child).toBeDefined();
+    expect(child.textContent).toBe("Prewarmed Content");
+
+    const pane = container.firstElementChild as HTMLElement;
+    expect(pane.style.display).toBe("none");
+    expect(pane.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("synchronously mounts and renders children when active becomes true without an intermediate empty state", () => {
+    const { container, rerender } = render(
+      <KeepAlivePane active={false}>
+        <div data-testid="tab-child">Tab Content</div>
+      </KeepAlivePane>
+    );
+
+    expect(screen.queryByTestId("tab-child")).toBeNull();
+
+    // Activate the tab
+    rerender(
+      <KeepAlivePane active={true}>
+        <div data-testid="tab-child">Tab Content</div>
+      </KeepAlivePane>
+    );
+
+    // Should be immediately rendered in the DOM
+    const child = screen.getByTestId("tab-child");
+    expect(child).toBeDefined();
+    const pane = container.firstElementChild as HTMLElement;
+    expect(pane.style.display).not.toBe("none");
+    expect(pane.getAttribute("aria-hidden")).toBe("false");
+  });
+
+  it("smoothly transitions prewarmed pane to active without remounting", () => {
+    const { container, rerender } = render(
+      <KeepAlivePane active={false} prewarm={true}>
+        <input data-testid="prewarmed-input" defaultValue="initial-data" />
+      </KeepAlivePane>
+    );
+
+    const pane = container.firstElementChild as HTMLElement;
+    expect(pane.style.display).toBe("none");
+
+    // Transition to active
+    rerender(
+      <KeepAlivePane active={true} prewarm={true}>
+        <input data-testid="prewarmed-input" defaultValue="initial-data" />
+      </KeepAlivePane>
+    );
+
+    expect(pane.style.display).not.toBe("none");
+    expect(pane.getAttribute("aria-hidden")).toBe("false");
+    expect((screen.getByTestId("prewarmed-input") as HTMLInputElement).value).toBe("initial-data");
+  });
 });

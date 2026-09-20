@@ -50,14 +50,14 @@ describe("ThemeSection", () => {
 
   it("renders light, dark, and system options", () => {
     render(<ThemeSection />);
-    expect(screen.getByRole("button", { name: /Light/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Dark/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /System/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Light/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Dark/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /System/i })).toBeTruthy();
   });
 
   it("selects dark theme immediately on click", () => {
     render(<ThemeSection />);
-    const darkBtn = screen.getByRole("button", { name: /Dark/i });
+    const darkBtn = screen.getByRole("radio", { name: /Dark/i });
     fireEvent.click(darkBtn);
 
     expect(useAppStore.getState().theme).toBe("dark");
@@ -65,9 +65,26 @@ describe("ThemeSection", () => {
 
   it("selects light theme immediately on click", () => {
     render(<ThemeSection />);
-    const lightBtn = screen.getByRole("button", { name: /Light/i });
+    const lightBtn = screen.getByRole("radio", { name: /Light/i });
     fireEvent.click(lightBtn);
 
     expect(useAppStore.getState().theme).toBe("light");
+  });
+
+  it("exposes a labeled radiogroup with radio roles and aria-checked selected state", () => {
+    render(<ThemeSection />);
+
+    const group = screen.getByRole("radiogroup", { name: /Appearance/i });
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(3);
+    expect(group).toBeTruthy();
+
+    const checked = radios.filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked).toHaveLength(1);
+    expect(checked[0].textContent).toMatch(/System/i);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Dark/i }));
+    expect(screen.getByRole("radio", { name: /Dark/i }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: /System/i }).getAttribute("aria-checked")).toBe("false");
   });
 });

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TrackListView } from "../TrackListView";
+import { KeepAlivePane } from "../KeepAlivePane";
 import { useMusicPlayerStore } from "../../../stores/useMusicPlayerStore";
 import { useAppStore } from "../../../stores/useAppStore";
 import type { AudioTrackInfo } from "../../../types";
@@ -126,5 +127,31 @@ describe("TrackListView Virtualization & Rendering", () => {
     fireEvent.change(searchInput, { target: { value: "NonExistent" } });
 
     expect(screen.getByText(/No tracks matching/)).toBeDefined();
+  });
+
+  it("renders liked tracks cleanly when mounted inside a pre-warmed KeepAlivePane", () => {
+    useMusicPlayerStore.setState({
+      likedPaths: new Set(["/music/track1.mp3"]),
+    });
+
+    const { container, rerender } = render(
+      <KeepAlivePane active={false} prewarm={true}>
+        <TrackListView likedOnly={true} />
+      </KeepAlivePane>
+    );
+
+    const pane = container.firstElementChild as HTMLElement;
+    expect(pane.style.display).toBe("none");
+    expect(screen.getByText("Alpha Song")).toBeDefined();
+    expect(screen.queryByText("Beta Song")).toBeNull();
+
+    rerender(
+      <KeepAlivePane active={true} prewarm={true}>
+        <TrackListView likedOnly={true} />
+      </KeepAlivePane>
+    );
+
+    expect(pane.style.display).not.toBe("none");
+    expect(screen.getByText("Alpha Song")).toBeDefined();
   });
 });

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useAppStore } from "../../stores/useAppStore";
+import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { isAndroid } from "../../utils/platform";
 import { markFirstRunDone } from "../../utils/bootPrefs";
@@ -7,7 +8,7 @@ import { PermissionSection } from "./PermissionSection";
 import { ThemeSection } from "./ThemeSection";
 import { LanguageSection } from "./LanguageSection";
 import { PerformanceSection } from "./PerformanceSection";
-import { Sparkles, ArrowRight, SkipForward } from "lucide-react";
+import { ArrowRight, SkipForward } from "lucide-react";
 
 export interface OnboardingGateProps {
   onComplete: () => void;
@@ -23,6 +24,16 @@ export interface OnboardingGateProps {
 export function OnboardingGate({ onComplete }: OnboardingGateProps): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const isRtl = lang === "fa";
+
+  // Automatically prompt for music access as soon as the user enters for the first time
+  useEffect(() => {
+    if (!isAndroid()) return;
+    const musicStore = useMusicPlayerStore.getState();
+    const current = musicStore.permissionStatus;
+    if (current !== "granted" && current !== "notRequired") {
+      void musicStore.requestMediaPermission();
+    }
+  }, []);
 
   const handleConfirm = () => {
     markFirstRunDone();
@@ -49,54 +60,102 @@ export function OnboardingGate({ onComplete }: OnboardingGateProps): React.JSX.E
       role="dialog"
       aria-modal="true"
       aria-label={translate(lang, "onboardingTitle")}
-      className="fixed inset-0 z-[95] flex flex-col bg-zinc-100 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 select-none overflow-y-auto sm:overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[95] flex flex-col bg-[#FAF6F0] dark:bg-[#05080E] text-slate-900 dark:text-slate-100 select-none overflow-y-auto overflow-x-hidden overscroll-contain animate-in fade-in duration-200 selection:bg-orange-500/30 selection:text-orange-200 transition-colors"
     >
-      {/* Decorative ambient gradients contained inside the fully opaque shell */}
-      <div className="pointer-events-none absolute -top-24 -start-24 h-72 w-72 rounded-full bg-orange-500/15 blur-3xl dark:bg-orange-500/10" />
-      <div className="pointer-events-none absolute -bottom-24 -end-24 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl dark:bg-amber-500/10" />
+      {/* Decoration layer: clipped so blobs never create scrollable overflow in either axis */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      >
+        {/* Subtle grid pattern background */}
+        <div className="absolute -top-40 left-1/2 h-[460px] w-[540px] -translate-x-1/2 opacity-0" />
+        <div className="absolute -bottom-36 left-1/2 h-[380px] w-[560px] -translate-x-1/2 opacity-0" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.03)_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      </div>
 
-      <div className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-lg flex-1 flex-col justify-between p-3 sm:p-6 md:p-8">
-        {/* Header */}
-        <div className="flex flex-col items-center text-center gap-1 sm:gap-2.5 pt-1 pb-1 sm:pt-4 sm:pb-4">
-          <div className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 shadow-md shadow-orange-500/25">
-            <Sparkles className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
-          </div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">
-            {translate(lang, "onboardingTitle")}
-          </h1>
-          <p className="max-w-md text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-400">
-            {translate(lang, "onboardingSubtitle")}
-          </p>
+      <div
+        data-purpose="onboarding-column"
+        className="relative z-10 mx-auto flex min-h-full w-full max-w-[440px] flex-col px-5"
+      >
+        <div className="w-full flex flex-col items-center flex-1">
+          {/* Hero — safe-area-aware top padding */}
+          <header
+            data-purpose="onboarding-header"
+            style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
+            className="flex w-full flex-col items-center text-center mb-6"
+          >
+            {/* Center Emblem Container */}
+            <div className="relative mb-5 flex items-center justify-center">
+              {/* Soft warm glow disc behind emblem */}
+              <div className="absolute -inset-2 rounded-full bg-orange-500/25 blur-xl" />
+              <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-b from-[#1E2536] to-[#0D121D] p-[1.5px] border border-orange-400/40 shadow-[0_0_32px_-4px_rgba(249,115,22,0.45)] flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-transparent to-amber-500/10" />
+                {/* Modern Audio Waveform */}
+                <div className="relative flex items-center justify-center gap-1">
+                  <span className="w-1 rounded-full bg-gradient-to-t from-orange-500 to-amber-300 animate-music-bar-1" />
+                  <span className="w-1 rounded-full bg-gradient-to-t from-orange-500 to-amber-300 animate-music-bar-2" />
+                  <span className="w-1.5 h-8 rounded-full bg-gradient-to-t from-amber-300 to-white shadow-[0_0_8px_rgba(249,115,22,0.8)] animate-music-bar-3" />
+                  <span className="w-1 rounded-full bg-gradient-to-t from-orange-500 to-amber-300 animate-music-bar-2" />
+                  <span className="w-1 rounded-full bg-gradient-to-t from-orange-500 to-amber-300 animate-music-bar-1" />
+                </div>
+              </div>
+            </div>
+
+            {/* Typography */}
+            <h1 className="text-[26px] sm:text-[28px] font-black tracking-tight text-slate-900 dark:text-white mb-2 leading-snug">
+              {translate(lang, "onboardingTitleLead")}
+              <span className="text-transparent bg-clip-text [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] bg-gradient-to-l from-amber-400 via-orange-400 to-orange-500 inline-block">
+                {translate(lang, "onboardingTitleAccent")}
+              </span>
+              {translate(lang, "onboardingTitleTail")}
+            </h1>
+            {translate(lang, "onboardingSubtitle") ? (
+              <p className="text-xs sm:text-[13px] font-normal text-slate-500 dark:text-slate-400 max-w-[310px] leading-relaxed">
+                {translate(lang, "onboardingSubtitle")}
+              </p>
+            ) : null}
+          </header>
+
+          {/* Four stacked sections */}
+          <main data-purpose="onboarding-content" className="w-full space-y-3.5 flex-1">
+            <PermissionSection />
+            <ThemeSection />
+            <LanguageSection />
+            <PerformanceSection />
+          </main>
         </div>
 
-        {/* Four Stacked Sections */}
-        <div className="flex flex-col gap-1.5 sm:gap-3 my-auto">
-          <PermissionSection />
-          <ThemeSection />
-          <LanguageSection />
-          <PerformanceSection />
-        </div>
+        {/* Footer actions — safe-area-aware bottom padding */}
+        <footer
+          data-purpose="onboarding-footer"
+          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+          className="w-full pt-6 pb-2 space-y-3 flex flex-col items-center"
+        >
+          {/* Primary Glowing CTA Button */}
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="relative group w-full py-4 px-6 rounded-2xl bg-gradient-to-l from-amber-400 via-orange-500 to-orange-600 text-white font-black text-sm sm:text-base shadow-[0_0_32px_-4px_rgba(249,115,22,0.45)] hover:shadow-[0_0_38px_rgba(249,115,22,0.6)] active:scale-[0.985] transition-all duration-200 flex items-center justify-center gap-2.5 focus:outline-none overflow-hidden cursor-pointer"
+          >
+            {/* Light reflection hover effect */}
+            <div className="absolute inset-0 bg-white/15 translate-x-full group-hover:translate-x-[-120%] transition-transform duration-700 pointer-events-none" />
+            <span className="tracking-wide">{translate(lang, "onboardingConfirm")}</span>
+            <ArrowRight
+              className={`w-5 h-5 transition-transform group-hover:-translate-x-1 ${isRtl ? "rotate-180" : ""}`}
+              strokeWidth={2.5}
+            />
+          </button>
 
-        {/* Footer Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 pt-2 sm:pt-6 pb-2 sm:pb-4">
+          {/* Minimalist Tertiary Skip Link - accessible but unobtrusive/hidden when in default fa flow */}
           <button
             type="button"
             onClick={handleGlobalSkip}
-            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer order-2 sm:order-1"
+            className="sr-only flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
           >
             <SkipForward className="h-3.5 w-3.5" />
             <span>{translate(lang, "onboardingSkipAll")}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-lg shadow-orange-500/25 transition-all hover:brightness-105 active:scale-[0.985] cursor-pointer order-1 sm:order-2"
-          >
-            <span>{translate(lang, "onboardingConfirm")}</span>
-            <ArrowRight className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`} />
-          </button>
-        </div>
+        </footer>
       </div>
     </div>
   );
