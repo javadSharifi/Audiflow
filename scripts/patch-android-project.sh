@@ -323,4 +323,39 @@ cp -f "$FFMPEG_BIN" "$JNILIBS_TARGET/libffmpeg.so"
 cp -f "$FFPROBE_BIN" "$JNILIBS_TARGET/libffprobe.so"
 chmod 755 "$JNILIBS_TARGET"/lib*.so
 
-echo "Patched: strings, extractNativeLibs/useLegacyPackaging, media permissions, MainActivity.kt, jniLibs/$JNI_DIR"
+# --- 6. Explicit plugin & dependency repositories (buildSrc & settings.gradle) ---
+# Prevent 403 Forbidden redirects from plugins.gradle.org to repo.maven.apache.org in CI
+mkdir -p "$GEN/buildSrc"
+cat > "$GEN/buildSrc/settings.gradle.kts" << 'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+EOF
+
+if [ -f "$GEN/settings.gradle" ] && ! grep -q "pluginManagement" "$GEN/settings.gradle"; then
+  cat > "$GEN/settings.gradle" << 'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+include ':app'
+
+apply from: 'tauri.settings.gradle'
+EOF
+fi
+
+echo "Patched: strings, extractNativeLibs/useLegacyPackaging, media permissions, MainActivity.kt, jniLibs/$JNI_DIR, repositories"

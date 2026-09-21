@@ -5,7 +5,9 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-
-include ':app'
-
-apply from: 'tauri.settings.gradle'
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

@@ -144,7 +144,7 @@ hand-written sources an agent would actually navigate to or edit.
 | File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |
 | Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |
 | Settings/secrets | `src-tauri/src/settings.rs`, `src-tauri/src/secrets.rs` | `src/stores/slices/settingsSlice.ts`, `utils/bootPrefs.ts` | fonts |
-| Android build/run | `scripts/build-android-local.sh`, `scripts/dev-android.sh` | `src-tauri/android/`, `utils/platform.ts`, `utils/androidBack.ts` | desktop bundling |
+| Android build/run | `scripts/build-android-local.sh`, `scripts/dev-android.sh`, `scripts/patch-android-project.sh` | `src-tauri/android/`, `utils/platform.ts`, `utils/androidBack.ts` | desktop bundling |
 | Icons/assets | `scripts/gen-icons.py`, `src-tauri/icons/` | `public/` | Rust logic |
 | CI/release | `.github/workflows/ci.yml` | `check:types` gate, `fetch-ffmpeg.mjs` | app code |
 
