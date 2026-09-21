@@ -51,8 +51,8 @@ fn locate_android(name: &str) -> Result<PathBuf, crate::error::AppError> {
 
     // 2. Check standard Android app lib paths
     for base in [
-        "/data/data/com.audioconverter.app/lib",
-        "/data/user/0/com.audioconverter.app/lib",
+        "/data/data/com.audiflow.app/lib",
+        "/data/user/0/com.audiflow.app/lib",
     ] {
         let candidate = PathBuf::from(base).join(&so_name);
         checked.push(candidate.display().to_string());

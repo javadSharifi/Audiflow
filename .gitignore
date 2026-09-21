@@ -14,6 +14,7 @@ src-tauri/binaries/*
 *.jks
 .env.android
 secrets.android.env
+secrets/
 local.properties
 
 # Local reference project (read-only study material, never commit)

@@ -1,8 +1,9 @@
 import { createPortal } from "react-dom";
 import { ArrowRight, Download, Rocket, Sparkles, X } from "lucide-react";
 import { translate, type Lang } from "../i18n";
-import type { GithubReleaseInfo } from "../utils/githubUpdate";
+import { resolvePlatformDownloadUrl, type GithubReleaseInfo } from "../utils/githubUpdate";
 import { openExternalUrl } from "../utils/externalUrl";
+import { isAndroid, isMacOS, isWindows } from "../utils/platform";
 
 interface UpdateModalProps {
   lang: Lang;
@@ -93,7 +94,12 @@ export function UpdateModal({ lang, currentVersion, latest, onClose }: UpdateMod
             <button
               type="button"
               onClick={() => {
-                void openExternalUrl(latest.url);
+                const downloadUrl = resolvePlatformDownloadUrl(latest, {
+                  isAndroid: isAndroid(),
+                  isMacOS: isMacOS(),
+                  isWindows: isWindows(),
+                });
+                void openExternalUrl(downloadUrl);
                 onClose();
               }}
               className="flex flex-[2] cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-orange-500/25 transition-all hover:brightness-105 hover:shadow-lg hover:shadow-orange-500/30 active:scale-95"

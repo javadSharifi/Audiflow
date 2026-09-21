@@ -1,5 +1,5 @@
 fn main() {
-    let builder = audio_converter::specta_builder();
+    let builder = audiflow::specta_builder();
     let out_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()

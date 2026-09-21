@@ -24,7 +24,7 @@ const MEMO_SCHEMA_VERSION: u32 = 1;
 
 fn memo_file_path() -> Option<PathBuf> {
     // Same durable base as the artwork cache.
-    let base = directories::ProjectDirs::from("com", "AudioConverter", "audio-converter")
+    let base = directories::ProjectDirs::from("com", "Audiflow", "audiflow")
         .map(|p| p.cache_dir().to_path_buf())
         .unwrap_or_else(std::env::temp_dir);
     let dir = base.join("library");

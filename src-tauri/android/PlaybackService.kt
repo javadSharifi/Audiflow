@@ -1,4 +1,4 @@
-package com.audioconverter.app
+package com.audiflow.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -687,10 +687,10 @@ class PlaybackService : MediaSessionService() {
     private const val NOTIFICATION_ID = 1001
     private const val CHANNEL_ID = "RhythmMediaPlayback"
     /** Service intent action fired by the notification Close button. */
-    private const val ACTION_CLOSE = "com.audioconverter.app.ACTION_CLOSE_PLAYER"
+    private const val ACTION_CLOSE = "com.audiflow.app.ACTION_CLOSE_PLAYER"
     private const val ACTION_CLOSE_REQUEST_CODE = 9001
     /** Session custom command backing the lock-screen Close button. */
-    private const val CUSTOM_CMD_CLOSE = "com.audioconverter.app.CLOSE"
+    private const val CUSTOM_CMD_CLOSE = "com.audiflow.app.CLOSE"
     /** Max time the "Starting…" placeholder may sit without playback. */
     private const val PLACEHOLDER_WATCHDOG_MS = 8000L
 

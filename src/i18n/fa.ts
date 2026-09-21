@@ -75,7 +75,7 @@ export const fa: Record<TranslationKey, string> = {
   outCustomFolder: "انتخاب پوشه…",
   outPerSourceFolder: "زیرپوشه برای هر فایل",
   chooseFolder: "مرور…",
-  outAndroidHint: "فایل‌های خروجی در پوشهٔ Music/AudioConverter روی حافظهٔ دستگاه ذخیره می‌شوند.",
+  outAndroidHint: "فایل‌های خروجی در پوشهٔ Music/Audiflow روی حافظهٔ دستگاه ذخیره می‌شوند.",
 
   advanced: "تنظیمات پیشرفته",
   sameAsSource: "همانند فایل اصلی",

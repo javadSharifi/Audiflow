@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MusicPlayerNav, type PlayerTab } from "../MusicPlayerNav";
 import { MusicPlayerView } from "../MusicPlayerView";
@@ -28,6 +28,10 @@ beforeEach(() => {
     likedPaths: new Set(),
     customAlbums: [],
   });
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe("MusicPlayerNav", () => {

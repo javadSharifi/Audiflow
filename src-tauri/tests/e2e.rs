@@ -5,10 +5,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use audio_converter::ffmpeg::probe;
-use audio_converter::ffmpeg::run::{CancelToken, RunSpec};
-use audio_converter::processing::pipeline;
-use audio_converter::types::{AudioFormat, ConversionOptions, OutputMode, TrimSpec};
+use audiflow::ffmpeg::probe;
+use audiflow::ffmpeg::run::{CancelToken, RunSpec};
+use audiflow::processing::pipeline;
+use audiflow::types::{AudioFormat, ConversionOptions, OutputMode, TrimSpec};
 
 fn bin(name: &str) -> Option<PathBuf> {
     let p = std::env::current_dir()
@@ -131,7 +131,7 @@ fn e2e_straight_mp3_conversion() {
         format: AudioFormat::Mp3,
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-1",
         &input,
@@ -166,7 +166,7 @@ fn e2e_split_with_remainder() {
         split_duration_secs: 4.0, // 6s source → parts of 4s + 2s
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-2",
         &input,
@@ -205,7 +205,7 @@ fn e2e_silence_removal_shortens_output() {
         silence_min_duration_secs: 1.0,
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-3",
         &input,
@@ -247,7 +247,7 @@ fn e2e_split_calculated_against_post_silence_timeline() {
         output_mode: OutputMode::SameAsSource,
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-4",
         &input,
@@ -282,7 +282,7 @@ fn e2e_unicode_persian_filename() {
         format: AudioFormat::Mp3,
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-5",
         &input,
@@ -310,7 +310,7 @@ fn e2e_no_audio_track_fails_gracefully() {
     let input = gen_video_silent(&dir, "muted.mp4");
 
     let options = ConversionOptions::default();
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let err = pipeline::run_job(
         "job-e2e-6",
         &input,
@@ -326,7 +326,7 @@ fn e2e_no_audio_track_fails_gracefully() {
 
     assert!(matches!(
         err,
-        audio_converter::error::AppError::NoAudioTrack(_)
+        audiflow::error::AppError::NoAudioTrack(_)
     ));
     // And no partial output left behind.
     let leftovers: Vec<_> = std::fs::read_dir(&dir)
@@ -349,7 +349,7 @@ fn e2e_trim_start_and_end() {
     // 1s → 3s ⇒ expect a ~2s output.
     let trim = TrimSpec::new(input.to_string_lossy().into_owned(), Some(1.0), Some(3.0));
     let options = ConversionOptions::default();
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-trim",
         &input,
@@ -384,7 +384,7 @@ fn e2e_trim_start_only_runs_to_eof() {
         format: AudioFormat::Opus,
         ..Default::default()
     };
-    let emitter: audio_converter::processing::pipeline::Emitter = Arc::new(|_| {});
+    let emitter: audiflow::processing::pipeline::Emitter = Arc::new(|_| {});
     let outcome = pipeline::run_job(
         "job-e2e-trim-start",
         &input,
@@ -440,7 +440,7 @@ fn e2e_cancel_kills_running_ffmpeg() {
     };
 
     match spec.run() {
-        Err(audio_converter::error::AppError::Cancelled) => {}
+        Err(audiflow::error::AppError::Cancelled) => {}
         Ok(_) => panic!("long run finished before cancel fired — timing flake"),
         Err(e) => panic!("unexpected error: {e}"),
     }

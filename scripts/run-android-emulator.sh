@@ -184,13 +184,13 @@ fi
 # ------------------------------------------------------------------------------
 # 7. Launch App on Emulator
 # ------------------------------------------------------------------------------
-echo -e "\n${BLUE}▶ Launching Audio Converter on emulator...${NC}"
+echo -e "\n${BLUE}▶ Launching Audiflow on emulator...${NC}"
 # Use monkey launcher or direct intent
-"$ADB_BIN" shell monkey -p com.audioconverter.app -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || \
-"$ADB_BIN" shell am start -n com.audioconverter.app/com.audioconverter.app.MainActivity >/dev/null 2>&1 || true
+"$ADB_BIN" shell monkey -p com.audiflow.app -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || \
+"$ADB_BIN" shell am start -n com.audiflow.app/com.audiflow.app.MainActivity >/dev/null 2>&1 || true
 
 echo -e "\n${GREEN}${BOLD}======================================================${NC}"
-echo -e "${GREEN}${BOLD}🚀 Audio Converter is now running on Android Emulator!${NC}"
+echo -e "${GREEN}${BOLD}🚀 Audiflow is now running on Android Emulator!${NC}"
 echo -e "${GREEN}${BOLD}======================================================${NC}"
 echo -e "  • ${BOLD}AVD:${NC}          $AVD_NAME"
 echo -e "  • ${BOLD}Installed APK:${NC} $(basename "$APK_FILE")"
@@ -198,5 +198,5 @@ echo -e "  • ${BOLD}Media Dir:${NC}    /sdcard/Download/"
 echo -e "\n${CYAN}💡 Tips:${NC}"
 echo -e "  - Drag & drop audio/video files directly into the emulator window to test."
 echo -e "  - Or push via CLI: ${YELLOW}adb push my_video.mp4 /sdcard/Download/${NC}"
-echo -e "  - View live app logs: ${YELLOW}adb logcat -s AudioConverter:* tauri:* Rust:*${NC}"
+echo -e "  - View live app logs: ${YELLOW}adb logcat -s Audiflow:* tauri:* Rust:*${NC}"
 echo -e "${GREEN}${BOLD}======================================================${NC}\n"

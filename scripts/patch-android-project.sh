@@ -44,7 +44,7 @@ cat > "$GEN/app/src/main/res/values/strings.xml" << 'EOF'
 <resources>
     <string name="app_name">Audiflow</string>
     <string name="main_activity_title">Audiflow</string>
-    <string name="default_notification_channel_id">audio_converter_notifications</string>
+    <string name="default_notification_channel_id">audiflow_notifications</string>
     <string name="permission_denied_hint">Storage / media access is required to pick files. Grant it in system Settings → Apps → Audiflow → Permissions.</string>
     <string name="media3_notification_channel_name">Music playback</string>
     <string name="media3_notification_channel_description">Shows the current track and playback controls</string>
@@ -126,7 +126,6 @@ node -e '
   add("android.permission.FOREGROUND_SERVICE_SPECIAL_USE");
   add("android.permission.WAKE_LOCK");
   add("android.permission.MODIFY_AUDIO_SETTINGS");
-  add("android.permission.RECORD_AUDIO");
   if (need.length > 0) {
     const perms =
       (need.includes("android.permission.READ_MEDIA_AUDIO") ? "\n    <uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\" />" : "") +
@@ -139,8 +138,7 @@ node -e '
       (need.includes("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK") ? "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />" : "") +
       (need.includes("android.permission.FOREGROUND_SERVICE_SPECIAL_USE") ? "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_SPECIAL_USE\" />" : "") +
       (need.includes("android.permission.WAKE_LOCK") ? "\n    <uses-permission android:name=\"android.permission.WAKE_LOCK\" />" : "") +
-      (need.includes("android.permission.MODIFY_AUDIO_SETTINGS") ? "\n    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />" : "") +
-      (need.includes("android.permission.RECORD_AUDIO") ? "\n    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />" : "");
+      (need.includes("android.permission.MODIFY_AUDIO_SETTINGS") ? "\n    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />" : "");
 
     content = content.replace(/<manifest[^>]*>/, (m) => m + perms);
   }
@@ -233,73 +231,73 @@ if [ -f "$MANIFEST" ] && ! grep -q "android.intent.action.SEND" "$MANIFEST"; the
 fi
 
 # --- 4. Custom Kotlin sources & ProGuard rules (JNI bridge preservation) ------
-mkdir -p "$GEN/app/src/main/java/com/audioconverter/app"
+mkdir -p "$GEN/app/src/main/java/com/audiflow/app"
 if [ -d "$ROOT/src-tauri/android" ]; then
-  cp -rf "$ROOT/src-tauri/android"/*.kt "$GEN/app/src/main/java/com/audioconverter/app/" 2>/dev/null || true
+  cp -rf "$ROOT/src-tauri/android"/*.kt "$GEN/app/src/main/java/com/audiflow/app/" 2>/dev/null || true
 fi
 
 cat > "$GEN/app/proguard-rules.pro" << 'EOF'
--keep class com.audioconverter.app.MainActivity {
+-keep class com.audiflow.app.MainActivity {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.MainActivity$Companion {
+-keep class com.audiflow.app.MainActivity$Companion {
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.PlaybackService {
+-keep class com.audiflow.app.PlaybackService {
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.BoostEngine {
+-keep class com.audiflow.app.BoostEngine {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.AudioSessionReceiver {
+-keep class com.audiflow.app.AudioSessionReceiver {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.BoostVolumeService {
+-keep class com.audiflow.app.BoostVolumeService {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.MainActivity {
+-keepclassmembers class com.audiflow.app.MainActivity {
     public static <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.MainActivity$Companion {
+-keepclassmembers class com.audiflow.app.MainActivity$Companion {
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.PlaybackService {
+-keepclassmembers class com.audiflow.app.PlaybackService {
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.BoostEngine {
-    public static <methods>;
-    public <methods>;
-    *;
-}
--keepclassmembers class com.audioconverter.app.AudioSessionReceiver {
+-keepclassmembers class com.audiflow.app.BoostEngine {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.BoostVolumeService {
+-keepclassmembers class com.audiflow.app.AudioSessionReceiver {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.AudioStreamManager {
+-keepclassmembers class com.audiflow.app.BoostVolumeService {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.AudioStreamManager {
+-keep class com.audiflow.app.AudioStreamManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audiflow.app.AudioStreamManager {
     public static <methods>;
     public <methods>;
     *;

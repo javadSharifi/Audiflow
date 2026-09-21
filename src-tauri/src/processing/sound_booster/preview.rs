@@ -58,11 +58,11 @@ fn preview_cache_dir() -> PathBuf {
         if let Ok(c) = std::env::var("TAURI_ANDROID_CACHE_DIR") {
             PathBuf::from(c).join("booster_previews")
         } else {
-            std::env::temp_dir().join("audio-converter-previews")
+            std::env::temp_dir().join("audiflow-previews")
         }
     };
     #[cfg(not(target_os = "android"))]
-    let p = std::env::temp_dir().join("audio-converter-previews");
+    let p = std::env::temp_dir().join("audiflow-previews");
 
     let _ = std::fs::create_dir_all(&p);
     sweep_old_previews(&p);

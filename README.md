@@ -1,124 +1,512 @@
-# Audio Converter
+<div align="center">
 
-Desktop & Mobile app that converts video and audio files to audio (MP3 / WAV / AAC / M4A / FLAC / Opus),
-with quality presets, waveform trimming, fixed-duration splitting, silence removal, a processing queue,
-real FFmpeg progress, and full Unicode (Persian) path support.
+# 🎧 Audiflow — Free Offline Audio Converter, Editor & Music Player
 
-Built with **Tauri 2 + React 19 + TypeScript + Tailwind CSS + Zustand**, with the media
-pipeline implemented in **Rust** driving a **bundled LGPL FFmpeg 8.1.2** — end users need
-zero external dependencies (no Node, no Python, no system FFmpeg).
+### Convert, edit, trim, split, boost, and play audio files locally — fast, private, and cross-platform.
 
-Supports **macOS**, **Windows**, **Linux**, and **Android (ARM64 / aarch64)**.
+**Audiflow** is a free and open-source **offline audio converter, audio editor, and music player** for **Windows, macOS, Linux, and Android**. Convert popular audio formats such as **MP3, FLAC, WAV, AAC, OGG, OPUS, and M4A**, trim audio with a waveform, remove silence automatically, split files, boost volume, and manage your local music library — without uploading your audio files to a server.
 
-## Features
+<p align="center">
+  <a href="https://github.com/javadSharifi/Audiflow/releases/latest">
+    <strong>⬇️ Download Audiflow</strong>
+  </a>
+  ·
+  <a href="#-features">
+    <strong>Features</strong>
+  </a>
+  ·
+  <a href="#️-see-audiflow-in-action">
+    <strong>Screenshots</strong>
+  </a>
+  ·
+  <a href="README.fa.md">
+    <strong>🇮🇷 فارسی</strong>
+  </a>
+</p>
 
-- Drag-and-drop or file-dialog input on desktop, Document Picker / MediaStore integration on Android (MP4/MKV/AVI/MOV/WEBM/FLV/WMV and anything FFmpeg can demux; validated by probing, not by extension).
-- Interactive waveform audio trimmer with HTML5 canvas and auditioning.
-- Output formats: MP3, WAV, AAC, M4A, FLAC, Opus. Format-appropriate settings (bitrate for lossy; sample-rate/channel options everywhere).
-- Quality presets Low / Medium / High / Very High / Custom with explicit bitrate list.
-- **Split into parts**: duration as minutes (`60`) or clock time (`1:00:00`); last part carries the remainder; source shorter than one part → single output.
-- **Silence removal**: `silencedetect` scan + deterministic segment/concat cutting. Threshold dB presets (-20…-45) + custom; minimum-silence-duration presets.
-- Split is always calculated against the **post-silence timeline**, so boundaries land where you expect after silence removal.
-- Single-pass conversion: extraction, silence removal, splitting and encoding happen in one FFmpeg invocation via a single `filter_complex` graph — at most one lossy encode.
-- Queue with per-file status (Waiting/Processing/Completed/Failed/Cancelled), per-file progress bars and overall progress. Concurrency configurable (default 1).
-- Cancel kills the FFmpeg process and deletes partial `.part` files.
-- Pre-flight disk-space check against estimated output size.
-- Android Scoped Storage integration: outputs published directly to standard `Music/AudioConverter` via `MediaStore`.
-- Errors are user-readable with an optional "technical details" expander showing raw stderr.
-- Light / Dark / System theme. English + Persian UI with RTL layout.
-- Settings persisted to the OS data directory.
+<a href="https://github.com/javadSharifi/Audiflow/releases/latest">
+  <img
+    src="https://img.shields.io/github/v/release/javadSharifi/Audiflow?color=orange&label=Latest%20Release"
+    alt="Latest Audiflow release"
+  />
+</a>
 
-## Development
+<img
+src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-blue.svg"
+alt="Audiflow supported platforms: Windows, macOS, Linux and Android"
+/>
 
-Prerequisites: Node.js ≥ 20, pnpm ≥ 9, Rust stable, plus `pkg-config`, `lame`, `opus` (macOS Homebrew) or equivalent Linux packages — only needed to *build* FFmpeg locally.
+<img
+src="https://img.shields.io/badge/license-MIT%20%2B%20LGPL%20v2.1-green.svg"
+alt="Audiflow license"
+/>
 
-### Desktop (macOS, Windows, Linux)
+<a href="https://github.com/javadSharifi/Audiflow/releases">
+  <img
+    src="https://img.shields.io/github/downloads/javadSharifi/Audiflow/total?color=success"
+    alt="Total Audiflow downloads on GitHub"
+  />
+</a>
+
+</div>
+
+<br />
+
+<div align="center">
+  <img
+    src="./app-icon.png"
+    alt="Audiflow offline audio converter and music player app icon"
+    width="128"
+    height="128"
+  />
+</div>
+
+<br />
+
+## 🖥️ See Audiflow in Action
+
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center">
+
+### 🎵 Music Player
+
+<img
+src="./docs/screenshots/music-player.png"
+alt="Audiflow music player and local music library"
+width="420"
+/>
+
+</td>
+
+<td align="center">
+
+### 🔄 Audio Converter
+
+<img
+src="./docs/screenshots/converter.png"
+alt="Audiflow offline audio converter for MP3 FLAC WAV AAC M4A OGG and OPUS"
+width="420"
+/>
+
+</td>
+  </tr>
+
+  <tr>
+    <td align="center">
+
+### 🎧 Now Playing
+
+<img
+src="./docs/screenshots/now-playing.png"
+alt="Audiflow now playing view"
+width="420"
+/>
+
+</td>
+
+<td align="center">
+
+### 🔊 Sound Booster
+
+<img
+src="./docs/screenshots/booster.png"
+alt="Audiflow audio volume booster and limiter"
+width="420"
+/>
+
+</td>
+  </tr>
+</table>
+
+</div>
+
+<p align="center">
+  <sub>Real screenshots from Audiflow — the interface you get after installation.</sub>
+</p>
+
+---
+
+## 🧐 What is Audiflow?
+
+**Audiflow** is a lightweight, free, and open-source **offline audio converter, editor, and music player** for Windows, macOS, Linux, and Android.
+
+It combines an **MP3 converter, FLAC converter, WAV converter, audio trimmer, silence remover, audio splitter, volume booster, and local music player** in one application.
+
+All audio processing runs locally on your device using a bundled **FFmpeg** pipeline, so you can convert and edit audio without uploading files to an online service.
+
+Audiflow is built with **Tauri 2 + Rust** on the backend and **React 19 + TypeScript + Tailwind CSS + Zustand** on the frontend.
+
+### Why Audiflow?
+
+- 🔒 **Private and offline** — your audio stays on your device.
+- ⚡ **Fast local processing** — powered by Rust and FFmpeg.
+- 🎵 **All-in-one audio toolkit** — convert, trim, split, remove silence, boost volume, and play music.
+- 🌍 **Cross-platform** — Windows, macOS, Linux, and Android.
+- 🆓 **Free and open source** — built with modern open-source technologies.
+
+---
+
+## ✨ Features
+
+### 🔄 Audio Converter
+
+Convert audio files between popular formats using a local FFmpeg-powered processing pipeline.
+
+- Batch audio conversion
+- MP3 conversion
+- FLAC conversion
+- WAV conversion
+- AAC conversion
+- M4A conversion
+- OGG conversion
+- OPUS conversion
+- Custom bitrate and quality settings
+- Sample-rate and channel configuration
+- Queue-based processing
+- Per-file progress and status
+- Cancel individual conversions
+- Automatic media stream validation
+
+Audiflow uses a single FFmpeg processing pipeline where possible to avoid unnecessary intermediate re-encoding.
+
+---
+
+### ✂️ Waveform Audio Trimmer
+
+Edit audio visually with a waveform-based trimming interface.
+
+- Interactive waveform preview
+- Precise start and end selection
+- Millisecond-level trimming
+- Audio preview before export
+- Fast local processing
+- Useful for songs, podcasts, recordings, lectures, interviews, and audio clips
+
+---
+
+### 🤫 Silence Remover
+
+Automatically detect and remove silent sections from audio files.
+
+- Automatic silence detection
+- Configurable silence threshold
+- Minimum silence duration
+- Non-destructive segment processing
+- Useful for podcasts, voice recordings, lectures, interviews, and spoken audio
+
+---
+
+### ✂️ Audio Splitter
+
+Split long audio files into smaller parts.
+
+- Split by duration
+- Split by number of parts
+- Automatic remainder handling
+- Works together with silence removal
+- Queue-based processing
+
+---
+
+### 🔊 Sound Booster
+
+Increase audio loudness while helping reduce clipping and distortion.
+
+- Loudness enhancement
+- Ready-to-use presets
+- Built-in limiter
+- Better control over output volume
+- Useful for quiet recordings, music, podcasts, and voice files
+
+---
+
+### 🎵 Music Player & Local Library
+
+Use Audiflow as a lightweight local music player.
+
+- Fast local music scanning
+- Track, album, and artist organization
+- Local music library
+- Android MediaStore integration
+- Lock-screen media controls
+- Hardware media button support
+- Standard Android `Music/Audiflow` output directory
+
+---
+
+### 🌍 Cross-Platform User Experience
+
+- 🇬🇧 English interface
+- 🇮🇷 Persian interface
+- ↔️ Full RTL support
+- 🌙 Dark and light themes
+- ⚡ Modern responsive interface
+- 🖥️ Desktop and mobile support
+
+---
+
+### 🔒 Privacy First
+
+Audiflow is designed around local-first audio processing.
+
+- No audio uploads
+- No cloud conversion
+- No server-side audio processing
+- No dependence on an online converter
+- Audio processing happens locally on your device
+
+---
+
+## 🎧 Supported Audio Formats
+
+Audiflow supports common audio formats including:
+
+| Format   | Description             |
+| :------- | :---------------------- |
+| **MP3**  | Compressed audio        |
+| **FLAC** | Lossless audio          |
+| **WAV**  | PCM audio               |
+| **AAC**  | Advanced Audio Coding   |
+| **M4A**  | MPEG-4 audio            |
+| **OGG**  | Ogg audio               |
+| **OPUS** | Modern compressed audio |
+
+Available encoding options can vary depending on the selected output format and FFmpeg encoder.
+
+---
+
+## 📥 Download Audiflow
+
+Get the latest version of Audiflow for your platform from GitHub Releases.
+
+### 🪟 Windows
+
+**[Download Audiflow for Windows](https://github.com/javadSharifi/Audiflow/releases/latest)**
+
+Windows installer packages are available from the latest release.
+
+### 🍎 macOS
+
+**[Download Audiflow for macOS](https://github.com/javadSharifi/Audiflow/releases/latest)**
+
+Download the latest macOS DMG from GitHub Releases.
+
+### 🐧 Linux
+
+**[Download Audiflow for Linux](https://github.com/javadSharifi/Audiflow/releases/latest)**
+
+Linux AppImage and DEB packages are available when provided in the release.
+
+### 🤖 Android
+
+**[Download Audiflow for Android](https://github.com/javadSharifi/Audiflow/releases/latest)**
+
+Download the latest Android APK from GitHub Releases.
+
+### 📦 All Releases
+
+**[View all Audiflow releases and downloads](https://github.com/javadSharifi/Audiflow/releases)**
+
+---
+
+## 🛠️ Build from Source
+
+Audiflow is open source and can be built locally.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 20+
+- [Rust](https://www.rust-lang.org/tools/install) stable
+- [pnpm](https://pnpm.io/) 9+
+- Tauri platform dependencies
+- FFmpeg build dependencies where required
+
+See the [official Tauri prerequisites guide](https://tauri.app/start/prerequisites/) for platform-specific requirements.
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/javadSharifi/Audiflow.git
+cd Audiflow
+```
+
+### Install Dependencies
+
 ```bash
 pnpm install
-pnpm fetch:ffmpeg     # build (macOS) or download (Win/Linux) bundled FFmpeg binaries
-pnpm tauri dev        # run the app in development
 ```
 
-### Android (Emulator or Physical Device)
+### Prepare FFmpeg
+
 ```bash
-# Start the local Android emulator (or connect a device via adb)
-bash scripts/run-android-emulator.sh
-
-# Run development with Hot Module Reloading (HMR)
-bash scripts/dev-android.sh
-
-# Or build and deploy a signed release APK directly:
-bash scripts/build-android-local.sh
+pnpm fetch:ffmpeg
 ```
 
-## Building installers & APKs
+### Run in Development
 
 ```bash
-pnpm fetch:ffmpeg     # ensure src-tauri/binaries/{ffmpeg,ffprobe}-<target-triple> exist
+pnpm tauri dev
+```
+
+### Build a Production Release
+
+```bash
 pnpm tauri build
 ```
 
-Artifacts land in `src-tauri/target/release/bundle/` and `src-tauri/gen/android/app/build/outputs/apk/`:
+Build artifacts are generated inside:
 
-| Platform | Target | Artifact |
-| --- | --- | --- |
-| macOS | `aarch64-apple-darwin` / `x86_64` | `dmg/AudioConverter_1.2.12_aarch64.dmg` (+ `.app`) |
-| Windows | `x86_64-pc-windows-msvc` | `nsis/AudioConverter_1.2.12_x64-setup.exe` |
-| Linux | `x86_64-unknown-linux-gnu` | `deb/*.deb` and `appimage/*.AppImage` |
-| Android | `aarch64-linux-android` (arm64-v8a) | `AudioConverter-android-aarch64.apk` |
-
-Windows and Linux packages are produced by CI (`.github/workflows/release.yml`) since each platform's installer must be built on its own OS; each workflow runs `pnpm fetch:ffmpeg` first so the correct platform binary is bundled automatically. Local Android builds are automated via `scripts/build-android-local.sh`.
-
-## Tests
-
-```bash
-pnpm test            # frontend unit tests (vitest)
-pnpm test:rust       # Rust unit tests (naming, split math, silence parsing, settings…)
-cargo test --manifest-path src-tauri/Cargo.toml --test e2e   # real end-to-end conversions
+```text
+src-tauri/target/release/bundle/
 ```
 
-The E2E suite generates real sample videos (tone–silence–tone) with the bundled FFmpeg,
-runs them through the actual pipeline, and asserts on output durations: straight MP3
-conversion, split-with-remainder, silence removal shortening, split-after-silence
-ordering, Persian filenames, no-audio-track failure handling, and cancel-kills-process.
+---
 
-## Security notes
+## 🧩 Tech Stack
 
-FFmpeg/ffprobe are always invoked through Rust `std::process::Command` with structured
-argument arrays — no shell interpolation of paths or filenames ever happens. The `--`
-guard precedes every output path. Unicode/Persian paths are handled natively end-to-end.
+| Layer                      | Technology      |
+| :------------------------- | :-------------- |
+| Desktop & Mobile Framework | Tauri 2         |
+| Backend                    | Rust            |
+| Audio Processing           | FFmpeg 8.1.2    |
+| Frontend                   | React 19        |
+| Language                   | TypeScript      |
+| Styling                    | Tailwind CSS v4 |
+| State Management           | Zustand 5       |
 
-## Third-party licenses
+---
 
-This application bundles **FFmpeg 8.1.2** binaries built from source under the
-**GNU Lesser General Public License (LGPL) v2.1-or-later**:
+## 🔐 Privacy & Local Processing
 
-- macOS & Linux binaries: compiled from official sources via
-  `scripts/build-ffmpeg-minimal.sh` — fully static builds (only system libs
-  linked) with libmp3lame + libopus, no GPL components. License: **LGPL v2.1+**.
-- Windows binary: BtbN "lgpl" release archive, pinned to a stable branch
-  (`ffmpeg-n8.1-latest-win64-lgpl-8.1.zip`), LGPL-licensed build.
+Audiflow is built around local-first audio processing.
 
-These builds contain no GPL-only components (no libx264/x265). The app uses FFmpeg
-solely via its command-line interface as a separate process, which constitutes use
-"as a separate executable" under the LGPL; no static linking of FFmpeg libraries occurs.
+Audio files are processed on the user's device instead of being uploaded to an online conversion service.
 
-Licensing summary:
-- FFmpeg — LGPL v2.1+ (bundled binary, unmodified behavior, source available at ffmpeg.org)
-- libmp3lame — LGPL v2+
-- libopus — BSD 3-Clause
-- Tauri & Rust crates — MIT/Apache-2.0
-- React/Vite/Tailwind/Zustand/vitest — MIT
+The application uses a Rust backend and FFmpeg for local media processing.
 
-## Known limitations / follow-ups
+Unicode and Persian file paths are supported, allowing audio files with non-Latin filenames to be processed locally.
 
-- Windows SmartScreen will show an "unknown publisher" warning until code signing is
-  set up (future improvement: Authenticode certificate in CI).
-- macOS build is unsigned (no Developer ID); Gatekeeper right-click → Open on first run.
-- Opus output forces 48 kHz when given unsupported rates (encoder requirement).
-- WAV is written as 16-bit PCM for maximum compatibility.
-- Android: inputs picked from SAF are staged once into the app cache (deduped per
-  URI for the session); outputs are written internally and published to the shared
-  `Music/AudioConverter` collection via MediaStore — custom output folders are
-  therefore not available on Android. Conversions die if the app is killed in the
-  background (foreground service with progress notification is a future improvement).
+---
+
+## 🤝 Contributing
+
+Contributions, bug reports, feature requests, and improvements are welcome.
+
+### 1. Fork the repository
+
+Fork **[Audiflow on GitHub](https://github.com/javadSharifi/Audiflow)**.
+
+### 2. Create a feature branch
+
+```bash
+git checkout -b feature/your-feature
+```
+
+### 3. Make your changes
+
+Implement your feature or fix.
+
+### 4. Commit your changes
+
+```bash
+git commit -m "Add your feature"
+```
+
+### 5. Push your branch
+
+```bash
+git push origin feature/your-feature
+```
+
+### 6. Open a Pull Request
+
+Submit your pull request on GitHub.
+
+For bugs and feature requests, use the **[Audiflow Issues](https://github.com/javadSharifi/Audiflow/issues)** page.
+
+---
+
+## ⭐ Support Audiflow
+
+If Audiflow is useful to you, consider giving the project a ⭐ on GitHub.
+
+Stars, forks, issues, pull requests, and contributions help the project grow and make it easier for other developers and audio enthusiasts to discover Audiflow.
+
+**[⭐ Star Audiflow on GitHub](https://github.com/javadSharifi/Audiflow)**
+
+---
+
+## ❓ Frequently Asked Questions
+
+### What is Audiflow?
+
+Audiflow is a free and open-source **offline audio converter, editor, and music player** for Windows, macOS, Linux, and Android.
+
+### Is Audiflow an offline audio converter?
+
+Yes. Audiflow processes audio locally using bundled FFmpeg instead of uploading your files to an online conversion service.
+
+### Can Audiflow convert MP3, FLAC, and WAV?
+
+Yes. Audiflow supports popular formats including **MP3, FLAC, WAV, AAC, M4A, OGG, and OPUS**.
+
+### Can I convert FLAC to MP3 with Audiflow?
+
+Yes. Audiflow can convert supported input formats such as FLAC into supported output formats such as MP3.
+
+### Can I convert WAV to MP3?
+
+Yes. WAV files can be converted to MP3 using the audio converter.
+
+### Can I trim audio with Audiflow?
+
+Yes. Audiflow includes a waveform-based audio trimmer for selecting and exporting specific parts of an audio file.
+
+### Can Audiflow remove silence from audio?
+
+Yes. Audiflow includes automatic silence detection and removal with configurable settings.
+
+### Can Audiflow split long audio files?
+
+Yes. Audio can be split by duration or by the desired number of parts.
+
+### Does Audiflow have a volume booster?
+
+Yes. Audiflow includes a sound booster with presets and a built-in limiter.
+
+### Does Audiflow work offline?
+
+Yes. Audio conversion and editing are designed to work locally without requiring an online conversion service.
+
+### Does Audiflow work on Windows, macOS, Linux, and Android?
+
+Yes. Audiflow is designed as a cross-platform application for **Windows, macOS, Linux, and Android**.
+
+### Is Audiflow free?
+
+Yes. Audiflow is free and open source.
+
+---
+
+## 📄 License
+
+Application code and frontend components are licensed under the **MIT License**.
+
+Audiflow bundles **FFmpeg 8.1.2** under the **GNU Lesser General Public License (LGPL) v2.1-or-later**.
+
+See the repository license files for complete licensing information.
+
+---
+
+<div align="center">
+
+## 🎧 Audiflow
+
+### Free Offline Audio Converter, Editor & Music Player
+
+Built with ❤️ by [Javad Sharifi](https://github.com/javadSharifi) for music and audio lovers.
+
+</div>

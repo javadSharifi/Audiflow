@@ -72,7 +72,7 @@ export const en = {
   outCustomFolder: "Choose folder…",
   outPerSourceFolder: "Subfolder per file",
   chooseFolder: "Browse…",
-  outAndroidHint: "Outputs are saved to Music/AudioConverter on your device storage.",
+  outAndroidHint: "Outputs are saved to Music/Audiflow on your device storage.",
 
   advanced: "Advanced settings",
   sameAsSource: "Same as source",

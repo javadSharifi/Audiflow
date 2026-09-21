@@ -54,7 +54,7 @@ fi
 bash "$ROOT/scripts/patch-android-project.sh" aarch64-linux-android
 
 # Ensure no signature conflict with previous release builds
-"$ADB_BIN" uninstall com.audioconverter.app >/dev/null 2>&1 || true
+"$ADB_BIN" uninstall com.audiflow.app >/dev/null 2>&1 || true
 
 # 3. Start Tauri Android Dev Mode (with Hot Module Replacement)
 echo -e "${GREEN}${BOLD}⚡ Starting Live-Reload Dev Server...${NC}"

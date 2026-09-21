@@ -13,7 +13,7 @@ const mockRelease = (tag: string) =>
     json: async () => ({
       tag_name: tag,
       name: `Audiflow ${tag}`,
-      html_url: `https://github.com/javadSharifi/audio-converter/releases/tag/${tag}`,
+      html_url: `https://github.com/javadSharifi/Audiflow/releases/tag/${tag}`,
       body: "Bug fixes",
     }),
   }));

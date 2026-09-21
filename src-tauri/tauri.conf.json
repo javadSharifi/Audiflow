@@ -2,8 +2,8 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Audiflow",
   "version": "1.5.1",
-  "identifier": "com.audioconverter.app",
-  "mainBinaryName": "audio-converter",
+  "identifier": "com.audiflow.app",
+  "mainBinaryName": "audiflow",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",

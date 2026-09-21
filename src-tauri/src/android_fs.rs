@@ -224,7 +224,7 @@ pub fn set_java_vm(vm: jni::JavaVM) {
 #[cfg(target_os = "android")]
 pub fn cache_main_activity_class(env: &mut jni::JNIEnv) {
     if MAIN_ACTIVITY_CLASS.get().is_none() {
-        if let Ok(class) = env.find_class("com/audioconverter/app/MainActivity") {
+        if let Ok(class) = env.find_class("com/audiflow/app/MainActivity") {
             if let Ok(global) = env.new_global_ref(&class) {
                 let _ = MAIN_ACTIVITY_CLASS.set(global);
                 crate::log_info!("Android JNI: MainActivity class cached");
@@ -264,7 +264,7 @@ fn main_activity_class<'a>(
         // Zero-cost JClass view over the cached GlobalRef's raw object.
         return Ok(unsafe { jni::objects::JClass::from_raw(class.as_obj().as_raw()) });
     }
-    env.find_class("com/audioconverter/app/MainActivity")
+    env.find_class("com/audiflow/app/MainActivity")
         .map_err(|e| format!("Failed to find MainActivity class: {e}"))
 }
 

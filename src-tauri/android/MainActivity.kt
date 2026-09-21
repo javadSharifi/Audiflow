@@ -1,4 +1,4 @@
-package com.audioconverter.app
+package com.audiflow.app
 
 import android.Manifest
 import android.content.ContentValues
@@ -376,7 +376,7 @@ class MainActivity : TauriActivity() {
 
   @Keep
   companion object {
-    private const val TAG = "AudioConverter"
+    private const val TAG = "Audiflow"
     private const val AUDIO_PERMISSION_REQ_CODE = 1001
     private const val VIDEO_PERMISSION_REQ_CODE = 1002
     private const val PERMISSION_REQ_CODE = 1001
@@ -401,10 +401,10 @@ class MainActivity : TauriActivity() {
 
     init {
       try {
-        System.loadLibrary("audio_converter")
-        Log.i("AudioConverter", "Loaded audio_converter library in companion init")
+        System.loadLibrary("audiflow")
+        Log.i("Audiflow", "Loaded audiflow library in companion init")
       } catch (t: Throwable) {
-        Log.w("AudioConverter", "Could not eagerly load audio_converter library", t)
+        Log.w("Audiflow", "Could not eagerly load audiflow library", t)
       }
     }
 
@@ -680,7 +680,7 @@ class MainActivity : TauriActivity() {
             put(android.provider.MediaStore.Audio.Media.DISPLAY_NAME, src.name)
             put(android.provider.MediaStore.Audio.Media.MIME_TYPE, mimeFor(src.extension))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-              put(android.provider.MediaStore.Audio.Media.RELATIVE_PATH, "Music/AudioConverter")
+              put(android.provider.MediaStore.Audio.Media.RELATIVE_PATH, "Music/Audiflow")
             }
           }
           val uri = context.contentResolver.insert(
@@ -711,7 +711,7 @@ class MainActivity : TauriActivity() {
             continue
           }
 
-          val published = "Music/AudioConverter/${src.name}"
+          val published = "Music/Audiflow/${src.name}"
           Log.i(TAG, "Published output: $path -> $published")
           if (!src.delete()) {
             Log.w(TAG, "Internal output copy could not be removed: $path")

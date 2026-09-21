@@ -1,4 +1,4 @@
-package com.audioconverter.app
+package com.audiflow.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -82,7 +82,7 @@ class BoostVolumeService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
           PowerManager.PARTIAL_WAKE_LOCK,
-          "audioconverter:BoostVolumeService"
+          "audiflow:BoostVolumeService"
         ).apply {
           setReferenceCounted(false)
           acquire(6 * 60 * 60 * 1000L) // 6 hours safety timeout
@@ -200,8 +200,8 @@ class BoostVolumeService : Service() {
     private const val TAG = "BoostVolumeService"
     const val NOTIFICATION_ID = 23555 // Verified from production booster reference
     const val CHANNEL_ID = "boost_volume_channel"
-    const val ACTION_STOP_BOOST = "com.audioconverter.app.ACTION_STOP_BOOST"
-    const val ACTION_UPDATE_GAIN = "com.audioconverter.app.ACTION_UPDATE_GAIN"
+    const val ACTION_STOP_BOOST = "com.audiflow.app.ACTION_STOP_BOOST"
+    const val ACTION_UPDATE_GAIN = "com.audiflow.app.ACTION_UPDATE_GAIN"
     const val EXTRA_GAIN_MB = "extra_gain_mb"
 
     fun start(context: Context, gainMb: Int) {

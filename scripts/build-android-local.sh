@@ -290,10 +290,20 @@ if [ $SKIP_SIGN -eq 0 ]; then
   if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
     echo -e "${YELLOW}⚠ apksigner tool not found in $ANDROID_HOME/build-tools. Skipping signing.${NC}"
   else
-    KEYSTORE_DIR="$HOME/.android"
-    mkdir -p "$KEYSTORE_DIR"
+    mkdir -p "$ROOT/secrets"
+    KEYSTORE_DIR="$ROOT/secrets"
     
-    KS_PATH="${KEYSTORE_PATH:-$KEYSTORE_DIR/release.keystore}"
+    DEFAULT_KS_PATH="$ROOT/secrets/release.keystore"
+    if [ ! -f "$DEFAULT_KS_PATH" ] && [ -f "$HOME/.android/release.keystore" ]; then
+      DEFAULT_KS_PATH="$HOME/.android/release.keystore"
+    fi
+
+    KS_PATH="${KEYSTORE_PATH:-$DEFAULT_KS_PATH}"
+    # If KS_PATH is relative, anchor it to ROOT
+    if [[ "$KS_PATH" != /* ]]; then
+      KS_PATH="$ROOT/$KS_PATH"
+    fi
+
     KS_PASS="${KEYSTORE_PASSWORD:-audioconverter123}"
     K_ALIAS="${KEY_ALIAS:-audioconverter}"
     K_PASS="${KEY_PASSWORD:-audioconverter123}"
@@ -331,7 +341,12 @@ if [ $SKIP_SIGN -eq 0 ]; then
       mv -f "$ALIGNED_APK" "$UNSIGNED_APK"
     fi
 
-    OUT_APK="$(dirname "$UNSIGNED_APK")/Audiflow-android-${TARGET_ARCH}.apk"
+    APP_VER=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+    if [ -n "$APP_VER" ]; then
+      OUT_APK="$(dirname "$UNSIGNED_APK")/Audiflow_${APP_VER}_android-${TARGET_ARCH}.apk"
+    else
+      OUT_APK="$(dirname "$UNSIGNED_APK")/Audiflow-android-${TARGET_ARCH}.apk"
+    fi
     echo "Signing APK: $UNSIGNED_APK -> $OUT_APK"
 
     "$APKSIGNER" sign \

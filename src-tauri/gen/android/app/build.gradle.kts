@@ -20,10 +20,10 @@ android {
         }
     }
     compileSdk = 36
-    namespace = "com.audioconverter.app"
+    namespace = "com.audiflow.app"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.audioconverter.app"
+        applicationId = "com.audiflow.app"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

@@ -5,7 +5,7 @@
 
 use crate::error::{AppError, Result};
 
-const SERVICE: &str = "com.audioconverter.app";
+const SERVICE: &str = "com.audiflow.app";
 const ACCOUNT: &str = "gemini-api-key";
 
 fn entry() -> Result<keyring::Entry> {

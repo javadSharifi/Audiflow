@@ -6,3 +6,11 @@
 export function isAndroid(): boolean {
   return typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
 }
+
+export function isMacOS(): boolean {
+  return typeof navigator !== "undefined" && /macintosh|mac os x/i.test(navigator.userAgent);
+}
+
+export function isWindows(): boolean {
+  return typeof navigator !== "undefined" && /windows|win32/i.test(navigator.userAgent);
+}

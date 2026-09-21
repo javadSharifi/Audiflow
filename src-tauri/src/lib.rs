@@ -14,7 +14,7 @@ pub mod types;
 
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "C" fn Java_com_audioconverter_app_MainActivity_initNativePaths(
+pub extern "C" fn Java_com_audiflow_app_MainActivity_initNativePaths(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     native_lib_dir: jni::objects::JString,
@@ -186,7 +186,7 @@ pub fn run() {
             let data_dir = app
                 .path()
                 .app_data_dir()
-                .unwrap_or_else(|_| std::env::temp_dir().join("audio-converter"));
+                .unwrap_or_else(|_| std::env::temp_dir().join("audiflow"));
             settings::init_app_data_dir(data_dir);
             app.manage(queue::QueueManager::new(app.handle().clone()));
             app.manage(transcribe_queue::TranscribeQueueManager::new(app.handle().clone()));

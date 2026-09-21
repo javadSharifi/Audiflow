@@ -29,6 +29,28 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-21 — 100% Rebrand to Audiflow / com.audiflow.app
+
+**Decision:** Complete migration of technical identifiers to Audiflow:
+- Android package / namespace / applicationId migrated from `com.audioconverter.app` to `com.audiflow.app`.
+- JNI function and class references migrated to `Java_com_audiflow_app_MainActivity_initNativePaths` and `com/audiflow/app/MainActivity`.
+- Output MediaStore collection changed to `Music/Audiflow`.
+- Package, binary, crate, and lib names unified to `audiflow`.
+- Release bundles and artifact filenames updated to `Audiflow-*`.
+- Update repository target updated to `javadSharifi/audiflow`.
+
+**Why:** User requested a 100% deep technical rebrand so no old internal identifiers remain.
+
+**Implication:** Any Android devices with the previous APK must perform a fresh install rather than in-place update due to the applicationId change.
+
+## 2026-09-21 — Android release signing anchored to local project secrets
+
+**Decision:** The persistent Android release signing keystore is stored locally at `secrets/release.keystore` (ignored by git alongside `secrets/`, `*.keystore`, `.env.android`). `scripts/build-android-local.sh` resolves `secrets/release.keystore` by default, falls back to `~/.android/release.keystore`, and handles relative paths. A template `.env.android.example` provides explicit override documentation.
+
+**Why:** Avoids losing the signing certificate across machines/OS reinstalls, prevents Play Protect and Android OS signature mismatch upgrade failures, and guarantees identical signing parameters between local builds and CI (via `ANDROID_KEYSTORE_BASE64`).
+
+**Implication:** Never delete or commit `secrets/release.keystore`. Any future APK build distributed to users must share this certificate fingerprint (`SHA256: 53:12:96:8C:39:52:FA:B2:27:FF:E6:C2:3A:8A:B6:B9:9B:5D:2D:3C:7D:CE:E6:FF:D0:D1:4D:A1:1A:1E:CF:DE`).
+
 ## 2026-09-19 — Transcribe Studio frontend removed (Gemini unusable in Iran)
 
 **Decision:** Deleted `src/features/transcribe/` (15 files) + its `tauri.ts` facade (`GeminiApiError`, `geminiKindOf`, key/queue/usage/transcript wrappers) + orphaned `types/index.ts` re-exports (`Transcription*`, `TranscribeSettings`, `UsageStats`, `ObservedQuota`, `WordInfo`, `GeminiErrorKind`, `BoosterJobSpec`, `TranscriptionEvent`). Rust backend (`processing/transcribe/`, `transcribe_queue.rs`, `secrets.rs`), `generated.ts` mirrors, and `i18n` transcribe keys intentionally kept.

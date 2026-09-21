@@ -71,7 +71,7 @@ pub fn artwork_cache_dir() -> Option<PathBuf> {
     }
     #[cfg(not(target_os = "android"))]
     {
-        let base = directories::ProjectDirs::from("com", "AudioConverter", "audio-converter")
+        let base = directories::ProjectDirs::from("com", "Audiflow", "audiflow")
             .map(|p| p.cache_dir().to_path_buf())
             .unwrap_or_else(std::env::temp_dir);
         let dir = base.join("artworks");
@@ -84,8 +84,13 @@ pub fn artwork_cache_dir() -> Option<PathBuf> {
 /// to the durable cache dir.
 #[cfg(not(target_os = "android"))]
 fn legacy_artwork_cache_dir() -> Option<PathBuf> {
-    let dir = std::env::temp_dir().join("audio-converter-artworks");
-    if dir.is_dir() { Some(dir) } else { None }
+    let dir = std::env::temp_dir().join("audiflow-artworks");
+    if dir.is_dir() {
+        Some(dir)
+    } else {
+        let old = std::env::temp_dir().join("audio-converter-artworks");
+        if old.is_dir() { Some(old) } else { None }
+    }
 }
 
 #[cfg(not(target_os = "android"))]
