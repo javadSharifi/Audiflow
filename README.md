@@ -54,10 +54,9 @@ alt="Audiflow license"
 
 <div align="center">
   <img
-    src="./app-icon.png"
-    alt="Audiflow offline audio converter and music player app icon"
-    width="128"
-    height="128"
+    src="./docs/screenshots/hero-banner.png"
+    alt="Audiflow offline audio converter and music player"
+    width="850"
   />
 </div>
 

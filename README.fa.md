@@ -54,10 +54,9 @@
 
 <div align="center">
   <img
-    src="./app-icon.png"
-    alt="آیکون اپلیکیشن تبدیل صدا و موزیک پلیر Audiflow"
-    width="128"
-    height="128"
+    src="./docs/screenshots/hero-banner.png"
+    alt="نرم‌افزار تبدیل صدا و موزیک پلیر Audiflow"
+    width="850"
   />
 </div>
 
