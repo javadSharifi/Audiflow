@@ -1,64 +1,64 @@
--keep class com.audioconverter.app.MainActivity {
+-keep class com.audiflow.app.MainActivity {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.MainActivity$Companion {
+-keep class com.audiflow.app.MainActivity$Companion {
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.PlaybackService {
+-keep class com.audiflow.app.PlaybackService {
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.BoostEngine {
+-keep class com.audiflow.app.BoostEngine {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.AudioSessionReceiver {
+-keep class com.audiflow.app.AudioSessionReceiver {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.BoostVolumeService {
+-keep class com.audiflow.app.BoostVolumeService {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.MainActivity {
+-keepclassmembers class com.audiflow.app.MainActivity {
     public static <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.MainActivity$Companion {
+-keepclassmembers class com.audiflow.app.MainActivity$Companion {
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.PlaybackService {
+-keepclassmembers class com.audiflow.app.PlaybackService {
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.BoostEngine {
-    public static <methods>;
-    public <methods>;
-    *;
-}
--keepclassmembers class com.audioconverter.app.AudioSessionReceiver {
+-keepclassmembers class com.audiflow.app.BoostEngine {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.BoostVolumeService {
+-keepclassmembers class com.audiflow.app.AudioSessionReceiver {
     public static <methods>;
     public <methods>;
     *;
 }
--keep class com.audioconverter.app.AudioStreamManager {
+-keepclassmembers class com.audiflow.app.BoostVolumeService {
     public static <methods>;
     public <methods>;
     *;
 }
--keepclassmembers class com.audioconverter.app.AudioStreamManager {
+-keep class com.audiflow.app.AudioStreamManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keepclassmembers class com.audiflow.app.AudioStreamManager {
     public static <methods>;
     public <methods>;
     *;

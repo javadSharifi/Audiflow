@@ -33,6 +33,9 @@ fi
 
 echo "Patching Tauri Android project ($TRIPLE → $JNI_DIR)..."
 
+# --- 0. Clean legacy package files from buildSrc ------------------------------
+rm -rf "$GEN/buildSrc/src/main/java/com/audioconverter" 2>/dev/null || true
+
 # --- 1. Icons + strings -------------------------------------------------------
 rm -f "$GEN/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" \
       "$GEN/app/src/main/res/drawable/ic_launcher_background.xml" 2>/dev/null || true

@@ -32,8 +32,8 @@ Domain: Android Kotlin + generated project + icons. Part of `PROJECT_GRAPH.md` d
 | `src-tauri/gen/android/app/src/main/res/xml/file_paths.xml` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/android/build.gradle.kts` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/android/buildSrc/build.gradle.kts` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
-| `src-tauri/gen/android/buildSrc/src/main/java/com/audioconverter/app/kotlin/BuildTask.kt` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
-| `src-tauri/gen/android/buildSrc/src/main/java/com/audioconverter/app/kotlin/RustPlugin.kt` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
+| `src-tauri/gen/android/buildSrc/src/main/java/com/audiflow/app/kotlin/BuildTask.kt` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
+| `src-tauri/gen/android/buildSrc/src/main/java/com/audiflow/app/kotlin/RustPlugin.kt` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/android/gradle.properties` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/**/gradle/wrapper/*` | Gradle wrapper binaries (do not edit). |
 | `src-tauri/gen/android/gradlew` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
