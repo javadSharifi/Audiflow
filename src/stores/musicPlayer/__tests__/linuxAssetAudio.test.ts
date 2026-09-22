@@ -11,9 +11,10 @@ const ASSET_URL = "asset://localhost/home/user/Music/song.mp3";
 
 function stubDeps() {
   const blob = new Blob(["audio-bytes"], { type: "audio/mpeg" });
-  const fetchImpl = vi.fn(async () =>
-    new Response(blob, { status: 200, headers: { "Content-Type": "audio/mpeg" } }),
-  );
+  // Plain fake, NOT `new Response(...)`: undici's Response brand-checks
+  // foreign (jsdom) Blob bodies and throws on some Node versions (CI red
+  // on Node 22 while green locally) — production only needs ok + blob().
+  const fetchImpl = vi.fn(async () => ({ ok: true, blob: async () => blob }));
   const created = ["blob:mock-uuid-1", "blob:mock-uuid-2"];
   let n = 0;
   const createUrl = vi.fn(() => created[n++] ?? `blob:mock-uuid-${n}`);
@@ -59,7 +60,7 @@ describe("Linux asset:// audio workaround (WebKitGTK custom-scheme media block)"
 
   it("falls back to the asset URL on non-OK responses", async () => {
     const { createUrl, revokeUrl } = stubDeps();
-    const notFound = vi.fn(async () => new Response("nope", { status: 404 }));
+    const notFound = vi.fn(async () => ({ ok: false, blob: async () => new Blob() }));
     const src = await toPlayableLinuxAudioSrc(ASSET_URL, notFound, createUrl, revokeUrl);
 
     expect(src).toBe(ASSET_URL);
@@ -121,7 +122,7 @@ describe("Scoped blob handles (preview/audition elements)", () => {
 
   it("returns null on non-OK responses", async () => {
     const { createUrl, revokeUrl } = stubDeps();
-    const notFound = vi.fn(async () => new Response("nope", { status: 404 }));
+    const notFound = vi.fn(async () => ({ ok: false, blob: async () => new Blob() }));
     const handle = await resolveScopedBlobAudioSrc(ASSET_URL, notFound, createUrl, revokeUrl);
 
     expect(handle).toBeNull();

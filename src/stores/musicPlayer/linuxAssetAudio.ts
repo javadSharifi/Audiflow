@@ -13,7 +13,12 @@
  * (or stopping) revokes the previous one.
  */
 
-type FetchImpl = (input: string) => Promise<Response>;
+/** Minimal fetch surface we need (real `fetch` satisfies this structurally). */
+export interface FetchLikeResponse {
+  ok: boolean;
+  blob: () => Promise<Blob>;
+}
+type FetchImpl = (input: string) => Promise<FetchLikeResponse>;
 type CreateUrl = (blob: Blob) => string;
 type RevokeUrl = (url: string) => void;
 
