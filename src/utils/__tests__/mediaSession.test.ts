@@ -116,6 +116,32 @@ describe("MediaSession & Lock Screen synchronization", () => {
     });
   });
 
+  it("on Linux omits asset:// artwork so WebKitGTK MPRIS keeps the real title", () => {
+    const originalUA = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      configurable: true,
+    });
+    try {
+    syncMediaSession({
+      track: { ...mockTrack, coverUrl: "asset://localhost/home/user/cover.jpg" },
+      isPlaying: true,
+      currentTime: 10,
+      duration: 210,
+      playbackRate: 1.0,
+    });
+
+    // Title must survive; un-fetchable asset:// artwork must not poison MPRIS.
+    expect(navigator.mediaSession.metadata?.title).toBe("Fly Away");
+    expect(navigator.mediaSession.metadata?.artwork).toEqual([]);
+    } finally {
+      Object.defineProperty(navigator, "userAgent", {
+        value: originalUA,
+        configurable: true,
+      });
+    }
+  });
+
   it("clears metadata and sets state to none when no track is active", () => {
     syncMediaSession({
       track: null,

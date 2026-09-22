@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import * as api from "../../utils/tauri";
-import { isAndroid } from "../../utils/platform";
+import { isAndroid, isLinux } from "../../utils/platform";
+import { revokeActiveBlobSrc, toPlayableLinuxAudioSrc } from "./linuxAssetAudio";
 import { initMediaSession, syncMediaSession } from "../../utils/mediaSession";
 import type { AudioTrackInfo } from "../../types";
 import type { useMusicPlayerStore } from "../useMusicPlayerStore";
@@ -813,6 +814,10 @@ export async function unifiedStop(): Promise<void> {  stopAndroidStateSync();
       audio.src = "";
     } catch { /* best-effort: ignore */ }
   }
+  // Drop the Linux blob URL so a stopped track holds no file bytes in RAM.
+  try {
+    revokeActiveBlobSrc();
+  } catch { /* best-effort: ignore */ }
 }
 
 export async function resolveAudioSource(track: AudioTrackInfo): Promise<string> {
@@ -856,7 +861,11 @@ export async function resolveAudioSource(track: AudioTrackInfo): Promise<string>
       : target);
 
   try {
-    return convertFileSrc(rawPath);
+    const assetUrl = convertFileSrc(rawPath);
+    // Linux only: WebKitGTK cannot play media from the asset:// custom
+    // scheme (WebKit bug 146351) — serve the element a blob: URL instead.
+    if (isLinux()) return await toPlayableLinuxAudioSrc(assetUrl);
+    return assetUrl;
   } catch {
     return rawPath;
   }

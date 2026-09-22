@@ -291,13 +291,40 @@ Audiflow از انواع فرمت‌های صوتی رایج پشتیبانی م
 
 **[دانلود Audiflow برای macOS](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
-فایل نصبی DMG سازگار با پردازنده‌های اپل سیلیکون و اینتل را از بخش ریلیزها دانلود نمایید.
+فایل `Audiflow_*_macos-arm64-install.zip` را از بخش ریلیزها دانلود و آنزیپ کنید —
+داخلش فایل DMG و اسکریپت `install-mac.sh` کنار هم هستند.
+
+> **چرا مک می‌گوید «Audiflow is damaged»؟**
+> این پیام به معنی خراب بودن فایل نیست؛ محافظ امنیتی Gatekeeper اپل است. چون
+> Audiflow پروژه‌ای رایگان و متن‌باز است و گواهی پولی توسعه‌دهنده اپل (سالیانه ۹۹ دلار)
+> برای Notarize ندارد، بیلد مک فقط با امضای ad-hoc منتشر می‌شود و مک فایل دانلودشده
+> را قرنطینه می‌کند.
+>
+> **راحت‌ترین راه — اسکریپت داخل پوشه آنزیپ‌شده:**
+>
+> ```bash
+> bash install-mac.sh Audiflow_1.5.3_aarch64.dmg
+> ```
+>
+> **راه دستی (اگر قبلاً به Applications کپی کرده‌اید):**
+>
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/Audiflow.app
+> codesign --force --deep --sign - /Applications/Audiflow.app
+> open /Applications/Audiflow.app
+> ```
+>
+> اگر باز هم سوال پرسید: راست‌کلیک روی Audiflow > Open > Open، یا در
+> System Settings > Privacy & Security گزینه Open Anyway.
 
 ### 🐧 لینوکس (Linux)
 
 **[دانلود Audiflow برای لینوکس](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
 پکیج‌های لینوکس به صورت AppImage و DEB در بخش ریلیزها قرار دارند.
+نسخه **.deb** را ترجیح بدهید (`sudo apt install ./audiflow_*_amd64.deb`) چون
+وابستگی‌های WebKitGTK و کدک‌های GStreamer را خودش نصب می‌کند. نسخه AppImage به
+`libfuse2` نیاز دارد که در اوبونتو 24.04 به بعد نیست (`sudo apt install libfuse2`).
 
 ### 🤖 اندروید (Android)
 

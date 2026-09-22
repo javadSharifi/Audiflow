@@ -115,13 +115,11 @@ export function resolvePlatformDownloadUrl(
     const exe = assets.find((a) => a.name.toLowerCase().endsWith(".exe"));
     if (exe) return exe.browser_download_url;
   } else {
-    // Linux
-    const linux = assets.find(
-      (a) =>
-        a.name.toLowerCase().endsWith(".appimage") ||
-        a.name.toLowerCase().endsWith(".deb")
-    );
-    if (linux) return linux.browser_download_url;
+    // Linux: prefer .deb (AppImage needs libfuse2, absent on Ubuntu 24.04+).
+    const deb = assets.find((a) => a.name.toLowerCase().endsWith(".deb"));
+    if (deb) return deb.browser_download_url;
+    const appimage = assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
+    if (appimage) return appimage.browser_download_url;
   }
 
   return release.url;

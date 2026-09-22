@@ -7,6 +7,11 @@ import { ABPreview } from "./ABPreview";
 import { translate } from "../../../i18n";
 import { useAppStore } from "../../../stores/useAppStore";
 import * as api from "../../../utils/tauri";
+import { isLinux } from "../../../utils/platform";
+import {
+  resolveScopedBlobAudioSrc,
+  type BlobAudioHandle,
+} from "../../../stores/musicPlayer/linuxAssetAudio";
 
 interface FileBoosterInlineProps {
   file: InputFile;
@@ -29,6 +34,7 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
   const [currentTime, setCurrentTime] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobHandleRef = useRef<BlobAudioHandle | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqSeqRef = useRef(0);
 
@@ -99,8 +105,24 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
       activeAudition === "original" ? preview.originalPath : preview.boostedPath;
 
     let cancelled = false;
-    void api.fileToAssetUrl(currentPath).then((url) => {
+    void api.fileToAssetUrl(currentPath).then(async (assetUrl) => {
       if (cancelled) return;
+
+      // Linux: WebKitGTK cannot play media from asset:// (WebKit bug 146351).
+      // Scoped handle — never touches the main player singleton slot.
+      let url = assetUrl;
+      if (isLinux()) {
+        const handle = await resolveScopedBlobAudioSrc(assetUrl);
+        if (cancelled) {
+          handle?.revoke();
+          return;
+        }
+        if (handle) {
+          blobHandleRef.current?.revoke();
+          blobHandleRef.current = handle;
+          url = handle.url;
+        }
+      }
 
       if (!audioRef.current) {
         const audio = new Audio();
@@ -134,6 +156,8 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
 
     return () => {
       cancelled = true;
+      blobHandleRef.current?.revoke();
+      blobHandleRef.current = null;
     };
   }, [preview, activeAudition]);
 
@@ -145,6 +169,8 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
         audioRef.current.src = "";
         audioRef.current = null;
       }
+      blobHandleRef.current?.revoke();
+      blobHandleRef.current = null;
     };
   }, []);
 

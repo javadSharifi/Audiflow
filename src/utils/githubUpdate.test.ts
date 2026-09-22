@@ -133,6 +133,19 @@ describe("resolvePlatformDownloadUrl", () => {
     expect(url).toBe("https://download/Audiflow.AppImage");
   });
 
+  it("prefers .deb over .AppImage on Linux (libfuse2 missing on Ubuntu 24.04+)", async () => {
+    const { resolvePlatformDownloadUrl } = await import("./githubUpdate");
+    const withDeb = {
+      ...sampleRelease,
+      assets: [
+        { name: "Audiflow_1.5.0_amd64.AppImage", browser_download_url: "https://download/Audiflow.AppImage", size: 400 },
+        { name: "audiflow_1.5.0_amd64.deb", browser_download_url: "https://download/audiflow.deb", size: 300 },
+      ],
+    };
+    const url = resolvePlatformDownloadUrl(withDeb, { isAndroid: false, isMacOS: false, isWindows: false });
+    expect(url).toBe("https://download/audiflow.deb");
+  });
+
   it("falls back to release page url if no assets match", async () => {
     const { resolvePlatformDownloadUrl } = await import("./githubUpdate");
     const url = resolvePlatformDownloadUrl({ ...sampleRelease, assets: [] }, { isAndroid: true, isMacOS: false, isWindows: false });

@@ -10,7 +10,23 @@ const ACCOUNT: &str = "gemini-api-key";
 
 fn entry() -> Result<keyring::Entry> {
     keyring::Entry::new(SERVICE, ACCOUNT)
-        .map_err(|e| AppError::Other(format!("Keychain unavailable: {e}")))
+        .map_err(|e| AppError::Other(format!("Keychain unavailable: {}", platform_hint(e))))
+}
+
+/// On Linux the keyring backend needs a Secret Service provider
+/// (gnome-keyring, kwallet) over D-Bus — absent on minimal installs and
+/// headless boxes. Append the actionable hint there; other platforms keep
+/// the raw error.
+#[cfg(target_os = "linux")]
+fn platform_hint(e: impl std::fmt::Display) -> String {
+    format!(
+        "{e} (Linux needs a Secret Service provider such as gnome-keyring or kwallet: `sudo apt install gnome-keyring`, then re-login)"
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn platform_hint(e: impl std::fmt::Display) -> String {
+    e.to_string()
 }
 
 /// Mask a key for debug output: `AIza...` -> `AIza…••••`.
@@ -30,7 +46,7 @@ pub fn save_gemini_api_key(key: &str) -> Result<()> {
     }
     entry()?
         .set_password(trimmed)
-        .map_err(|e| AppError::Other(format!("Failed to save API key to keychain: {e}")))?;
+        .map_err(|e| AppError::Other(format!("Failed to save API key to keychain: {}", platform_hint(e))))?;
     crate::log_info!("gemini api key saved (prefix={})", mask_key(trimmed));
     Ok(())
 }
@@ -41,7 +57,7 @@ pub fn load_gemini_api_key() -> Result<Option<String>> {
         Ok(pw) if !pw.trim().is_empty() => Ok(Some(pw)),
         Ok(_) => Ok(None),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(AppError::Other(format!("Failed to read API key: {e}"))),
+        Err(e) => Err(AppError::Other(format!("Failed to read API key: {}", platform_hint(e)))),
     }
 }
 
@@ -58,7 +74,7 @@ pub fn delete_gemini_api_key() -> Result<()> {
             Ok(())
         }
         Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(AppError::Other(format!("Failed to delete API key: {e}"))),
+        Err(e) => Err(AppError::Other(format!("Failed to delete API key: {}", platform_hint(e)))),
     }
 }
 

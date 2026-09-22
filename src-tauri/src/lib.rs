@@ -140,6 +140,22 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 /// App entry point (called from main.rs).
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Linux + NVIDIA: WebKitGTK's DMABUF renderer disagrees with the NVIDIA
+    // driver (blank window, flicker, GPU-process crash — tauri#9394). Only
+    // fall back to the slower path when NVIDIA hardware is actually present,
+    // and never override an explicit user setting. Must run before any
+    // webview is created.
+    #[cfg(target_os = "linux")]
+    {
+        use std::path::Path;
+        let has_nvidia = Path::new("/dev/nvidia0").exists()
+            || Path::new("/proc/driver/nvidia").exists();
+        if has_nvidia && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            // SAFETY: single-threaded pre-webview startup; no other threads yet.
+            unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+        }
+    }
+
     let builder = specta_builder();
 
     #[cfg(all(debug_assertions, not(mobile), not(target_os = "android"), not(target_os = "ios")))]

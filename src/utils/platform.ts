@@ -14,3 +14,9 @@ export function isMacOS(): boolean {
 export function isWindows(): boolean {
   return typeof navigator !== "undefined" && /windows|win32/i.test(navigator.userAgent);
 }
+
+export function isLinux(): boolean {
+  if (typeof navigator === "undefined") return false;
+  // Android UAs contain "Linux" — exclude explicitly so only desktop Linux matches.
+  return /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
+}

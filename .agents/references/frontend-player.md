@@ -68,6 +68,8 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/stores/musicPlayer/__tests__/autoAdvanceEngine.test.ts` | Vitest for guarded end wiring, queue boundaries, failure skip, manual/auto race. |
 | `src/stores/musicPlayer/audioEngine.ts` | Unified desktop HTMLAudio+WebAudio-gain / Android native bridge; exports `bindMusicStore`, `unified*`, guarded auto-advance (`requestGuardedAutoAdvance`, `cancelArmedAutoAdvance`, `publishStoppedMediaState`). |
 | `src/stores/musicPlayer/autoAdvance.ts` | Auto-advance core: generation-token guard, `resolveNextTrack` (aligned id/uri/path identity), session skip-set; exports `createAdvanceGuard`, `findTrackIndex`, `snapshotUnplayableKeys`. |
+| `src/stores/musicPlayer/linuxAssetAudio.ts` | Linux-only audio source: fetch `asset://` bytes → `blob:` URL (WebKitGTK custom-scheme media block, WebKit bug 146351); single live URL revoked on next resolve/stop; fallback to asset URL on fetch failure; plus scoped `resolveScopedBlobAudioSrc` handles for preview/audition elements (trim, booster A/B, ringtone) that never touch the player slot. |
+| `src/stores/musicPlayer/__tests__/linuxAssetAudio.test.ts` | Vitest for blob-URL resolution, prev-URL revocation, and asset-URL fallback. |
 | `src/stores/musicPlayer/__tests__/shareTrack.test.ts` | Vitest for track share/export helpers. |
 | `src/stores/musicPlayer/audioEngine.ts` | Unified desktop HTMLAudio+WebAudio-gain / Android native bridge; exports `bindMusicStore`, `unified*`. |
 | `src/stores/musicPlayer/persistence.ts` | localStorage liked/folders/sort/albums/tracks-cache; exports `load*/persist*`. |

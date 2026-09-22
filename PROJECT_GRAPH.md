@@ -23,7 +23,7 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | `src-tauri/src/music_library/` | Scanner + artwork + per-OS platform |
 | `src-tauri/android/` + `src-tauri/gen/android/` | Kotlin sources + generated Android project |
 | `src-tauri/icons/` | Generated icon sets |
-| `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen |
+| `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen, mac free installer (`install-mac.sh`) |
 | `.github/workflows/` | ci + release pipelines |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
 | `specs/` | Feature specs (tracked; latest `015-fix-bottom-nav-layout` — Bottom navigation layout and mini player spacing fixes) |

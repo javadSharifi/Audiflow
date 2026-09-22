@@ -3,7 +3,11 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { formatTimecode, parseTimeInput } from "../utils/format";
-import { isAndroid } from "../utils/platform";
+import { isAndroid, isLinux } from "../utils/platform";
+import {
+  resolveScopedBlobAudioSrc,
+  type BlobAudioHandle,
+} from "../stores/musicPlayer/linuxAssetAudio";
 import * as api from "../utils/tauri";
 import { Play, Pause, RotateCcw } from "lucide-react";
 import type { InputFile } from "../types";
@@ -198,6 +202,7 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const blobHandleRef = useRef<BlobAudioHandle | null>(null);
   const draggingRef = useRef<DragTarget>(null);
   const playTimeRef = useRef<number | null>(null);
   const previewStartRef = useRef<number | null>(null);
@@ -273,12 +278,30 @@ export function TrimEditor({ file }: { file: InputFile }): React.JSX.Element | n
       if (isAndroid() && localPath.startsWith("content://")) {
         setSrcUrl(null);
       } else {
-        setSrcUrl(convertFileSrc(localPath));
+        const assetUrl = convertFileSrc(localPath);
+        // Linux: WebKitGTK cannot play media from asset:// (WebKit bug
+        // 146351) — serve the preview element a scoped blob: URL instead.
+        // Scoped (not the player singleton) so this never revokes a
+        // background track that is still playing.
+        if (!isLinux()) {
+          if (alive) setSrcUrl(assetUrl);
+        } else {
+          const handle = await resolveScopedBlobAudioSrc(assetUrl);
+          if (!alive) {
+            handle?.revoke();
+            return;
+          }
+          blobHandleRef.current?.revoke();
+          blobHandleRef.current = handle;
+          setSrcUrl(handle ? handle.url : assetUrl);
+        }
       }
     };
     void prepare();
     return () => {
       alive = false;
+      blobHandleRef.current?.revoke();
+      blobHandleRef.current = null;
     };
   }, [file.path, file.durationSecs, duration, probedDur, updateFileMeta]);
 

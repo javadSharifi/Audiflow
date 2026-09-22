@@ -100,6 +100,38 @@ Multiple intrusive modal gates on app startup harmed UX. Consolidating into a si
 **Implication:**
 `ac:first-run-done` is written only via user confirm/skip or silent grandfathering. Future preferences should not add ad-hoc launch blocking modals.
 
+## 2026-09-22 — Free macOS distribution via install zip (no paid notarization)
+
+**Decision:** macOS releases ship `Audiflow_*_macos-arm64-install.zip` (DMG + `scripts/install-mac.sh` side by side, built in `release.yml`); users run `bash install-mac.sh <dmg>` which strips quarantine + ad-hoc re-signs locally.
+
+**Why:** No paid Apple Developer notarization ($99/yr); ad-hoc DMG alone triggers Gatekeeper "damaged" error.
+
+**Implication:** Keep the zip step in `release.yml` and the macOS notes in both READMEs in sync; if a paid cert is ever added, remove the workaround.
+
+## 2026-09-22 — Debian rename transition: audiflow Conflicts/Replaces audio-converter
+
+**Decision:** `bundle.linux.deb` in `tauri.conf.json` declares `conflicts: ["audio-converter"]` + `replaces: ["audio-converter"]` (key names verified against the official Tauri v2 `DebConfig` reference).
+
+**Why:** The 2026-09-21 rebrand renamed the deb package, but machines with the legacy `audio-converter` .deb still own `/usr/bin/ffprobe` + `/usr/bin/ffmpeg`, so dpkg aborts the new install with an overwrite error. The Conflicts/Replaces pair is the standard Debian rename-transition mechanism: apt removes the legacy package while installing the new one.
+
+**Implication:** Keep these entries until the legacy package is long extinct; do not drop them in a cleanup without checking install-base impact. Complement to the 2026-09-21 rebrand entry above.
+
 When a later decision supersedes an earlier one, preserve the historical entry and add a short note such as:
 
 `Superseded by: <date/title>`
+
+## 2026-09-22 — Linux desktop audio served via fetch→blob, not raw asset://
+
+**Decision:** On desktop Linux only (`isLinux()`), `resolveAudioSource` fetches the `asset://` audio bytes and hands the `<audio>` element a `blob:` URL (`musicPlayer/linuxAssetAudio.ts`); macOS/Windows/Android paths are untouched. One blob URL is live at a time (revoked on next resolve/stop); fetch failure falls back to the asset URL so the existing skip+notice path behaves as before.
+
+**Why:** WebKitGTK's GStreamer media backend cannot load media from custom URI schemes (upstream WebKit bug 146351, still present in 2.52.x): every track stalled at readyState 0 — 0:00, no play, no error, all formats — while GStreamer itself (gst-play) and system audio were fine. `fetch()` reads the same custom scheme without issue and the media backend accepts `blob:` URLs; this is the workaround other Tauri projects use.
+
+**Implication:** Whole file bytes sit in RAM during Linux playback (acceptable for songs; revisit via MediaSource/chunked serving if multi-100MB files become a problem). If upstream WebKit ever fixes 146351, this module can be retired behind the same `isLinux()` gate.
+
+## 2026-09-22 — Linux hardening batch (deb deps, scoped preview blobs, desktop integration)
+
+**Decision:** (1) `.deb` declares explicit `depends` (webkit 4.1 + gtk3 + GStreamer base/good/bad/ugly/libav) — verified against `tauri-bundler` `debian.rs` that `Depends:` is written verbatim from config, so the list must be complete. (2) Preview/audition elements (trim, booster A/B, ringtone) use owned `resolveScopedBlobAudioSrc` handles, never the player singleton — resolving a preview must not revoke a playing background track. (3) In-app updater prefers `.deb` on Linux; READMEs recommend `.deb` (AppImage needs `libfuse2`, gone on Ubuntu 24.04+). (4) `WEBKIT_DISABLE_DMABUF_RENDERER=1` is set at startup only on NVIDIA hardware when the user hasn't set it (tauri#9394). (5) Converter ingest normalizes `file://` (%U, pickers, drops) to plain paths with a dependency-free `%XX` decoder. (6) `fileAssociations` uses concrete freedesktop MIME lists, not `audio/*`.
+
+**Why:** Audit of every Linux-only failure mode after the WebKit-146351 playback fix: codec-less minimal installs, three preview paths with the same stall, wrong updater artifact, portal-less pickers (fail-soft), NVIDIA/Wayland blank window, Secret-Service-less keychain (actionable hint), `%U` URIs dying inside ffmpeg jobs, invalid wildcard MIME types.
+
+**Implication:** The explicit `depends` list must be maintained — adding a system library linkage without updating it re-creates the "installs fine, crashes at runtime" class. Large-file RAM (whole-file fetch→blob) intentionally left as documented: MSE/chunked serving needs real Linux verification before touching core playback.

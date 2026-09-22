@@ -10,6 +10,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 
 vi.mock("../../../utils/platform", () => ({
   isAndroid: vi.fn(() => false),
+  isLinux: vi.fn(() => false),
 }));
 
 vi.mock("../../../utils/tauri", () => ({

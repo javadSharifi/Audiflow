@@ -11,7 +11,11 @@ import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { formatTimecode, parseTimeInput } from "../../utils/format";
 import * as api from "../../utils/tauri";
-import { isAndroid } from "../../utils/platform";
+import { isAndroid, isLinux } from "../../utils/platform";
+import {
+  resolveScopedBlobAudioSrc,
+  type BlobAudioHandle,
+} from "../../stores/musicPlayer/linuxAssetAudio";
 import { TrackCover } from "./TrackCover";
 import {
   Bell,
@@ -242,6 +246,7 @@ export function SetRingtoneModal({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const blobHandleRef = useRef<BlobAudioHandle | null>(null);
   const draggingRef = useRef<DragTarget>(null);
   const playTimeRef = useRef<number | null>(null);
   const previewEndRef = useRef<number | null>(null);
@@ -276,7 +281,20 @@ export function SetRingtoneModal({
     const prepare = async () => {
       const resolvedSrc = await resolveAudioSource(track);
       if (!alive) return;
-      setSrcUrl(resolvedSrc || null);
+      // Linux: WebKitGTK cannot play media from asset:// (WebKit bug 146351).
+      // Scoped handle — never touches the main player singleton slot.
+      if (isLinux() && resolvedSrc.startsWith("asset://")) {
+        const handle = await resolveScopedBlobAudioSrc(resolvedSrc);
+        if (!alive) {
+          handle?.revoke();
+          return;
+        }
+        blobHandleRef.current?.revoke();
+        blobHandleRef.current = handle;
+        setSrcUrl(handle ? handle.url : resolvedSrc);
+      } else {
+        setSrcUrl(resolvedSrc || null);
+      }
 
       const localPath = track.path || track.uri;
       if (localPath) {
@@ -315,6 +333,8 @@ export function SetRingtoneModal({
     void prepare();
     return () => {
       alive = false;
+      blobHandleRef.current?.revoke();
+      blobHandleRef.current = null;
     };
   }, [track, duration]);
 

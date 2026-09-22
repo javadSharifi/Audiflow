@@ -29,6 +29,7 @@ vi.mock("../../../utils/tauri", async (importOriginal) => {
 
 vi.mock("../../../utils/platform", () => ({
   isAndroid: vi.fn(() => true),
+  isLinux: vi.fn(() => false),
 }));
 
 const mockTrack: AudioTrackInfo = {

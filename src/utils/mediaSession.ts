@@ -1,4 +1,5 @@
 import type { AudioTrackInfo } from "../types";
+import { isLinux } from "./platform";
 
 export interface MediaSessionMetadataPayload {
   track: AudioTrackInfo | null;
@@ -121,20 +122,39 @@ export function syncMediaSession({
   }
 
   // 1. Update Metadata
+  // Non-empty strings only: an empty xesam:title makes WebKitGTK emit a
+  // "useless" MPRIS notification and GNOME falls back to the app name.
+  const title = track.title?.trim() || track.name?.trim() || "Unknown Title";
+  const artist = track.artist?.trim() || "Unknown Artist";
+  const album = track.album?.trim() || "Audio Library";
+
+  // Linux (WebKitGTK -> MPRIS bridge) cannot fetch asset:// artwork
+  // (same WebKit bug 146351 as audio) and treats the whole metadata as
+  // incomplete -> lock screen shows only "Audiflow". Omit un-fetchable
+  // artwork there so title/artist/album survive. Other platforms keep
+  // the previous behavior.
   const artworkList: MediaImage[] = [];
   if (track.coverUrl) {
-    artworkList.push(
-      { src: track.coverUrl, sizes: "96x96", type: "image/jpeg" },
-      { src: track.coverUrl, sizes: "256x256", type: "image/jpeg" },
-      { src: track.coverUrl, sizes: "512x512", type: "image/jpeg" },
-    );
+    const src = track.coverUrl;
+    const fetchableEverywhere =
+      src.startsWith("http://") ||
+      src.startsWith("https://") ||
+      src.startsWith("data:") ||
+      src.startsWith("blob:");
+    if (!isLinux() || fetchableEverywhere) {
+      artworkList.push(
+        { src, sizes: "96x96", type: "image/jpeg" },
+        { src, sizes: "256x256", type: "image/jpeg" },
+        { src, sizes: "512x512", type: "image/jpeg" },
+      );
+    }
   }
 
   try {
     const metaPayload = {
-      title: track.title || track.name,
-      artist: track.artist || "Unknown Artist",
-      album: track.album || "Audio Library",
+      title,
+      artist,
+      album,
       artwork: artworkList,
     };
 

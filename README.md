@@ -291,13 +291,40 @@ Windows installer packages are available from the latest release.
 
 **[Download Audiflow for macOS](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
-Download the latest macOS DMG from GitHub Releases.
+Download the `Audiflow_*_macos-arm64-install.zip` from GitHub Releases and unzip it —
+it contains the DMG and the `install-mac.sh` installer side by side.
+
+> **Why does macOS say "Audiflow is damaged and can't be opened"?**
+> This is Apple's Gatekeeper, not a broken download. Audiflow is a free open-source
+> project and its macOS build is ad-hoc signed — it has no paid Apple Developer
+> notarization ($99/yr), so macOS quarantines the downloaded DMG and shows the
+> "damaged / move to Trash" message.
+>
+> **Easiest fix — bundled installer (from the unzipped folder):**
+>
+> ```bash
+> bash install-mac.sh Audiflow_1.5.3_aarch64.dmg
+> ```
+>
+> **Manual fix (already copied to Applications):**
+>
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/Audiflow.app
+> codesign --force --deep --sign - /Applications/Audiflow.app
+> open /Applications/Audiflow.app
+> ```
+>
+> If macOS still asks, right-click Audiflow > Open > Open, or allow it in
+> System Settings > Privacy & Security > Open Anyway.
 
 ### 🐧 Linux
 
 **[Download Audiflow for Linux](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
 Linux AppImage and DEB packages are available when provided in the release.
+Prefer the **.deb** (`sudo apt install ./audiflow_*_amd64.deb`): it pulls in
+the WebKitGTK + GStreamer codec dependencies automatically. The AppImage needs
+`libfuse2`, which Ubuntu 24.04+ no longer ships (`sudo apt install libfuse2`).
 
 ### 🤖 Android
 

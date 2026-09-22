@@ -13,6 +13,53 @@ use crate::settings::Settings;
 use crate::transcribe_queue::TranscribeQueueManager;
 use crate::types::{ConversionOptions, FileMeta, TrimSpec};
 
+/// Normalize a `file://` URI into a plain local path.
+///
+/// Linux "Open With" passes `%U` file:// URIs into argv, and pickers/drop
+/// handlers may leak them too. The converter worker hands paths to ffmpeg
+/// verbatim, so an un-normalized URI fails deep inside the job instead of at
+/// ingest. Handles `file://`, `file://localhost/`, Windows drive form
+/// (`file:///C:/...`), and `%XX` escapes. Non-file inputs (plain paths,
+/// Android `content://`) pass through untouched.
+fn normalize_file_uri(path: &str) -> String {
+    let mut rest = match path.strip_prefix("file://") {
+        Some(r) => r,
+        None => return path.to_string(),
+    };
+    if let Some(stripped) = rest.strip_prefix("localhost") {
+        rest = stripped;
+    }
+    let mut decoded = percent_decode(rest);
+    // file:///C:/x → "/C:/x" is not a valid Windows path; drop the slash.
+    // Harmless on Unix ("/C:/..." is never a real file there either way).
+    let b = decoded.as_bytes();
+    if b.len() >= 3 && b[0] == b'/' && b[1].is_ascii_alphabetic() && b[2] == b':' {
+        decoded.remove(0);
+    }
+    decoded
+}
+
+/// Minimal `%XX` decoder (no new dependency for a 10-line job).
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(hex) = std::str::from_utf8(&bytes[i + 1..i + 3]) {
+                if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                    out.push(byte);
+                    i += 3;
+                    continue;
+                }
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// Result of pre-resolving one input path (e.g. Android Content URIs to
 /// cached local files). `resolved` equals `input` when no staging happened
 /// or when staging failed (the error field then explains why).
@@ -389,11 +436,16 @@ pub async fn start_conversion(
     if items.is_empty() {
         return Err(AppError::InvalidInput("No input files selected".into()));
     }
-    let items = items;
+    let mut items = items;
     // NOTE: no staging here — Android content URIs are resolved lazily by the
     // worker right before each conversion runs, so picking 20 files never
     // copies 20 files upfront.
     options.validate()?;
+    // Linux "Open With" passes %U file:// URIs and pickers may leak them too;
+    // normalize to plain paths here so the worker never hands ffmpeg a URI.
+    for item in &mut items {
+        item.path = normalize_file_uri(&item.path);
+    }
     for item in &items {
         item.validate()?;
         let p = &item.path;
@@ -566,7 +618,7 @@ pub async fn generate_ab_preview(
 #[specta::specta]
 pub async fn start_sound_boost(
     queue: State<'_, QueueManager>,
-    items: Vec<BoosterJobSpec>,
+    mut items: Vec<BoosterJobSpec>,
     options: ConversionOptions,
     concurrency: Option<u32>,
 ) -> Result<Vec<String>> {
@@ -574,6 +626,9 @@ pub async fn start_sound_boost(
         return Err(AppError::InvalidInput("No input files selected".into()));
     }
     options.validate()?;
+    for item in &mut items {
+        item.trim.path = normalize_file_uri(&item.trim.path);
+    }
     for item in &items {
         item.trim.validate()?;
         let p = &item.trim.path;
@@ -1073,3 +1128,44 @@ pub fn export_transcript(
 
 
 
+
+#[cfg(test)]
+mod normalize_file_uri_tests {
+    use super::{normalize_file_uri, percent_decode};
+
+    #[test]
+    fn strips_file_scheme_and_decodes_escapes() {
+        assert_eq!(
+            normalize_file_uri("file:///home/u/My%20Song.mp3"),
+            "/home/u/My Song.mp3"
+        );
+    }
+
+    #[test]
+    fn strips_localhost_host() {
+        assert_eq!(
+            normalize_file_uri("file://localhost/home/u/song.flac"),
+            "/home/u/song.flac"
+        );
+    }
+
+    #[test]
+    fn strips_windows_drive_slash() {
+        assert_eq!(normalize_file_uri("file:///C:/Music/song.mp3"), "C:/Music/song.mp3");
+    }
+
+    #[test]
+    fn leaves_plain_paths_and_content_uris_alone() {
+        assert_eq!(normalize_file_uri("/home/u/song.mp3"), "/home/u/song.mp3");
+        assert_eq!(
+            normalize_file_uri("content://media/external/1234"),
+            "content://media/external/1234"
+        );
+    }
+
+    #[test]
+    fn literal_percent_without_hex_survives() {
+        assert_eq!(percent_decode("100%.mp3"), "100%.mp3");
+        assert_eq!(percent_decode("a%2"), "a%2");
+    }
+}

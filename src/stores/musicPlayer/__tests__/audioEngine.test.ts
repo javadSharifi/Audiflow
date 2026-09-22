@@ -356,5 +356,55 @@ describe("Unified Audio Engine (Cross-Platform & Media3)", () => {
       const resolved = await resolveAudioSource(httpTrack);
       expect(resolved).toBe("https://example.com/stream.mp3");
     });
+
+    describe("Linux WebKitGTK asset:// media block (WebKit bug 146351)", () => {
+      const desktopTrack: AudioTrackInfo = {
+        ...mockTrack,
+        uri: "",
+        path: "/home/user/Music/song.mp3",
+      };
+      const ASSET_URL = "asset://localhost//home/user/Music/song.mp3";
+
+      beforeEach(() => {
+        vi.spyOn(platform, "isAndroid").mockReturnValue(false);
+      });
+
+      it("returns a blob: URL via fetch on Linux, keeping asset:// off the element", async () => {
+        vi.spyOn(platform, "isLinux").mockReturnValue(true);
+        const fetchMock = vi.fn(async () => ({
+          ok: true,
+          blob: async () => new Blob(["audio-bytes"], { type: "audio/mpeg" }),
+        }));
+        vi.stubGlobal("fetch", fetchMock);
+        Object.defineProperty(URL, "createObjectURL", {
+          value: vi.fn(() => "blob:linux-mock"),
+          configurable: true,
+        });
+        Object.defineProperty(URL, "revokeObjectURL", {
+          value: vi.fn(),
+          configurable: true,
+        });
+        try {
+          const resolved = await resolveAudioSource(desktopTrack);
+          expect(fetchMock).toHaveBeenCalledWith(ASSET_URL);
+          expect(resolved).toBe("blob:linux-mock");
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      });
+
+      it("keeps the direct asset:// URL on non-Linux desktop", async () => {
+        vi.spyOn(platform, "isLinux").mockReturnValue(false);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        try {
+          const resolved = await resolveAudioSource(desktopTrack);
+          expect(resolved).toBe(ASSET_URL);
+          expect(fetchMock).not.toHaveBeenCalled();
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      });
+    });
   });
 });

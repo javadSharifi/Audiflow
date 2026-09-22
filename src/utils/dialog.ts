@@ -20,11 +20,17 @@ export function isAudioPath(path: string): boolean {
   return AUDIO_EXTS.has(ext);
 }
 
-/** Open the native multi-select dialog and return absolute paths. */
+/** Open the native multi-select dialog and return absolute paths. Fail-soft []. */
 export async function pickVideos(): Promise<string[]> {
-  const picked = await open({ multiple: true, filters: [MEDIA_FILTER] });
-  if (!picked) return [];
-  return (Array.isArray(picked) ? picked : [picked]).map(String);
+  try {
+    const picked = await open({ multiple: true, filters: [MEDIA_FILTER] });
+    if (!picked) return [];
+    return (Array.isArray(picked) ? picked : [picked]).map(String);
+  } catch {
+    // No portal backend (minimal WMs, headless): dialog never appears —
+    // return empty instead of an unhandled rejection that looks like a hang.
+    return [];
+  }
 }
 
 /** Open the native multi-directory picker and return absolute paths. Fail-soft []. */

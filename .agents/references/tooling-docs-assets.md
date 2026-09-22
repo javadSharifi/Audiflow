@@ -12,7 +12,7 @@ Domain: Scripts, CI, configs, specs, docs, skills, fonts. Part of `PROJECT_GRAPH
 | `.env.android.example` | Template for local Android signing secrets. |
 | `.gitattributes` | Repo-tracked support file. |
 | `.github/workflows/ci.yml` | CI: 3-OS matrix type-check + vitest + cargo test + Specta sync gate. |
-| `.github/workflows/release.yml` | Release: tag-triggered Tauri bundles macOS/Linux/Windows + Android APK. |
+| `.github/workflows/release.yml` | Release: tag-triggered Tauri bundles macOS/Linux/Windows + Android APK + mac install zip (DMG + install-mac.sh). |
 | `.gitignore` | Repo-tracked support file. |
 | `.opencode/commands/* (slash-command defs)` | Speckit slash-command definitions. |
 | `.specify/* (bootstrap JSON, manifests)` | Spec-kit bootstrap config (not app code). |
@@ -35,6 +35,7 @@ Domain: Scripts, CI, configs, specs, docs, skills, fonts. Part of `PROJECT_GRAPH
 | `scripts/gen-icons.py` | Build/dev helper script (ffmpeg fetch, android build/emulator, icons). |
 | `scripts/patch-android-project.sh` | Build/dev helper script (ffmpeg fetch, android build/emulator, icons). |
 | `scripts/run-android-emulator.sh` | Build/dev helper script (ffmpeg fetch, android build/emulator, icons). |
+| `scripts/install-mac.sh` | Free macOS installer: strips quarantine + ad-hoc re-signs unsigned DMG build (no paid cert). |
 | `specs/** (deleted in workdir, tracked in index)` | Mobile-perf spec artifacts; deleted in workdir, kept as tracked history. |
 | `src/fonts/** (IRANSans assets)` | Bundled IRANSans fonts for Persian UI. |
 | `tsconfig.json` | Strict TS 5.9 config (strict/noUnusedLocals/noUnusedParameters/noFallthrough). |
