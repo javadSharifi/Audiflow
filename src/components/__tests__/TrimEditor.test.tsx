@@ -10,6 +10,14 @@ vi.mock("@tauri-apps/api/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tauri-apps/api/core")>();
   return { ...actual, convertFileSrc: (p: string) => `asset://${p}` };
 });
+vi.mock("../../utils/platform", () => ({
+  isAndroid: vi.fn(() => false),
+  // The Linux scoped-blob preview path needs a real fetch(asset://) round
+  // trip that jsdom cannot complete; the blob layer itself is covered in
+  // linuxAssetAudio.test.ts, so pin the component test to desktop behavior
+  // for OS-independent results (Ubuntu CI UAs contain "Linux").
+  isLinux: vi.fn(() => false),
+}));
 vi.mock("../../utils/tauri", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/tauri")>();
   return {
