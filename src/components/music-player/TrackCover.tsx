@@ -5,6 +5,7 @@ import {
   artworkCacheKey,
   getCachedArtworkSrc,
   resolveArtworkSrc,
+  trackIdentity,
 } from "../../utils/artwork";
 
 interface TrackCoverProps {
@@ -34,15 +35,19 @@ function getGradientIndex(str: string): number {
 }
 
 export function TrackCover({ track, className = "", size = "md" }: TrackCoverProps): React.JSX.Element {
+  const identityKey = trackIdentity(track) || track.coverUrl || track.title || "";
+  const [prevIdentity, setPrevIdentity] = useState(identityKey);
   const [imgFailed, setImgFailed] = useState(false);
   const initialCached = getCachedArtworkSrc(track);
   const [extractedSrc, setExtractedSrc] = useState<string | null>(initialCached ?? null);
-  const coverKey = track.id ?? track.coverUrl ?? null;
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of fallback state when the track changes
+  // Synchronously reset state during render when track identity changes
+  if (identityKey !== prevIdentity) {
+    setPrevIdentity(identityKey);
     setImgFailed(false);
-  }, [coverKey]);
+    const sync = getCachedArtworkSrc(track);
+    setExtractedSrc(sync ?? null);
+  }
 
   // Lazy embedded-art extraction: covers that can't load directly
   // are resolved on demand through the native artwork cache.
@@ -51,17 +56,16 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
     let cancelled = false;
     const sync = getCachedArtworkSrc(track);
     if (sync !== undefined) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync of cached artwork on key change
       setExtractedSrc(sync);
       return;
     }
+    setExtractedSrc(null);
     void resolveArtworkSrc(track).then((src) => {
       if (!cancelled) setExtractedSrc(src);
     });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artKey]);
 
   const gradient = useMemo(() => {

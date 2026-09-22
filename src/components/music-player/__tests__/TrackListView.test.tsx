@@ -154,4 +154,12 @@ describe("TrackListView Virtualization & Rendering", () => {
     expect(pane.style.display).not.toBe("none");
     expect(screen.getByText("Alpha Song")).toBeDefined();
   });
+
+  it("incorporates safe-area-inset-bottom into scroll container padding", () => {
+    useMusicPlayerStore.setState({ playingKey: "file:///music/track1.mp3" });
+    const { container } = render(<TrackListView />);
+
+    const scrollContainer = container.querySelector(".overflow-y-auto");
+    expect(scrollContainer?.className).toMatch(/env\(safe-area-inset-bottom/);
+  });
 });

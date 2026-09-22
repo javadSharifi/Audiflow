@@ -3,35 +3,23 @@ import { createPortal } from "react-dom";
 import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore, isTrackLiked, playbackModeOf, type PlaybackMode } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
-import { TrackCover } from "./TrackCover";
-import { ConvertSongIcon } from "./ConvertSongIcon";
 import { WaveformSeekbar } from "./WaveformSeekbar";
 import { TrackOptionsSheet } from "./TrackOptionsSheet";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
 import { isAndroid } from "../../utils/platform";
 import { TrackBoosterSheet } from "./TrackBoosterSheet";
+import { useNowPlayingGestures } from "./useNowPlayingGestures";
+import { NowPlayingArtworkCarousel } from "./NowPlayingArtworkCarousel";
+import { NowPlayingToolbar } from "./NowPlayingToolbar";
+import { NowPlayingSpeedModal } from "./NowPlayingSpeedModal";
+import { NowPlayingMobileQueue } from "./NowPlayingMobileQueue";
+import { NowPlayingDesktopQueue } from "./NowPlayingDesktopQueue";
+import { NowPlayingTransportControls } from "./NowPlayingTransportControls";
 import {
   ArrowLeft,
   MoreHorizontal,
   Heart,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Repeat,
-  Repeat1,
-  Shuffle,
-  Gauge,
-  Flame,
-  ListMusic,
-  Search,
-  X,
-  RotateCcw,
 } from "lucide-react";
-
-const PLAYBACK_MODE_ORDER: PlaybackMode[] = ["normal", "shuffle", "repeatAll", "repeatOne"];
-
-const SPEED_PRESETS = [0.5, 1.0, 1.5, 2.0, 2.5];
 
 export function NowPlayingView(): React.JSX.Element | null {
   const lang = useAppStore((s) => s.lang);
@@ -65,23 +53,34 @@ export function NowPlayingView(): React.JSX.Element | null {
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [boosterOpen, setBoosterOpen] = useState(false);
-  const [desktopSearch, setDesktopSearch] = useState("");
-  // Tap ripple ids for the halo play button (removed on animation end).
-  const [ripples, setRipples] = useState<number[]>([]);
-  const rippleId = React.useRef(0);
 
-  const handlePlayPress = () => {
-    rippleId.current += 1;
-    const id = rippleId.current;
-    setRipples((prev) => [...prev.slice(-2), id]);
-    handleTogglePlay();
+  const {
+    containerRef,
+    cardRef,
+    dragY,
+    swipeX,
+    cardRotation,
+    cardOpacity,
+    isInteracting,
+    transitionState,
+    bindContainer,
+  } = useNowPlayingGestures({
+    onDismiss: () => setFullscreenOpen(false),
+    onNextTrack: () => void playNextTrack(),
+    onPreviousTrack: () => void playPreviousTrack(),
+    canGoNext: true,
+    canGoPrevious: true,
+  });
+
+  const handleTogglePlay = () => {
+    if (isPlaying) {
+      pauseTrack();
+    } else {
+      resumeTrack();
+    }
   };
 
-  const removeRipple = (id: number) => {
-    setRipples((prev) => prev.filter((r) => r !== id));
-  };
-
-  // Android back: sheets first, then fullscreen (deepest handler wins).
+  // Android back: sheets first, then fullscreen
   useEffect(() => {
     if (!isAndroid()) return;
     const onBack = () => {
@@ -102,34 +101,13 @@ export function NowPlayingView(): React.JSX.Element | null {
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
   }, [fullscreenOpen, optionsOpen, queueOpen, speedOpen, boosterOpen, setFullscreenOpen]);
 
-  // Active playlist
   const activeList = useMemo(() => {
     return currentPlaylist.length > 0 ? currentPlaylist : tracks;
   }, [currentPlaylist, tracks]);
 
-  const desktopFilteredList = useMemo(() => {
-    if (!desktopSearch.trim()) return activeList;
-    const q = desktopSearch.toLowerCase();
-    return activeList.filter(
-      (t) =>
-        t.title?.toLowerCase().includes(q) ||
-        t.name?.toLowerCase().includes(q) ||
-        t.artist?.toLowerCase().includes(q) ||
-        t.album?.toLowerCase().includes(q),
-    );
-  }, [activeList, desktopSearch]);
-
   if (!fullscreenOpen || !currentTrack) return null;
 
   const isLiked = isTrackLiked(currentTrack, likedPaths);
-
-  const handleTogglePlay = () => {
-    if (isPlaying) {
-      pauseTrack();
-    } else {
-      resumeTrack();
-    }
-  };
 
   const handleOpenInConverter = () => {
     if (currentTrack) {
@@ -142,24 +120,36 @@ export function NowPlayingView(): React.JSX.Element | null {
     setActiveTool("converter");
   };
 
+  const rootTransform = dragY > 0 ? `translateY(${dragY}px)` : undefined;
+  const rootTransition =
+    transitionState === "snapping"
+      ? "transform 240ms cubic-bezier(0.2, 0.9, 0.3, 1)"
+      : transitionState === "dismissing"
+      ? "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)"
+      : undefined;
+
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1.75rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300">
+    <div
+      ref={containerRef}
+      style={{
+        transform: rootTransform,
+        transition: rootTransition,
+        willChange: isInteracting ? "transform" : undefined,
+      }}
+      {...bindContainer}
+      className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1.75rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300"
+    >
       {/* Top Ambient Glow */}
       <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-orange-500/15 via-amber-500/5 to-transparent pointer-events-none" />
-      {/* Bottom Ambient Glow (mirrors top so the lower half never looks flat/black) */}
+      {/* Bottom Ambient Glow */}
       <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-orange-500/10 via-amber-500/[0.04] to-transparent pointer-events-none" />
 
-      {/* Main Container: Split into 2 columns on desktop (lg:flex-row) */}
+      {/* Main Container */}
       <div className="relative z-10 flex flex-col lg:flex-row flex-1 w-full min-h-0 gap-6 overflow-visible max-w-5xl mx-auto">
-        {/* =============================================================== */}
-        {/* LEFT COLUMN: MAIN MUSIC PLAYER                                  */}
-        {/* =============================================================== */}
+        {/* LEFT COLUMN: MAIN MUSIC PLAYER */}
         <div className="flex flex-col flex-1 min-h-0 min-w-0 justify-between overflow-visible max-w-xl mx-auto w-full">
-          {/* =============================================================== */}
-          {/* 1. TOP HEADER BAR                                               */}
-          {/* =============================================================== */}
+          {/* 1. TOP HEADER BAR */}
           <div className="relative z-10 flex items-center justify-between h-12 mb-2 pb-1 shrink-0">
-            {/* Collapse / Minimize / Back Button */}
             <button
               type="button"
               onClick={() => setFullscreenOpen(false)}
@@ -170,7 +160,6 @@ export function NowPlayingView(): React.JSX.Element | null {
               <ArrowLeft className="h-4 w-4 stroke-[2.5]" />
             </button>
 
-            {/* 3-Dots Options Button */}
             <button
               type="button"
               onClick={() => setOptionsOpen(true)}
@@ -181,136 +170,46 @@ export function NowPlayingView(): React.JSX.Element | null {
             </button>
           </div>
 
-          {/* =============================================================== */}
-          {/* 2. HERO CENTER CARD: LARGE ALBUM ARTWORK                        */}
-          {/* =============================================================== */}
-          <div className="relative z-10 flex-1 min-h-0 my-2 flex items-center justify-center">
-            <div className="relative aspect-square max-h-full max-w-[280px] sm:max-w-[320px] w-full rounded-3xl overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 bg-zinc-800 flex items-center justify-center">
-              <TrackCover track={currentTrack} size="full" className="rounded-3xl" />
-            </div>
-          </div>
+          {/* 2. HERO CENTER CARD: SWIPEABLE ALBUM ARTWORK CAROUSEL */}
+          <NowPlayingArtworkCarousel
+            currentTrack={currentTrack}
+            cardRef={cardRef}
+            swipeX={swipeX}
+            cardRotation={cardRotation}
+            cardOpacity={cardOpacity}
+            transitionState={transitionState}
+          />
 
-          {/* =============================================================== */}
-          {/* 3. TOOLBAR: Converter, Speed, Booster, Repeat, Shuffle, Queue   */}
-          {/* =============================================================== */}
-          <div className="relative z-10 flex items-center justify-between gap-2 py-1.5 shrink-0">
-            {/* Left: Converter integration button */}
-            <button
-              type="button"
-              onClick={handleOpenInConverter}
-              title={translate(lang, "openInConverter")}
-              aria-label={translate(lang, "openInConverter")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 transition-all cursor-pointer active:scale-90 shadow-sm"
-            >
-              <ConvertSongIcon className="h-5 w-5" />
-            </button>
+          {/* 3. TOOLBAR: Converter, Speed, Booster, Repeat, Shuffle, Queue */}
+          <NowPlayingToolbar
+            playbackRate={playbackRate}
+            volumeGainPercent={volumeGainPercent}
+            playbackMode={playbackMode}
+            queueOpen={queueOpen}
+            onOpenConverter={handleOpenInConverter}
+            onToggleSpeed={() => {
+              setSpeedOpen(!speedOpen);
+              setBoosterOpen(false);
+            }}
+            onToggleBooster={() => {
+              setBoosterOpen(!boosterOpen);
+              setSpeedOpen(false);
+            }}
+            onCyclePlaybackMode={() => {
+              const order: PlaybackMode[] = ["normal", "shuffle", "repeatAll", "repeatOne"];
+              const idx = order.indexOf(playbackMode);
+              const next = order[(idx + 1) % order.length];
+              setPlaybackMode(next);
+            }}
+            onToggleQueue={() => {
+              setQueueOpen(!queueOpen);
+              setSpeedOpen(false);
+              setBoosterOpen(false);
+            }}
+            lang={lang}
+          />
 
-            {/* Right: Speed, Sound Booster, Repeat, Shuffle, Queue */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              {/* Playback Speed Controller with Micro Badge */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSpeedOpen(!speedOpen);
-                    setBoosterOpen(false);
-                  }}
-                  title={translate(lang, "playbackSpeed")}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition-colors cursor-pointer active:scale-90 ${
-                    playbackRate !== 1.0
-                      ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
-                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                  }`}
-                >
-                  <Gauge className="h-4 w-4" />
-                </button>
-                {playbackRate !== 1.0 && (
-                  <span className="absolute -top-1.5 -end-1 px-1 py-0.2 min-w-4 text-center text-[9px] font-extrabold font-mono rounded-full bg-orange-500 text-white leading-tight shadow-sm pointer-events-none">
-                    {playbackRate}x
-                  </span>
-                )}
-              </div>
-
-              {/* Real-time Sound Booster with Micro Badge */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBoosterOpen(!boosterOpen);
-                    setSpeedOpen(false);
-                  }}
-                  title={translate(lang, "soundBooster")}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-xs font-bold transition-colors cursor-pointer active:scale-90 ${
-                    volumeGainPercent > 100
-                      ? "text-amber-500 bg-amber-500/15 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
-                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                  }`}
-                >
-                  <Flame className="h-4 w-4 text-orange-500" />
-                </button>
-                {volumeGainPercent > 100 && (
-                  <span className="absolute -top-1.5 -end-1 px-1 py-0.2 min-w-4 text-center text-[9px] font-extrabold font-mono rounded-full bg-amber-500 text-white leading-tight shadow-sm pointer-events-none">
-                    {volumeGainPercent}%
-                  </span>
-                )}
-              </div>
-
-              {/* Combined Playback Mode Toggle: normal → shuffle → repeat all → repeat one */}
-              <button
-                type="button"
-                onClick={() => {
-                  const idx = PLAYBACK_MODE_ORDER.indexOf(playbackMode);
-                  const next = PLAYBACK_MODE_ORDER[(idx + 1) % PLAYBACK_MODE_ORDER.length];
-                  setPlaybackMode(next);
-                }}
-                title={translate(
-                  lang,
-                  playbackMode === "shuffle"
-                    ? "playbackModeShuffle"
-                    : playbackMode === "repeatAll"
-                    ? "playbackModeRepeatAll"
-                    : playbackMode === "repeatOne"
-                    ? "playbackModeRepeatOne"
-                    : "playbackModeNormal",
-                )}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
-                  playbackMode !== "normal"
-                    ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
-                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                {playbackMode === "shuffle" ? (
-                  <Shuffle className="h-4 w-4" />
-                ) : playbackMode === "repeatOne" ? (
-                  <Repeat1 className="h-4 w-4" />
-                ) : (
-                  <Repeat className="h-4 w-4" />
-                )}
-              </button>
-
-              {/* Mobile Queue Toggle (hidden on desktop where queue is side-by-side) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setQueueOpen(!queueOpen);
-                  setSpeedOpen(false);
-                  setBoosterOpen(false);
-                }}
-                title={translate(lang, "queueDrawer")}
-                className={`lg:hidden flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
-                  queueOpen
-                    ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
-                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <ListMusic className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* =============================================================== */}
-          {/* 4. TRACK METADATA & LIKE BUTTON ROW                             */}
-          {/* =============================================================== */}
+          {/* 4. TRACK METADATA & LIKE BUTTON ROW */}
           <div className="relative z-10 flex items-center justify-between gap-4 pt-1 pb-1 shrink-0">
             <div className="flex flex-col min-w-0 flex-1">
               <h1 className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
@@ -321,7 +220,6 @@ export function NowPlayingView(): React.JSX.Element | null {
               </p>
             </div>
 
-            {/* Heart/Like Button */}
             <button
               type="button"
               onClick={() => toggleLike(currentTrack)}
@@ -339,10 +237,8 @@ export function NowPlayingView(): React.JSX.Element | null {
             </button>
           </div>
 
-          {/* =============================================================== */}
-          {/* 5. WAVEFORM VISUALIZER & PROGRESS SCRUBBING                      */}
-          {/* =============================================================== */}
-          <div className="relative z-10 py-1 shrink-0">
+          {/* 5. WAVEFORM VISUALIZER & PROGRESS SCRUBBING */}
+          <div data-no-gesture className="relative z-10 py-1 shrink-0">
             <WaveformSeekbar
               currentTime={currentTime}
               duration={duration}
@@ -351,341 +247,51 @@ export function NowPlayingView(): React.JSX.Element | null {
             />
           </div>
 
-          {/* =============================================================== */}
-          {/* 6. HALO PLAYBACK CONTROLS (Prev / Halo Play / Next)              */}
-          {/* =============================================================== */}
-          <div
-            dir="ltr"
-            data-testid="transport-controls"
-            className="relative z-10 flex items-center justify-center gap-6 sm:gap-8 pt-3 pb-8 shrink-0 overflow-visible"
-          >
-            {/* Previous Track */}
-            <button
-              type="button"
-              onClick={() => void playPreviousTrack()}
-              title={translate(lang, "previousSong")}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
-            >
-              <SkipBack className="h-6 w-6 stroke-[2]" />
-            </button>
-
-            {/* HALO PLAY / PAUSE BUTTON */}
-            <div className="relative flex items-center justify-center overflow-visible p-2">
-              {/* Soft ambient glow while playing (gentle breathing, no harsh shadow) */}
-              {isPlaying && (
-                <div className="absolute inset-0 rounded-full bg-orange-500/25 blur-xl animate-[breathe_2.6s_ease-in-out_infinite] pointer-events-none" />
-              )}
-              {/* Tap ripples */}
-              {ripples.map((id) => (
-                <span
-                  key={id}
-                  onAnimationEnd={() => removeRipple(id)}
-                  className="absolute inset-2 rounded-full border-2 border-orange-400/70 animate-[play-ripple_0.6s_ease-out_forwards] pointer-events-none"
-                />
-              ))}
-
-              <button
-                type="button"
-                onClick={handlePlayPress}
-                title={translate(lang, isPlaying ? "pauseSong" : "playSong")}
-                className={`relative z-10 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-400 text-white shadow-lg transition-transform duration-200 cursor-pointer active:scale-90 hover:scale-105 ${
-                  isPlaying
-                    ? "shadow-orange-500/30 animate-[breathe_2.6s_ease-in-out_infinite]"
-                    : "shadow-orange-500/15"
-                }`}
-              >
-                <span key={isPlaying ? "pause" : "play"} className="flex animate-[icon-pop_0.25s_ease-out]">
-                  {isPlaying ? (
-                    <Pause className="h-7 w-7 fill-white" />
-                  ) : (
-                    <Play className="h-7 w-7 fill-white translate-x-0.5" />
-                  )}
-                </span>
-              </button>
-            </div>
-
-            {/* Next Track */}
-            <button
-              type="button"
-              onClick={() => void playNextTrack()}
-              title={translate(lang, "nextSong")}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all cursor-pointer active:scale-90"
-            >
-              <SkipForward className="h-6 w-6 stroke-[2]" />
-            </button>
-          </div>
+          {/* 6. HALO PLAYBACK CONTROLS */}
+          <NowPlayingTransportControls
+            isPlaying={isPlaying}
+            onTogglePlay={handleTogglePlay}
+            onNextTrack={() => void playNextTrack()}
+            onPreviousTrack={() => void playPreviousTrack()}
+            lang={lang}
+          />
         </div>
 
-        {/* =============================================================== */}
-        {/* RIGHT COLUMN: DESKTOP QUEUE SIDEBAR (lg: & xl: screens)          */}
-        {/* =============================================================== */}
-        <div className="hidden lg:flex flex-col lg:w-80 xl:w-96 shrink-0 rounded-3xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06] p-4 min-h-0 overflow-hidden shadow-inner">
-          {/* Desktop Sidebar Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
-                <ListMusic className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col">
-                <h2 className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100">
-                  {translate(lang, "queueDrawer")}
-                </h2>
-                <span className="text-[10px] text-zinc-400 font-semibold">
-                  {activeList.length} {lang === "fa" ? "آهنگ" : "songs"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Search in Queue */}
-          <div className="relative my-2.5 shrink-0">
-            <Search className="absolute left-3 rtl:left-auto rtl:right-3 top-2.5 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
-            <input
-              type="text"
-              value={desktopSearch}
-              onChange={(e) => setDesktopSearch(e.target.value)}
-              placeholder={translate(lang, "searchSongsPlaceholder")}
-              className="w-full h-8 pl-8 pr-7 rtl:pl-7 rtl:pr-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/5 dark:border-white/5 text-[11px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none focus:ring-1 focus:ring-orange-500/30"
-            />
-            {desktopSearch && (
-              <button
-                type="button"
-                onClick={() => setDesktopSearch("")}
-                className="absolute right-2 rtl:right-auto rtl:left-2 top-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Desktop Queue Tracks List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-black/[0.03] dark:divide-white/[0.03] pr-1 space-y-0.5 min-h-0">
-            {desktopFilteredList.map((track, idx) => {
-              const isCurrent =
-                currentTrack &&
-                (track.id === currentTrack.id || track.uri === currentTrack.uri);
-              return (
-                <div
-                  key={track.id || track.uri || idx}
-                  onClick={() => void playTrack(track, activeList)}
-                  className={`group flex items-center justify-between p-2 rounded-2xl transition-all cursor-pointer select-none ${
-                    isCurrent
-                      ? "bg-orange-500/10 dark:bg-orange-500/20 border border-orange-500/30 text-orange-600 dark:text-orange-400"
-                      : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04] text-zinc-700 dark:text-zinc-300 border border-transparent"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <TrackCover track={track} size="sm" />
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span
-                        className={`text-xs font-bold truncate ${
-                          isCurrent
-                            ? "text-orange-600 dark:text-orange-400"
-                            : "group-hover:text-orange-600 dark:group-hover:text-orange-400"
-                        }`}
-                      >
-                        {track.title || track.name}
-                      </span>
-                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">
-                        {track.artist || "Unknown Artist"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isCurrent && isPlaying ? (
-                      <div className="flex items-end gap-0.5 h-3 px-1">
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-1" />
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-2" />
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-3" />
-                      </div>
-                    ) : (
-                      <span className="text-[10px] font-mono text-zinc-400">
-                        {Math.floor((track.durationSecs || 0) / 60)}:
-                        {String(Math.floor((track.durationSecs || 0) % 60)).padStart(2, "0")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {/* RIGHT COLUMN: DESKTOP QUEUE SIDEBAR */}
+        <NowPlayingDesktopQueue
+          activeList={activeList}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          onPlayTrack={playTrack}
+          lang={lang}
+        />
       </div>
 
-      {/* ================================================================= */}
-      {/* 7. PLAYBACK SPEED POPUP (0.5x to 2.5x with Reset)                 */}
-      {/* ================================================================= */}
-      {speedOpen && (
-        <div className="fixed inset-0 z-[80] flex flex-col justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="absolute inset-0" onClick={() => setSpeedOpen(false)} />
-
-          <div
-            className="relative z-10 w-full max-w-lg mx-auto rounded-t-3xl bg-white dark:bg-zinc-900 border-t border-black/10 dark:border-white/10 shadow-2xl p-5 flex flex-col gap-4 animate-in slide-in-from-bottom duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
-              <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-orange-500" />
-                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                  {translate(lang, "playbackSpeed")}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPlaybackRate(1.0)}
-                  title={translate(lang, "resetSpeed")}
-                  className="flex items-center gap-1 h-7 px-2.5 rounded-full bg-black/[0.05] hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15 text-[11px] font-bold text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer active:scale-95"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  <span>{translate(lang, "reset")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSpeedOpen(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/10 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Speed Presets Grid (0.5x, 1x, 1.5x, 2x, 2.5x) */}
-            <div className="grid grid-cols-5 gap-2">
-              {SPEED_PRESETS.map((preset) => {
-                const isSelected = playbackRate === preset;
-                return (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      setPlaybackRate(preset);
-                      setSpeedOpen(false);
-                    }}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-orange-500 text-white shadow-md shadow-orange-500/25"
-                        : "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-700 dark:text-zinc-300 hover:bg-orange-500/10"
-                    }`}
-                  >
-                    {preset}x
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Slider for continuous speed tuning (Strictly LTR) */}
-            <div dir="ltr" className="flex flex-col gap-1.5 pt-1">
-              <div className="flex justify-between text-xs font-medium text-zinc-500">
-                <span>0.5x</span>
-                <span className="font-bold text-orange-500">{playbackRate}x</span>
-                <span>2.5x</span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="2.5"
-                step="0.05"
-                value={playbackRate}
-                onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-black/10 dark:bg-white/15 rounded-lg appearance-none cursor-pointer accent-orange-500"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* 8. SOUND BOOSTER BOTTOM SHEET (100% to 400% with Safe Protection) */}
-      {/* ================================================================= */}
-      <TrackBoosterSheet
-        isOpen={boosterOpen}
-        onClose={() => setBoosterOpen(false)}
+      {/* Speed Modal */}
+      <NowPlayingSpeedModal
+        isOpen={speedOpen}
+        onClose={() => setSpeedOpen(false)}
+        playbackRate={playbackRate}
+        onSelectRate={setPlaybackRate}
+        lang={lang}
       />
 
-      {/* ================================================================= */}
-      {/* 9. MOBILE QUEUE / UP NEXT SLIDE-UP DRAWER                         */}
-      {/* ================================================================= */}
-      {queueOpen && (
-        <div className="fixed inset-0 z-[80] flex flex-col justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-150 lg:hidden">
-          <div className="absolute inset-0" onClick={() => setQueueOpen(false)} />
+      {/* Sound Booster Sheet */}
+      <TrackBoosterSheet isOpen={boosterOpen} onClose={() => setBoosterOpen(false)} />
 
-          <div
-            className="relative z-10 w-full rounded-t-3xl bg-white dark:bg-zinc-900 border-t border-black/10 dark:border-white/10 shadow-2xl p-4 flex flex-col gap-2.5 max-h-[65%] overflow-hidden animate-in slide-in-from-bottom duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
-              <div className="flex items-center gap-2">
-                <ListMusic className="h-4 w-4 text-orange-500" />
-                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                  {translate(lang, "queueDrawer")} ({activeList.length})
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setQueueOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/10 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Track List */}
-            <div className="flex flex-col gap-1 overflow-y-auto pr-1">
-              {activeList.map((track, idx) => {
-                const isCurrent =
-                  currentTrack &&
-                  (track.id === currentTrack.id || track.uri === currentTrack.uri);
-                return (
-                  <button
-                    key={track.id || track.uri || idx}
-                    type="button"
-                    onClick={() => {
-                      void playTrack(track, activeList);
-                      setQueueOpen(false);
-                    }}
-                    className={`flex items-center justify-between p-2.5 rounded-2xl text-start transition-all cursor-pointer ${
-                      isCurrent
-                        ? "bg-orange-500/10 dark:bg-orange-500/20 border border-orange-500/30 text-orange-600 dark:text-orange-400"
-                        : "hover:bg-black/[0.03] dark:hover:bg-white/[0.04] text-zinc-700 dark:text-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <TrackCover track={track} size="sm" />
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-xs font-bold truncate">
-                          {track.title || track.name}
-                        </span>
-                        <span className="text-[10px] text-zinc-400 truncate">
-                          {track.artist || "-"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isCurrent && isPlaying && (
-                      <div className="flex items-end gap-0.5 h-3 px-1">
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-1" />
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-2" />
-                        <span className="w-1 bg-orange-500 rounded-full animate-music-bar-3" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile Queue Drawer */}
+      <NowPlayingMobileQueue
+        isOpen={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        activeList={activeList}
+        currentTrack={currentTrack}
+        isPlaying={isPlaying}
+        onPlayTrack={playTrack}
+        lang={lang}
+      />
 
       {/* 3-Dots Track Options Bottom Sheet */}
-      {optionsOpen && (
-        <TrackOptionsSheet
-          track={currentTrack}
-          onClose={() => setOptionsOpen(false)}
-        />
-      )}
+      {optionsOpen && <TrackOptionsSheet track={currentTrack} onClose={() => setOptionsOpen(false)} />}
     </div>,
     document.body
   );

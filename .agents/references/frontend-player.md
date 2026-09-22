@@ -20,8 +20,15 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/components/music-player/MiniPlayer.tsx` | Collapsed player with seekbar + controls; exports `MiniPlayer`. |
 | `src/components/music-player/MultiSelectActionBar.tsx` | Bulk bar select-all/like/album/convert/delete; exports `MultiSelectActionBar`. |
 | `src/components/music-player/MusicPlayerNav.tsx` | Floating dock nav songs/album/like/boost/converter; exports `MusicPlayerNav`, `PlayerTab`. |
+| `src/components/music-player/navLayoutConstants.ts` | Shared layout constants for nav dock and mini player safe-area offsets. |
 | `src/components/music-player/MusicPlayerView.tsx` | Tab container with `KeepAlivePane`s + Android-back; exports `MusicPlayerView`. |
-| `src/components/music-player/NowPlayingView.tsx` | Fullscreen player with waveform/speed/boost/queue; exports `NowPlayingView`. |
+| `src/components/music-player/NowPlayingArtworkCarousel.tsx` | Swipeable album cover with physics tilt/slide animation; exports `NowPlayingArtworkCarousel`. |
+| `src/components/music-player/NowPlayingDesktopQueue.tsx` | Now Playing desktop queue sidebar drawer; exports `NowPlayingDesktopQueue`. |
+| `src/components/music-player/NowPlayingMobileQueue.tsx` | Now Playing mobile queue bottom sheet drawer; exports `NowPlayingMobileQueue`. |
+| `src/components/music-player/NowPlayingSpeedModal.tsx` | Now Playing playback rate selection modal; exports `NowPlayingSpeedModal`. |
+| `src/components/music-player/NowPlayingToolbar.tsx` | Now Playing header toolbar with dismiss/queue/options; exports `NowPlayingToolbar`. |
+| `src/components/music-player/NowPlayingTransportControls.tsx` | Playback control buttons (play/pause/prev/next/shuffle/repeat); exports `NowPlayingTransportControls`. |
+| `src/components/music-player/NowPlayingView.tsx` | Fullscreen player with drag-to-dismiss and swipeable artwork; exports `NowPlayingView`. |
 | `src/components/music-player/PermissionGate.tsx` | Fullscreen Android media-permission gate; exports `PermissionGate`. |
 | `src/components/music-player/SetRingtoneModal.tsx` | Ringtone trimmer with canvas waveform; exports `SetRingtoneModal`. |
 | `src/components/music-player/SongsView.tsx` | All-songs wrapper around `TrackListView`; exports `SongsView`. |
@@ -51,7 +58,10 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/components/music-player/__tests__/TrackCover.test.tsx` | Repo-tracked support file. |
 | `src/components/music-player/__tests__/TrackListView.test.tsx` | Repo-tracked support file. |
 | `src/components/music-player/__tests__/TrackOptionsSheet.test.tsx` | Repo-tracked support file. |
+| `src/components/music-player/useNowPlayingGestures.ts` | Gesture physics hook for drag-down dismissal and swipe-to-skip; exports `useNowPlayingGestures`. |
 | `src/components/music-player/useTrackVirtualizer.ts` | TanStack virtualizer wrapper with jsdom fallback; exports `useTrackVirtualizer`. |
+| `src/components/music-player/__tests__/NowPlayingArtworkCarousel.test.tsx` | Carousel swipe and boundary bounce tests. |
+| `src/components/music-player/__tests__/useNowPlayingGestures.test.tsx` | Gesture hook displacement, snapback, dismissal, and velocity tests. |
 | `src/stores/musicPlayer/__tests__/audioEngine.test.ts` | Vitest for unified audio engine play/pause/seek (whole-second currentTime contract). |
 | `src/stores/musicPlayer/__tests__/perfCaching.test.ts` | Vitest for artwork cache persistence/negative caching, O(n) albums, playingKey stability. |
 | `src/stores/musicPlayer/__tests__/autoAdvance.test.ts` | Vitest for autoAdvance guard/resolver/skip-set (pure). |

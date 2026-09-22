@@ -333,6 +333,9 @@ class MainActivity : TauriActivity() {
       if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
         neededPermissions.add(Manifest.permission.READ_MEDIA_AUDIO)
       }
+      if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        neededPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
+      }
     } else { // Android 12 and below
       if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
         neededPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -340,7 +343,7 @@ class MainActivity : TauriActivity() {
     }
 
     if (neededPermissions.isNotEmpty()) {
-      Log.i(TAG, "Requesting audio permission: $neededPermissions")
+      Log.i(TAG, "Requesting media/notification permissions: $neededPermissions")
       ActivityCompat.requestPermissions(this, neededPermissions.toTypedArray(), AUDIO_PERMISSION_REQ_CODE)
       return false
     }

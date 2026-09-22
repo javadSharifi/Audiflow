@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, act } from "@testing-library/react";
 import { useMusicPlayerStore } from "../../../stores/useMusicPlayerStore";
 import { useAppStore } from "../../../stores/useAppStore";
 import { NowPlayingView } from "../NowPlayingView";
@@ -242,5 +242,55 @@ describe("NowPlayingView Fullscreen Player", () => {
     fireEvent.click(collapseBtn);
 
     expect(useMusicPlayerStore.getState().fullscreenOpen).toBe(false);
+  });
+
+  it("dismisses fullscreen player when dragged down beyond the threshold", () => {
+    vi.useFakeTimers();
+    useMusicPlayerStore.setState({
+      currentTrack: mockTrack1,
+      fullscreenOpen: true,
+    });
+
+    render(<NowPlayingView />);
+    const root = document.querySelector(".fixed.inset-0");
+    expect(root).toBeTruthy();
+
+    if (root) {
+      fireEvent.pointerDown(root, { button: 0, pointerId: 1, clientX: 200, clientY: 100 });
+      fireEvent.pointerMove(root, { pointerId: 1, clientX: 200, clientY: 260 });
+      fireEvent.pointerUp(root, { pointerId: 1, clientX: 200, clientY: 260 });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(useMusicPlayerStore.getState().fullscreenOpen).toBe(false);
+    }
+    vi.useRealTimers();
+  });
+
+  it("swipes to next track when swiping left on the album art card", () => {
+    vi.useFakeTimers();
+    const mockNext = vi.fn();
+    useMusicPlayerStore.setState({
+      currentTrack: mockTrack1,
+      fullscreenOpen: true,
+      playNextTrack: mockNext,
+    });
+
+    render(<NowPlayingView />);
+    const card = screen.getByTestId("now-playing-artwork-carousel");
+    expect(card).toBeTruthy();
+
+    fireEvent.pointerDown(card, { button: 0, pointerId: 1, clientX: 300, clientY: 200 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 200, clientY: 200 });
+    fireEvent.pointerUp(card, { pointerId: 1, clientX: 200, clientY: 200 });
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+
+    expect(mockNext).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

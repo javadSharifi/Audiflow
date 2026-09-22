@@ -111,9 +111,15 @@ function runWithConcurrency<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
+/** Canonical track identity (uri || path || id). */
+export function trackIdentity(track: TrackLike | null | undefined): string {
+  if (!track) return "";
+  return track.uri || track.path || track.id || "";
+}
+
 /** Stable identity for one track's artwork (matches the native cache key input). */
 export function artworkCacheKey(track: TrackLike): string {
-  return track.uri || track.path || track.id || "";
+  return trackIdentity(track);
 }
 
 /**

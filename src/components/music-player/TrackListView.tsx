@@ -265,36 +265,21 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
             ref={parentRef}
             className={`flex-1 overflow-y-auto min-h-0 pr-1 ${
               isSelectionMode && isPlayerActive
-                ? "pb-72"
+                ? "pb-[calc(18rem+env(safe-area-inset-bottom,0px))]"
                 : isSelectionMode || isPlayerActive
-                  ? "pb-44"
-                  : "pb-24"
+                  ? "pb-[calc(11.5rem+env(safe-area-inset-bottom,0px))]"
+                  : "pb-[calc(6rem+env(safe-area-inset-bottom,0px))]"
             }`}
           >
-            <div
-              style={{
-                height: `${virtualizer.getTotalSize()}px`,
-                width: "100%",
-                position: "relative",
-              }}
-            >
+            <div style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}>
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const track = filteredTracks[virtualRow.index];
                 return (
                   <div
                     key={virtualRow.key}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      transform: `translateY(${virtualRow.start}px)`,
-                    }}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
                   >
-                    <TrackRow
-                      track={track}
-                      playlist={filteredTracks}
-                    />
+                    <TrackRow track={track} playlist={filteredTracks} />
                   </div>
                 );
               })}

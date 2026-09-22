@@ -131,4 +131,70 @@ describe("TrackCover", () => {
     expect(screen.queryByRole("img")).toBeNull();
     expect(container.querySelector(".bg-gradient-to-br")).toBeTruthy();
   });
+
+  it("immediately clears previous cover when changing to a track without cover", () => {
+    const { rerender, container } = render(
+      <TrackCover
+        track={{
+          id: "song_1",
+          title: "Song 1",
+          artist: "Artist 1",
+          coverUrl: "https://example.com/cover1.jpg",
+        }}
+      />
+    );
+
+    expect(screen.getByRole("img").getAttribute("src")).toBe("https://example.com/cover1.jpg");
+
+    // Change to song 2 which has no coverUrl and no cached artwork
+    rerender(
+      <TrackCover
+        track={{
+          id: "song_2",
+          title: "Song 2",
+          artist: "Artist 2",
+          coverUrl: null,
+        }}
+      />
+    );
+
+    // Old image must NOT remain; placeholder must be shown immediately
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(container.querySelector(".bg-gradient-to-br")).toBeTruthy();
+  });
+
+  it("resets imgFailed when switching from a broken track to a valid track", () => {
+    const { rerender } = render(
+      <TrackCover
+        track={{
+          id: "song_broken",
+          title: "Broken Song",
+          artist: "Artist",
+          coverUrl: "https://example.com/broken.jpg",
+        }}
+      />
+    );
+
+    // Simulate error on first track
+    const img = screen.getByRole("img");
+    fireEvent.error(img);
+    expect(screen.queryByRole("img")).toBeNull();
+
+    // Rerender with valid track
+    rerender(
+      <TrackCover
+        track={{
+          id: "song_valid",
+          title: "Valid Song",
+          artist: "Artist",
+          coverUrl: "https://example.com/valid.jpg",
+        }}
+      />
+    );
+
+    // New image must be rendered
+    const newImg = screen.getByRole("img");
+    expect(newImg).toBeTruthy();
+    expect(newImg.getAttribute("src")).toBe("https://example.com/valid.jpg");
+  });
 });

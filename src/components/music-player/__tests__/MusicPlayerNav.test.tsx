@@ -165,6 +165,35 @@ describe("MusicPlayerNav", () => {
     const activeClass = screen.getByRole("tab", { name: /Sound Boost/i }).className;
     expect(activeClass).toMatch(/max-w-/);
   });
+
+  it("elevates navigation dock above system bottom insets with safe-area styling", () => {
+    const onSelect = vi.fn();
+    const { container } = render(<MusicPlayerNav activeTab="songs" onSelectTab={onSelect} />);
+
+    const nav = container.querySelector("nav");
+    expect(nav?.className ?? "").toContain("bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))]");
+  });
+
+  it("uses flexible bounds and compact padding on mobile to prevent overflow with long Persian labels", () => {
+    useAppStore.setState({ lang: "fa" });
+    const onSelect = vi.fn();
+    const { container } = render(<MusicPlayerNav activeTab="like" onSelectTab={onSelect} />);
+
+    // Dock container should have responsive compact mobile padding and gap
+    const dock = container.querySelector("nav > div");
+    expect(dock?.className ?? "").toMatch(/p-1\.5/);
+    expect(dock?.className ?? "").toMatch(/gap-1/);
+
+    // Inactive tabs have touch targets of 48px (w-12 h-12)
+    const inactiveTab = screen.getByRole("tab", { name: /آهنگ‌ها/i });
+    expect(inactiveTab.className).toMatch(/w-12/);
+
+    // Active tab (علاقه‌مندی‌ها) should have comfortable mobile padding and label clamping
+    const activeTab = screen.getByRole("tab", { name: /علاقه‌مندی‌ها/i });
+    expect(activeTab.className).toMatch(/px-4/);
+    const label = activeTab.querySelector("span");
+    expect(label?.className ?? "").toMatch(/truncate/);
+  });
 });
 
 describe("MusicPlayerView", () => {
