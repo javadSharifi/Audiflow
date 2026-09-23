@@ -43,15 +43,15 @@ build() {
 package() {
   # Output guards per packaging-contract.md "Prereq check" (tasks T003): fail fast naming
   # the missing artifact, before any copying starts.
-  if [ ! -f "$srcdir/../../$_pkgoutput/audiflow" ]; then
+  if [ ! -f "$startdir/../../$_pkgoutput/audiflow" ]; then
     echo "PKGBUILD: missing Tauri build output: src-tauri/target/x86_64-unknown-linux-gnu/release/audiflow. Run ./scripts/package-arch.sh first (or rebuild with ./scripts/package-arch.sh --skip-build removed)."
     return 1
   fi
-  if [ ! -f "$srcdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" ]; then
+  if [ ! -f "$startdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" ]; then
     echo "PKGBUILD: missing sidecar: src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ffmpeg) first."
     return 1
   fi
-  if [ ! -f "$srcdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" ]; then
+  if [ ! -f "$startdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" ]; then
     echo "PKGBUILD: missing sidecar: src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ffmpeg) first."
     return 1
   fi
@@ -59,9 +59,9 @@ package() {
   # Launch stack per packaging-contract.md "Artifact Contract" (tasks T009, research R3):
   # ELF + statically built sidecars co-located in /usr/lib/audiflow so current_exe().parent()
   # resolution (src-tauri/src/ffmpeg/locate.rs:88 next-to-exe contract) finds the helpers.
-  install -Dm755 "$srcdir/../../$_pkgoutput/audiflow" "$pkgdir/usr/lib/audiflow/audiflow"
-  install -Dm755 "$srcdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffmpeg"
-  install -Dm755 "$srcdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffprobe"
+  install -Dm755 "$startdir/../../$_pkgoutput/audiflow" "$pkgdir/usr/lib/audiflow/audiflow"
+  install -Dm755 "$startdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffmpeg"
+  install -Dm755 "$startdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffprobe"
 
   # /usr/bin launcher (R3): execs the real ELF so the app's cwd/exe-relative contracts hold.
   install -d755 "$pkgdir/usr/bin"
@@ -88,7 +88,7 @@ StartupNotify=true
 Terminal=false
 EOF
 
-  install -Dm644 "$srcdir/../../src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/audiflow.png"
-  install -Dm644 "$srcdir/../../src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/audiflow.png"
-  install -Dm644 "$srcdir/../../src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256@2x/apps/audiflow.png"
+  install -Dm644 "$startdir/../../src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/audiflow.png"
+  install -Dm644 "$startdir/../../src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/audiflow.png"
+  install -Dm644 "$startdir/../../src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256@2x/apps/audiflow.png"
 }

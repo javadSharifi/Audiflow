@@ -23,8 +23,9 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | `src-tauri/src/music_library/` | Scanner + artwork + per-OS platform |
 | `src-tauri/android/` + `src-tauri/gen/android/` | Kotlin sources + generated Android project |
 | `src-tauri/icons/` | Generated icon sets |
-| `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen, mac free installer (`install-mac.sh`) |
-| `.github/workflows/` | ci + release pipelines |
+| `scripts/` | ffmpeg fetch/build, android build/dev/emulator, icon gen, mac free installer (`install-mac.sh`), arch packaging orchestrator (`package-arch.sh`) |
+| `packaging/` | Arch PKGBUILD + README (`packaging/arch/`), mac zip README (`packaging/macos/`); arch artifact ships via release.yml linux job (archlinux container) |
+| `.github/workflows/` | ci + release pipelines (release: 3-OS matrix + android + arch-in-container + release job) |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
 | `specs/` | Feature specs (tracked; latest `017-arch-linux-package` — Arch Linux `.pkg.tar.zst` packaging spec, Draft) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |

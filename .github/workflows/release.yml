@@ -81,6 +81,25 @@ jobs:
       - name: Build app bundle
         run: pnpm tauri build --target ${{ matrix.target }} ${{ matrix.bundles }}
 
+      - name: Package Arch Linux artifact (archlinux container)
+        if: matrix.label == 'linux-x64'
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/pkg \
+            -w /pkg \
+            archlinux:base \
+            bash -lc '
+              set -euo pipefail
+              pacman -Syu --noconfirm --needed base-devel rust nodejs pnpm jq \
+                webkit2gtk-4.1 gtk3 gst-plugins-base gst-plugins-good gst-plugins-bad \
+                gst-plugins-ugly gst-libav
+              # makepkg refuses root; run as a non-root user with write access only
+              # to the packaging dir (BUILDIR + artifact land there).
+              useradd -m builder
+              chown builder:builder /pkg/packaging/arch
+              su - builder -c "cd /pkg && ./scripts/package-arch.sh --skip-build"
+            '
+
       - name: Bundle macOS install zip (DMG + installer script)
         if: runner.os == 'macOS'
         run: |
@@ -100,6 +119,7 @@ jobs:
             src-tauri/target/*/release/bundle/nsis/*.exe
             src-tauri/target/*/release/bundle/deb/*.deb
             src-tauri/target/*/release/bundle/appimage/*.AppImage
+            packaging/arch/*.pkg.tar.zst
           if-no-files-found: error
 
   build-android:
@@ -272,7 +292,7 @@ jobs:
       - name: Collect installer files
         run: |
           mkdir -p dist
-          find artifacts -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.apk" \) -exec cp {} dist/ \;
+          find artifacts -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.apk" -o -name "*.pkg.tar.zst" \) -exec cp {} dist/ \;
           ls -la dist/
 
       - uses: softprops/action-gh-release@v2

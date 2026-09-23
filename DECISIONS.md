@@ -135,3 +135,11 @@ When a later decision supersedes an earlier one, preserve the historical entry a
 **Why:** Audit of every Linux-only failure mode after the WebKit-146351 playback fix: codec-less minimal installs, three preview paths with the same stall, wrong updater artifact, portal-less pickers (fail-soft), NVIDIA/Wayland blank window, Secret-Service-less keychain (actionable hint), `%U` URIs dying inside ffmpeg jobs, invalid wildcard MIME types.
 
 **Implication:** The explicit `depends` list must be maintained — adding a system library linkage without updating it re-creates the "installs fine, crashes at runtime" class. Large-file RAM (whole-file fetch→blob) intentionally left as documented: MSE/chunked serving needs real Linux verification before touching core playback.
+
+## 2026-09-23 — Arch package in release automation (containerized makepkg on Ubuntu runner)
+
+**Decision:** The `linux-x64` matrix job in `release.yml` produces the Arch artifact right after the Tauri build: `docker run archlinux:base` mounts the workspace, installs base-devel/rust/nodejs/pnpm/jq + webkit2gtk-4.1/gtk3/gst plugin sets, then runs `./scripts/package-arch.sh --skip-build` as a non-root `builder` user (makepkg refuses root) consuming the job's own ELF + sidecars. The runner is ubuntu-22.04, NOT Arch — the container is deliberate; sequential-in-job beats a separate needs:-job because the build output is local. Upload path adds `packaging/arch/*.pkg.tar.zst`; release collect adds `*.pkg.tar.zst`. Artifact name = orchestrator's `audiflow-<ver>-1-x86_64.pkg.tar.zst` (no CI rename).
+
+**Why:** extends the existing local packaging flow to releases with zero new jobs; PKGBUILD consumes prebuilt output (research R1), no in-container rebuild.
+
+**Implication:** PKGBUILD source paths use makepkg-canonical `$startdir/../..` (repo root) — `$srcdir` location varies with BUILDIR and must not be used for repo paths. `license=()` remains unset (no LICENSE choice yet; makepkg warns). Container adds ~1–2 min (pacman install) to linux-x64.
