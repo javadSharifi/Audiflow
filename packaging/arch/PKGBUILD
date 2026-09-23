@@ -64,7 +64,7 @@ package() {
   install -Dm755 "$startdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffprobe"
 
   # /usr/bin launcher (R3): execs the real ELF so the app's cwd/exe-relative contracts hold.
-  install -d755 "$pkgdir/usr/bin"
+  install -d 755 "$pkgdir/usr/bin"
   cat > "$pkgdir/usr/bin/audiflow" <<'EOF'
 #!/bin/sh
 # Audiflow launcher (research R3): execs the real ELF in /usr/lib/audiflow, co-located
