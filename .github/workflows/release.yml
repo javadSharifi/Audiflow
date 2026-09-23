@@ -86,11 +86,8 @@ jobs:
         run: |
           DMG=$(ls src-tauri/target/*/release/bundle/dmg/*.dmg | head -n 1)
           TAG_NAME="${GITHUB_REF_NAME:-local}"
-          STAGE="$(mktemp -d)"
-          cp "$DMG" scripts/install-mac.sh "$STAGE/"
           OUT_ZIP="$(dirname "$DMG")/Audiflow_${TAG_NAME}_macos-arm64-install.zip"
-          (cd "$STAGE" && zip -q "$OUT_ZIP" "$(basename "$DMG")" install-mac.sh)
-          rm -rf "$STAGE"
+          zip -q -j "$OUT_ZIP" "$DMG" scripts/install-mac.sh
           ls -la "$(dirname "$DMG")/"
 
       - name: Upload artifacts
