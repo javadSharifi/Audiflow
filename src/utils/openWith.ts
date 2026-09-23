@@ -17,6 +17,22 @@ export const AUDIO_EXTENSIONS = new Set([
   "weba",
 ]);
 
+export const VIDEO_EXTENSIONS = new Set([
+  "mp4",
+  "mkv",
+  "avi",
+  "mov",
+  "webm",
+  "flv",
+  "wmv",
+]);
+
+export function isVideoPath(pathOrUri: string): boolean {
+  const clean = pathOrUri.split("?")[0].toLowerCase();
+  const ext = clean.split(".").pop() || "";
+  return VIDEO_EXTENSIONS.has(ext);
+}
+
 export function isAudioPath(pathOrUri: string): boolean {
   if (pathOrUri.startsWith("content://")) {
     return true;
@@ -81,14 +97,14 @@ export async function handleIncomingFiles(rawPaths: string[]): Promise<void> {
 }
 
 async function handleIncomingFilesInner(validPaths: string[]): Promise<void> {
-  const audioPaths: string[] = [];
   const videoPaths: string[] = [];
+  const candidateAudioOrDirPaths: string[] = [];
 
   for (const p of validPaths) {
-    if (isAudioPath(p)) {
-      audioPaths.push(p);
-    } else {
+    if (isVideoPath(p)) {
       videoPaths.push(p);
+    } else {
+      candidateAudioOrDirPaths.push(p);
     }
   }
 
@@ -99,23 +115,26 @@ async function handleIncomingFilesInner(validPaths: string[]): Promise<void> {
     await addPaths(videoPaths);
   }
 
-  // 2. Audio files -> switch to player, resolve metadata, play immediately.
-  // Last so fullscreen player stays visible on mixed payloads.
-  if (audioPaths.length > 0) {
-    const { setActiveTool } = useAppStore.getState();
-    setActiveTool("player");
+  // 2. Audio files and folders -> resolve and play in music player
+  if (candidateAudioOrDirPaths.length > 0) {
+    let tracks = await api.resolveAudioPaths(candidateAudioOrDirPaths);
 
-    const tracks: AudioTrackInfo[] = [];
-    for (const p of audioPaths) {
-      const resolved = await api.resolveAudioTrack(p);
-      if (resolved) {
-        tracks.push(resolved);
-      } else {
-        tracks.push(createFallbackTrack(p));
+    // Fallback if resolveAudioPaths returned empty (e.g. test environment or isolated single file)
+    if (tracks.length === 0) {
+      const fallbackTracks: AudioTrackInfo[] = [];
+      for (const p of candidateAudioOrDirPaths) {
+        if (isAudioPath(p)) {
+          const resolved = await api.resolveAudioTrack(p);
+          fallbackTracks.push(resolved ?? createFallbackTrack(p));
+        }
       }
+      tracks = fallbackTracks;
     }
 
     if (tracks.length > 0) {
+      const { setActiveTool } = useAppStore.getState();
+      setActiveTool("player");
+
       const playerStore = useMusicPlayerStore.getState();
       await playerStore.playTrack(tracks[0], tracks);
       playerStore.setFullscreenOpen(true);

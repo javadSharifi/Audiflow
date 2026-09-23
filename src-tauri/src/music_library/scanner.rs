@@ -5,7 +5,7 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "mp3", "m4a", "flac", "wav", "aac", "ogg", "opus", "wma", "aiff", "alac", "weba",
 ];
 
-fn is_audio_ext(ext: &str) -> bool {
+pub fn is_audio_ext(ext: &str) -> bool {
     AUDIO_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str())
 }
 

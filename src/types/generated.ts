@@ -142,6 +142,11 @@ export const commands = {
 	/**  Resolve a single audio file path or content:// URI into an AudioTrackInfo struct. */
 	resolveAudioTrack: (pathOrUri: string) => typedError<AudioTrackInfo, AppError>(__TAURI_INVOKE("resolve_audio_track", { pathOrUri })),
 	/**
+	 *  Resolve a list of file or directory paths into parsed AudioTrackInfo records.
+	 *  Recursively traverses directories up to depth 5 for supported audio files.
+	 */
+	resolveAudioPaths: (paths: string[]) => __TAURI_INVOKE<AudioTrackInfo[]>("resolve_audio_paths", { paths }),
+	/**
 	 *  Lazily resolve one track cover art to a readable cached JPEG path.
 	 *  Takes the audio reference (track uri or path, never an artwork URI).
 	 *  Repeat calls are a near-free cache hit. Returns null when the file has

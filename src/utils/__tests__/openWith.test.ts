@@ -6,6 +6,7 @@ import * as api from "../tauri";
 
 vi.mock("../tauri", () => ({
   resolveAudioTrack: vi.fn(),
+  resolveAudioPaths: vi.fn().mockResolvedValue([]),
   getPendingOpenFiles: vi.fn().mockResolvedValue([]),
 }));
 
@@ -99,6 +100,58 @@ describe("openWith utility", () => {
 
       expect(useAppStore.getState().activeTool).toBe("converter");
       expect(addPathsSpy).toHaveBeenCalledWith(["/test/movie.mp4"]);
+    });
+
+    it("handles folder input by resolving audio paths and playing tracks", async () => {
+      vi.mocked(api.resolveAudioPaths).mockResolvedValueOnce([
+        {
+          id: "local_/album/1.mp3",
+          uri: "file:///album/1.mp3",
+          path: "/album/1.mp3",
+          name: "1.mp3",
+          title: "Track 1",
+          artist: "Artist",
+          album: "Album",
+          durationSecs: 200,
+          sizeBytes: 4000000,
+          modifiedTimestampMs: 1000,
+          createdTimestampMs: 1000,
+          format: "mp3",
+          mimeType: "audio/mpeg",
+          coverUrl: null,
+        },
+        {
+          id: "local_/album/2.mp3",
+          uri: "file:///album/2.mp3",
+          path: "/album/2.mp3",
+          name: "2.mp3",
+          title: "Track 2",
+          artist: "Artist",
+          album: "Album",
+          durationSecs: 210,
+          sizeBytes: 4200000,
+          modifiedTimestampMs: 1000,
+          createdTimestampMs: 1000,
+          format: "mp3",
+          mimeType: "audio/mpeg",
+          coverUrl: null,
+        },
+      ]);
+
+      const playSpy = vi.spyOn(useMusicPlayerStore.getState(), "playTrack").mockResolvedValueOnce();
+
+      await handleIncomingFiles(["/test/album"]);
+
+      expect(useAppStore.getState().activeTool).toBe("player");
+      expect(playSpy).toHaveBeenCalledTimes(1);
+      expect(playSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "1.mp3" }),
+        expect.arrayContaining([
+          expect.objectContaining({ name: "1.mp3" }),
+          expect.objectContaining({ name: "2.mp3" }),
+        ]),
+      );
+      expect(useMusicPlayerStore.getState().fullscreenOpen).toBe(true);
     });
 
     it("ignores empty or invalid input", async () => {

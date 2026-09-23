@@ -12,7 +12,8 @@ import { useTheme, useDirection } from "./hooks/useTheme";
 import { listen } from "@tauri-apps/api/event";
 import { isAndroid } from "./utils/platform";
 import * as api from "./utils/tauri";
-import { useNativeDragDrop } from "./hooks/useNativeDragDrop";
+import { useAppDragDrop } from "./hooks/useAppDragDrop";
+import { PlayerDropOverlay } from "./components/music-player/PlayerDropOverlay";
 import { handleIncomingFiles } from "./utils/openWith";
 import { ANDROID_BACK_EVENT, wasBackConsumed } from "./utils/androidBack";
 import { ConverterWizard } from "./components/converter-wizard/ConverterWizard";
@@ -131,15 +132,24 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
-  // Window-wide native drop
-  const handleNativeDrop = useCallback(
-    (paths: string[]) => {
-      addPaths(paths);
-    },
-    [addPaths],
-  );
+  // Context-aware native drag-and-drop
+  const handlePlayerDrop = useCallback(async (paths: string[]) => {
+    const tracks = await api.resolveAudioPaths(paths);
+    if (tracks.length === 0) {
+      useAppStore.getState().pushToast("info", "noAudioFoundInDrop");
+      return;
+    }
+    const playerStore = useMusicPlayerStore.getState();
+    await playerStore.playTrack(tracks[0], tracks);
+    const { lang: appLang, pushToast } = useAppStore.getState();
+    pushToast("info", translate(appLang, "playingQueuedTracks", { count: tracks.length }));
+  }, []);
 
-  useNativeDragDrop(handleNativeDrop);
+  const { isDraggingOver } = useAppDragDrop({
+    activeTool,
+    onPlayerDrop: handlePlayerDrop,
+    onConverterDrop: addPaths,
+  });
 
   // Cold-start gate: the static #boot-splash in index.html (already painted
   // with the correct dir/theme by the blocking boot script) stays visible
@@ -270,6 +280,7 @@ export default function App(): React.JSX.Element {
         <MusicPlayerNav activeTab={playerTab} onSelectTab={handleSelectPlayerTab} />
       )}
 
+      <PlayerDropOverlay isVisible={isDraggingOver && activeTool === "player"} lang={lang} />
       <Toasts />
 
       {/* Unified first-run onboarding gate */}

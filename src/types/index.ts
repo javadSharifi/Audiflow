@@ -15,6 +15,7 @@ import type {
   AbPreviewResult,
   AudioTrackInfo,
   LibraryPermissionStatus,
+  BoosterJobSpec,
 } from "./generated";
 
 export type {
@@ -30,6 +31,7 @@ export type {
   AbPreviewResult,
   AudioTrackInfo,
   LibraryPermissionStatus,
+  BoosterJobSpec,
 };
 
 export type ConversionOptions = GeneratedConversionOptions;

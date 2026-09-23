@@ -121,6 +121,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::android_player_get_state,
         commands::get_pending_open_files,
         commands::resolve_audio_track,
+        commands::resolve_audio_paths,
         commands::get_track_artwork,
         commands::get_notification_permission_status,
         commands::exit_app,

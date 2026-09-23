@@ -81,9 +81,10 @@ Type=Application
 Name=Audiflow
 GenericName=Audio Studio, Booster & Music Player
 Comment=Audio Studio, Booster & Music Player
-Exec=/usr/bin/audiflow
+Exec=/usr/bin/audiflow %U
 Icon=audiflow
 Categories=AudioVideo;Audio;Music;
+MimeType=audio/mpeg;audio/flac;audio/x-wav;audio/vnd.wave;audio/mp4;audio/x-m4a;audio/aac;audio/ogg;audio/opus;audio/aiff;audio/x-aiff;audio/x-ms-wma;audio/webm;inode/directory;
 StartupNotify=true
 Terminal=false
 EOF

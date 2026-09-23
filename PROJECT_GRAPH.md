@@ -27,7 +27,7 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | `packaging/` | Arch PKGBUILD + README (`packaging/arch/`), mac zip README (`packaging/macos/`); arch artifact ships via release.yml linux job (archlinux container) |
 | `.github/workflows/` | ci + release pipelines (release: 3-OS matrix + android + arch-in-container + release job) |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
-| `specs/` | Feature specs (tracked; latest `017-arch-linux-package` — Arch Linux `.pkg.tar.zst` packaging spec, Draft) |
+| `specs/` | Feature specs (tracked; latest `019-os-open-drag-playback` — OS "Open With" Context Menu & Drag-and-Drop Audio Playback, Draft) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |
 | `src/fonts/` + `public/` | IRANSans fonts + static assets |
 
@@ -89,6 +89,9 @@ git status --short  # workdir changes since sync
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
 
+Workdir drift since sync (2026-09-23, spec 019 implemented on branch 019-os-open-drag-playback):
+OS context menu & drag-and-drop playback — `src-tauri/src/music_library/resolver.rs` (recursive directory & audio path resolution), `src-tauri/src/commands/mod.rs` (+`resolve_audio_paths`), `src/hooks/useAppDragDrop.ts` (context-aware drop hook), `src/components/music-player/PlayerDropOverlay.tsx` (drop visual overlay), `src/utils/openWith.ts` (folder & multi-file playback support), `packaging/arch/PKGBUILD` (%U & audio MIME associations), `src/i18n/en.ts`/`fa.ts` (+drop playback keys), `App.tsx` (293/300 ceiling).
+
 Workdir drift since sync (2026-09-23, spec 018 implemented on branch 018-folder-btn, commit 6e4b5e0):
 mac add-folder button — `src/components/music-player/AddFolderButton.tsx` (mac-only `FolderPlus`
 button next to search), `useAddFolderPick.ts` (pick→dedupe→batch store add→one scan→toast),
@@ -149,6 +152,7 @@ hand-written sources an agent would actually navigate to or edit.
 | Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |
 | Mac add-folder button (018) | `src/components/music-player/AddFolderButton.tsx` + `useAddFolderPick.ts` (pick→dedupe→batch add→one scan→toast outcomes; mac-only render) | `useMusicPlayerStore.addCustomFolders` (batched, N+1 avoided), `utils/dialog.pickDirectories`, i18n keys `addFolder*` | picker UI changes |
+| Drag-drop / OS open playback (019) | `src/hooks/useAppDragDrop.ts` + `src/components/music-player/PlayerDropOverlay.tsx` | `src/utils/openWith.ts`, `src-tauri/src/music_library/resolver.rs`, `src/App.tsx` | DSP internals |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |
 | File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |
 | Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |

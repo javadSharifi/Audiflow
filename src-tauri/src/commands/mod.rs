@@ -991,6 +991,20 @@ pub async fn resolve_audio_track(path_or_uri: String) -> Result<crate::music_lib
     .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
 }
 
+/// Resolve a list of file or directory paths into parsed AudioTrackInfo records.
+/// Recursively traverses directories up to depth 5 for supported audio files.
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_audio_paths(
+    paths: Vec<String>,
+) -> Vec<crate::music_library::AudioTrackInfo> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::music_library::resolve_paths(paths)
+    })
+    .await
+    .unwrap_or_default()
+}
+
 /// Lazily resolve one track cover art to a readable cached JPEG path.
 /// Takes the audio reference (track uri or path, never an artwork URI).
 /// Repeat calls are a near-free cache hit. Returns null when the file has

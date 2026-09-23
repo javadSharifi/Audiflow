@@ -29,6 +29,14 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-23 — Unified audio path resolution and context-aware drag-and-drop playback (spec 019)
+
+**Decision:** (1) Desktop drag-and-drop routing is context-aware via `useAppDragDrop`: dropping onto the Music Player tab triggers immediate playback of dropped audio files and folders, while dropping onto the Converter tab routes to converter batching without player interruption. (2) All audio path resolution (files, folders, recursive traversal, MIME/extension filtering) funnels through a single typed Rust command `resolve_audio_paths` (`music_library::resolver.rs`), keeping track ordering natural (alphanumeric) and execution fast (<50ms). (3) Visual drop feedback is rendered via `PlayerDropOverlay` when dragging over the window in player mode. (4) Linux desktop packaging entry in `packaging/arch/PKGBUILD` includes `%U` and audio MIME types so OS file managers pass paths directly to Audiflow.
+
+**Why:** Addresses OS-level "Open with" context menu and file-manager drag & drop playback across macOS, Windows, and Linux without breaking conversion workflows or violating the 300-line ceiling in `App.tsx` and `music_library/mod.rs`.
+
+**Implication:** Future agents extending file ingestion or OS open handlers must route paths through `resolve_audio_paths` and use `useAppDragDrop` rather than direct unvalidated file drops.
+
 ## 2026-09-23 — Mac add-folder flow uses batched store action (spec 018)
 
 **Decision:** The user-picked folder flow goes through `useMusicPlayerStore.addCustomFolders(paths)` — a batched variant that dedupes, persists once via `persistCustomFolders`, and triggers exactly one `scanLibrary` — not the per-folder `addCustomFolder` loop. Pick outcomes are classified in `useAddFolderPick` and surfaced via `useAppStore.pushToast` (one toast max per pick; cancel and all-duplicate picks are silent). The button renders only when `isMacOS()`.

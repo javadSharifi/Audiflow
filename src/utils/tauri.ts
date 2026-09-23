@@ -139,6 +139,18 @@ export async function generateAbPreview(
   return res.data;
 }
 
+export async function startSoundBoost(
+  items: import("../types").BoosterJobSpec[],
+  options: import("../types").ConversionOptions,
+  concurrency: number | null = null,
+): Promise<string[]> {
+  const res = await commands.startSoundBoost(items, options, concurrency);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
 export async function scanAudioFiles(customDirs?: string[]): Promise<import("../types").AudioTrackInfo[]> {
   try {
     return await commands.scanAudioFiles(customDirs ?? null);
@@ -368,6 +380,15 @@ export async function resolveAudioTrack(pathOrUri: string): Promise<import("../t
   } catch (e) {
     console.warn("resolveAudioTrack failed:", e);
     return null;
+  }
+}
+
+export async function resolveAudioPaths(paths: string[]): Promise<import("../types").AudioTrackInfo[]> {
+  try {
+    return await commands.resolveAudioPaths(paths);
+  } catch (e) {
+    console.warn("resolveAudioPaths failed:", e);
+    return [];
   }
 }
 

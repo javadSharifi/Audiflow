@@ -572,4 +572,9 @@ export const fa: Record<TranslationKey, string> = {
 
   converterVideoPermBanner: "با دادن دسترسی فیلم می‌تونی حتی فیلم‌هاتم تبدیل کنی",
   converterVideoPermAction: "فعال‌سازی",
+
+  dropToPlay: "رها کنید تا پخش شود",
+  dropToPlaySubtitle: "فایل‌ها یا پوشه‌های آهنگ را رها کنید تا در صف پخش قرار گیرند",
+  playingQueuedTracks: "در حال پخش {count} آهنگ",
+  noAudioFoundInDrop: "هیچ آهنگ قابل پخشی در موارد رها شده پیدا نشد",
 };

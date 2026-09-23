@@ -569,6 +569,11 @@ export const en = {
 
   converterVideoPermBanner: "By granting video access, you can even convert your videos too",
   converterVideoPermAction: "Enable Access",
+
+  dropToPlay: "Drop to Play",
+  dropToPlaySubtitle: "Release to queue and play audio files or folders",
+  playingQueuedTracks: "Playing {count} songs",
+  noAudioFoundInDrop: "No playable audio found in dropped files",
 } as const;
 
 export type TranslationKey = keyof typeof en;
