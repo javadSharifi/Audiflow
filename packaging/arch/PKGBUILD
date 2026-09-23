@@ -1,0 +1,94 @@
+# Maintainer: Audiflow maintainers <https://github.com/anomalyco/audiflow>
+# PKGBUILD consumes the orchestrator's prebuilt Tauri output (research R1 — no in-makepkg rebuild).
+# Version is injected via PKGVER_OVERRIDE by scripts/package-arch.sh (research R8 — no drift with tauri.conf.json).
+
+pkgname=audiflow
+pkgrel=1
+pkgdesc="Audiflow - Audio Studio, Booster & Music Player"
+arch=('x86_64')
+url="https://audiflow.app"
+# NEEDS CLARIFICATION (spec FR-004 / research.md): the repo has no LICENSE file and no license
+# field in package.json/Cargo.toml/tauri.conf.json. Repo owner's explicit choice REQUIRED
+# (valid values: 'MIT', 'GPL-3.0-only', 'LicenseRef-Proprietary'). makepkg warns while unset.
+license=()
+depends=(
+  'webkit2gtk-4.1'
+  'gtk3'
+  'gst-plugins-base'
+  'gst-plugins-good'
+  'gst-plugins-bad'
+  'gst-plugins-ugly'
+  'gst-libav'
+)
+makedepends=('rust' 'nodejs' 'pnpm')
+options=('!strip' '!emptydirs')
+
+# Fail-fast guard: makepkg needs a literal pkgver at parse time; the orchestrator exports it
+# from src-tauri/tauri.conf.json. NO silent default (tasks T002).
+if [ -z "${PKGVER_OVERRIDE:-}" ]; then
+  echo "PKGBUILD: PKGVER_OVERRIDE is not set. Run ./scripts/package-arch.sh (which injects the version from src-tauri/tauri.conf.json) instead of invoking makepkg directly."
+  exit 1
+fi
+pkgver="$PKGVER_OVERRIDE"
+
+_pkgoutput=src-tauri/target/x86_64-unknown-linux-gnu/release
+_sidecars=src-tauri/binaries
+
+build() {
+  # No-op pass-through per research R1: build output is produced by the orchestrator's
+  # canonical repo flow before makepkg runs. Nothing to do here.
+  return 0
+}
+
+package() {
+  # Output guards per packaging-contract.md "Prereq check" (tasks T003): fail fast naming
+  # the missing artifact, before any copying starts.
+  if [ ! -f "$srcdir/../../$_pkgoutput/audiflow" ]; then
+    echo "PKGBUILD: missing Tauri build output: src-tauri/target/x86_64-unknown-linux-gnu/release/audiflow. Run ./scripts/package-arch.sh first (or rebuild with ./scripts/package-arch.sh --skip-build removed)."
+    return 1
+  fi
+  if [ ! -f "$srcdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" ]; then
+    echo "PKGBUILD: missing sidecar: src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ffmpeg) first."
+    return 1
+  fi
+  if [ ! -f "$srcdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" ]; then
+    echo "PKGBUILD: missing sidecar: src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ffmpeg) first."
+    return 1
+  fi
+
+  # Launch stack per packaging-contract.md "Artifact Contract" (tasks T009, research R3):
+  # ELF + statically built sidecars co-located in /usr/lib/audiflow so current_exe().parent()
+  # resolution (src-tauri/src/ffmpeg/locate.rs:88 next-to-exe contract) finds the helpers.
+  install -Dm755 "$srcdir/../../$_pkgoutput/audiflow" "$pkgdir/usr/lib/audiflow/audiflow"
+  install -Dm755 "$srcdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffmpeg"
+  install -Dm755 "$srcdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffprobe"
+
+  # /usr/bin launcher (R3): execs the real ELF so the app's cwd/exe-relative contracts hold.
+  install -d755 "$pkgdir/usr/bin"
+  cat > "$pkgdir/usr/bin/audiflow" <<'EOF'
+#!/bin/sh
+# Audiflow launcher (research R3): execs the real ELF in /usr/lib/audiflow, co-located
+# with the bundled ffmpeg/ffprobe sidecars (next-to-exe locate contract).
+exec /usr/lib/audiflow/audiflow "$@"
+EOF
+  chmod 755 "$pkgdir/usr/bin/audiflow"
+
+  # Desktop entry + icons per packaging-contract.md "Artifact Contract" (tasks T010):
+  # Name matches productName; Exec/Icon reference the stamped standard paths.
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/audiflow.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Audiflow
+GenericName=Audio Studio, Booster & Music Player
+Comment=Audio Studio, Booster & Music Player
+Exec=/usr/bin/audiflow
+Icon=audiflow
+Categories=AudioVideo;Audio;Music;
+StartupNotify=true
+Terminal=false
+EOF
+
+  install -Dm644 "$srcdir/../../src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/audiflow.png"
+  install -Dm644 "$srcdir/../../src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/audiflow.png"
+  install -Dm644 "$srcdir/../../src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256@2x/apps/audiflow.png"
+}

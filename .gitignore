@@ -8,6 +8,13 @@ src-tauri/binaries/*
 .DS_Store
 *.dmg
 *.zip
+
+# Arch packaging artifacts (makepkg outputs)
+packaging/arch/*.zst
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.pkg.tar.zst
+*.zst
 *.apk
 *.aab
 *.keystore
