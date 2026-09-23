@@ -89,6 +89,13 @@ git status --short  # workdir changes since sync
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
 
+Workdir drift since sync (2026-09-23, spec 018 implemented on branch 018-folder-btn, commit 6e4b5e0):
+mac add-folder button — `src/components/music-player/AddFolderButton.tsx` (mac-only `FolderPlus`
+button next to search), `useAddFolderPick.ts` (pick→dedupe→batch store add→one scan→toast),
+`useMusicPlayerStore.ts` (+`addCustomFolders` batched action), `TrackListView.tsx` (+1 component
+in search row, 297/300), `src/i18n/en.ts`/`fa.ts` (+`addFolder*` keys), tests
+`AddFolderButton.test.tsx` (15) + `addCustomFolders.test.ts` (3).
+
 Workdir driftsince sync (2026-09-20, spec 012 implemented): onboarding layout rework —
 `src/components/onboarding/OnboardingGate.tsx` (clipped decor layer + x-hidden scroller +
 min-h-full column + safe-area header/footer), `ThemeSection.tsx` / `LanguageSection.tsx` /
@@ -141,6 +148,7 @@ hand-written sources an agent would actually navigate to or edit.
 | Converter UI/options | `src/components/converter-wizard/ConverterWizard.tsx` (4-step wizard: upload/configs/progress/result) | `converter-wizard/Wizard*Step.tsx`, `OptionsPanel.tsx`, `FileList.tsx`, `JobsPanel.tsx` (bare), `ConverterResultSection.tsx` | Rust internals |
 | Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |
+| Mac add-folder button (018) | `src/components/music-player/AddFolderButton.tsx` + `useAddFolderPick.ts` (pick→dedupe→batch add→one scan→toast outcomes; mac-only render) | `useMusicPlayerStore.addCustomFolders` (batched, N+1 avoided), `utils/dialog.pickDirectories`, i18n keys `addFolder*` | picker UI changes |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |
 | File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |
 | Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |

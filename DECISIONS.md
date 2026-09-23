@@ -29,6 +29,14 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-23 — Mac add-folder flow uses batched store action (spec 018)
+
+**Decision:** The user-picked folder flow goes through `useMusicPlayerStore.addCustomFolders(paths)` — a batched variant that dedupes, persists once via `persistCustomFolders`, and triggers exactly one `scanLibrary` — not the per-folder `addCustomFolder` loop. Pick outcomes are classified in `useAddFolderPick` and surfaced via `useAppStore.pushToast` (one toast max per pick; cancel and all-duplicate picks are silent). The button renders only when `isMacOS()`.
+
+**Why:** Per-folder `addCustomFolder` persists and rescans for every folder (N× full disk walks), breaking SC-001 for multi-pick. One toast per pick (never per folder) was locked with the user during /speckit.clarify. mac-only render honors the platform-access rationale (picker grants access; other platforms need no entry point).
+
+**Implication:** Future agents adding pick-based library expansion must reuse `addCustomFolders` (or the existing FirstRunFoldersGate batch pattern) — never call `addCustomFolder` per picked path. Non-macOS users must stay structurally untouched (FR-002).
+
 ## 2026-09-21 — 100% Rebrand to Audiflow / com.audiflow.app
 
 **Decision:** Complete migration of technical identifiers to Audiflow:
