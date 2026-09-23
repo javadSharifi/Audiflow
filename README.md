@@ -292,7 +292,7 @@ Windows installer packages are available from the latest release.
 **[Download Audiflow for macOS](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
 Download the `Audiflow_*_macos-arm64-install.zip` from GitHub Releases and unzip it —
-it contains the DMG and the `install-mac.sh` installer side by side.
+it contains the DMG, the `install-mac.sh` installer, and a `README.txt` guide side by side.
 
 > **Why does macOS say "Audiflow is damaged and can't be opened"?**
 > This is Apple's Gatekeeper, not a broken download. Audiflow is a free open-source
@@ -300,10 +300,10 @@ it contains the DMG and the `install-mac.sh` installer side by side.
 > notarization ($99/yr), so macOS quarantines the downloaded DMG and shows the
 > "damaged / move to Trash" message.
 >
-> **Easiest fix — bundled installer (from the unzipped folder):**
+> **Easiest fix — bundled installer (from the unzipped folder, no paths needed):**
 >
 > ```bash
-> bash install-mac.sh Audiflow_1.5.3_aarch64.dmg
+> bash install-mac.sh
 > ```
 >
 > **Manual fix (already copied to Applications):**

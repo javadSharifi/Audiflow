@@ -7,8 +7,10 @@
 # locally, which is the standard free workaround used by OSS Tauri apps.
 #
 # Usage:
-#   bash scripts/install-mac.sh [path/to/Audiflow_*.dmg]
-#   (no arg = auto-find Audiflow*.dmg in ~/Desktop, ~/Downloads, cwd)
+#   bash install-mac.sh
+#   (from the unzipped Audiflow_*_macos-arm64-install folder — the DMG sits
+#    right beside this script; no file paths needed)
+#   Optional: bash install-mac.sh [path/to/Audiflow_*.dmg]
 # ==============================================================================
 set -euo pipefail
 
@@ -17,7 +19,7 @@ APP_NAME="Audiflow.app"
 APP_DEST="/Applications/${APP_NAME}"
 
 find_dmg() {
-  for d in "${1:-}" ~/Desktop/Audiflow*.dmg ~/Downloads/Audiflow*.dmg ./Audiflow*.dmg; do
+  for d in "${1:-}" ./Audiflow*.dmg ~/Downloads/Audiflow*.dmg ~/Desktop/Audiflow*.dmg; do
     # shellcheck disable=SC2086
     for f in $d; do [ -f "$f" ] && { echo "$f"; return 0; }; done
   done
@@ -26,12 +28,12 @@ find_dmg() {
 
 DMG="${1:-}"
 if [ "${DMG}" = "-h" ] || [ "${DMG}" = "--help" ]; then
-  echo "Usage: bash scripts/install-mac.sh [path/to/Audiflow_*.dmg]"
+  echo "Usage: bash install-mac.sh   (run from the unzipped install folder)"
   exit 0
 fi
 if [ -z "$DMG" ]; then
   DMG="$(find_dmg)" || {
-    echo -e "${RED}DMG not found. Pass the file path:${NC} bash scripts/install-mac.sh ~/Desktop/Audiflow_1.5.3_aarch64.dmg"
+    echo -e "${RED}Audiflow DMG not found.${NC} This script must sit in the same folder as ${YELLOW}Audiflow_*.dmg${NC} — unzip ${YELLOW}Audiflow_*_macos-arm64-install.zip${NC} first, then run: bash install-mac.sh"
     exit 1
   }
 fi

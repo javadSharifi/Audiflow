@@ -102,7 +102,7 @@ Multiple intrusive modal gates on app startup harmed UX. Consolidating into a si
 
 ## 2026-09-22 — Free macOS distribution via install zip (no paid notarization)
 
-**Decision:** macOS releases ship `Audiflow_*_macos-arm64-install.zip` (DMG + `scripts/install-mac.sh` side by side, built in `release.yml`); users run `bash install-mac.sh <dmg>` which strips quarantine + ad-hoc re-signs locally.
+**Decision:** macOS releases ship `Audiflow_*_macos-arm64-install.zip` (DMG + `scripts/install-mac.sh` + `packaging/macos/README.txt` side by side, built in `release.yml`); users run `bash install-mac.sh` from the unzipped folder — no paths needed (auto-finds `./Audiflow*.dmg` beside itself, then Downloads/Desktop).
 
 **Why:** No paid Apple Developer notarization ($99/yr); ad-hoc DMG alone triggers Gatekeeper "damaged" error.
 

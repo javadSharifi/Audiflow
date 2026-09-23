@@ -292,7 +292,7 @@ Audiflow از انواع فرمت‌های صوتی رایج پشتیبانی م
 **[دانلود Audiflow برای macOS](https://github.com/javadSharifi/Audiflow/releases/latest)**
 
 فایل `Audiflow_*_macos-arm64-install.zip` را از بخش ریلیزها دانلود و آنزیپ کنید —
-داخلش فایل DMG و اسکریپت `install-mac.sh` کنار هم هستند.
+داخلش فایل DMG، اسکریپت `install-mac.sh` و راهنمای `README.txt` کنار هم هستند.
 
 > **چرا مک می‌گوید «Audiflow is damaged»؟**
 > این پیام به معنی خراب بودن فایل نیست؛ محافظ امنیتی Gatekeeper اپل است. چون
@@ -300,10 +300,10 @@ Audiflow از انواع فرمت‌های صوتی رایج پشتیبانی م
 > برای Notarize ندارد، بیلد مک فقط با امضای ad-hoc منتشر می‌شود و مک فایل دانلودشده
 > را قرنطینه می‌کند.
 >
-> **راحت‌ترین راه — اسکریپت داخل پوشه آنزیپ‌شده:**
+> **راحت‌ترین راه — اسکریپت داخل پوشه آنزیپ‌شده (بدون آدرس):**
 >
 > ```bash
-> bash install-mac.sh Audiflow_1.5.3_aarch64.dmg
+> bash install-mac.sh
 > ```
 >
 > **راه دستی (اگر قبلاً به Applications کپی کرده‌اید):**
