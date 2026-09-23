@@ -159,6 +159,7 @@ export interface MusicPlayerState {
   toggleLikeMultiple: (tracksToToggle: AudioTrackInfo[]) => boolean;
   isLiked: (trackOrKey: AudioTrackInfo | string) => boolean;
   addCustomFolder: (path: string) => Promise<void>;
+  addCustomFolders: (paths: string[]) => Promise<number>;
   removeCustomFolder: (path: string) => Promise<void>;
 
   // Playback actions
@@ -424,6 +425,19 @@ export const useMusicPlayerStore = create<MusicPlayerState>((set, get) => ({
     persistCustomFolders(next);
     set({ customFolders: next });
     await get().scanLibrary(next);
+  },
+
+  // Batched variant: dedupe + persist once + exactly one scan (N+1 avoided).
+  // Resolves with the count of newly accepted folders (0 = nothing new).
+  async addCustomFolders(paths) {
+    const known = new Set(get().customFolders);
+    const fresh = paths.filter((p) => !known.has(p));
+    if (fresh.length === 0) return 0;
+    const next = [...get().customFolders, ...fresh];
+    persistCustomFolders(next);
+    set({ customFolders: next });
+    await get().scanLibrary(next);
+    return fresh.length;
   },
 
   async removeCustomFolder(path) {

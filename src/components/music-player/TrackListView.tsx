@@ -7,6 +7,7 @@ import { hasNotificationPermission } from "../../utils/tauri";
 import { isAndroid } from "../../utils/platform";
 import { TrackRow } from "./TrackRow";
 import { TrackSortDropdown } from "./TrackSortDropdown";
+import { AddFolderButton } from "./AddFolderButton";
 import { TrackListBanners } from "./TrackListBanners";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import { useTrackVirtualizer } from "./useTrackVirtualizer";
@@ -179,6 +180,8 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
         </div>
 
         <TrackSortDropdown sortBy={sortBy} onSelectSort={setSortBy} />
+
+        <AddFolderButton />
 
         <button
           type="button"
