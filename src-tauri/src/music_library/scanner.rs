@@ -1,5 +1,5 @@
-use std::path::Path;
 use super::models::AudioTrackInfo;
+use std::path::Path;
 
 const AUDIO_EXTENSIONS: &[&str] = &[
     "mp3", "m4a", "flac", "wav", "aac", "ogg", "opus", "wma", "aiff", "alac", "weba",

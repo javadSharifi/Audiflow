@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 use super::analyze::VolumeAnalysis;
 
 /// The 5 official booster presets + manual mode.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, specta::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum BoosterPreset {
     /// Automatic dynamic gain based on dynamic normalizer + limiter (Default).
+    #[default]
     Smart,
     /// Balanced boost tuned for music (+6 dB default or safe headroom + limiter).
     Music,
@@ -18,12 +19,6 @@ pub enum BoosterPreset {
     Extreme,
     /// User-controlled slider (0% to 400%, unified with the live player scale).
     Manual,
-}
-
-impl Default for BoosterPreset {
-    fn default() -> Self {
-        Self::Smart
-    }
 }
 
 /// Standard alimiter filter string ensuring safe peaks across all presets.

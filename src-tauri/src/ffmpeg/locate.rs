@@ -44,7 +44,10 @@ fn locate_android(name: &str) -> Result<PathBuf, crate::error::AppError> {
         let candidate = PathBuf::from(&lib_dir).join(&so_name);
         checked.push(candidate.display().to_string());
         if candidate.exists() {
-            crate::log_info!("Android locate {name}: FOUND via TAURI_ANDROID_NATIVE_LIB_DIR at {}", candidate.display());
+            crate::log_info!(
+                "Android locate {name}: FOUND via TAURI_ANDROID_NATIVE_LIB_DIR at {}",
+                candidate.display()
+            );
             return Ok(candidate);
         }
     }
@@ -68,7 +71,10 @@ fn locate_android(name: &str) -> Result<PathBuf, crate::error::AppError> {
             let candidate = dir.join(&so_name);
             checked.push(candidate.display().to_string());
             if candidate.exists() {
-                crate::log_info!("Android locate {name}: FOUND next to exe at {}", candidate.display());
+                crate::log_info!(
+                    "Android locate {name}: FOUND next to exe at {}",
+                    candidate.display()
+                );
                 return Ok(candidate);
             }
         }

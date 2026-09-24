@@ -71,6 +71,39 @@ pub fn encoder_args(format: &AudioFormat, bitrate_kbps: Option<u32>) -> Vec<Stri
     }
 }
 
+pub fn resolve_sample_rate(format: &AudioFormat, requested_sr: Option<u32>) -> Option<u32> {
+    if *format == AudioFormat::Opus {
+        match requested_sr {
+            Some(sr) if matches!(sr, 8000 | 12000 | 16000 | 24000 | 48000) => Some(sr),
+            _ => Some(48000),
+        }
+    } else {
+        requested_sr
+    }
+}
+
+pub fn resolve_boost_filter(options: &ConversionOptions, trim: Option<&TrimSpec>) -> Option<String> {
+    let is_boosted = trim
+        .and_then(|t| t.boost_enabled)
+        .unwrap_or(options.boost_enabled);
+    let preset = trim.and_then(|t| t.boost_preset).or(options.boost_preset);
+    let manual_gain = trim
+        .and_then(|t| t.boost_manual_gain_percent)
+        .or(options.boost_manual_gain_percent);
+
+    if is_boosted {
+        preset.map(|p| {
+            crate::processing::sound_booster::presets::build_preset_filter_chain(
+                p,
+                manual_gain,
+                None,
+            )
+        })
+    } else {
+        None
+    }
+}
+
 /// Build the full FFmpeg argument list for producing `outputs` in ONE pass.
 ///
 /// Strategy: decode the source exactly once. Silence removal and splitting
@@ -102,10 +135,7 @@ pub fn build_conversion_args(
     if let Some(start) = trim.and_then(|t| t.start_time_secs) {
         args.extend(["-ss".to_string(), format!("{start:.3}")]);
     }
-    args.extend([
-        "-i".to_string(),
-        source.to_string_lossy().into_owned(),
-    ]);
+    args.extend(["-i".to_string(), source.to_string_lossy().into_owned()]);
     if let Some(to) = trim.and_then(|t| t.effective_to()) {
         args.extend(["-to".to_string(), format!("{to:.3}")]);
     }
@@ -115,14 +145,7 @@ pub fn build_conversion_args(
 
     // libopus only accepts a fixed rate set; silently fall back to 48 kHz
     // (its native rate) rather than failing the job.
-    let sample_rate = if options.format == AudioFormat::Opus {
-        match options.sample_rate_hz {
-            Some(sr) if matches!(sr, 8000 | 12000 | 16000 | 24000 | 48000) => Some(sr),
-            _ => Some(48000),
-        }
-    } else {
-        options.sample_rate_hz
-    };
+    let sample_rate = resolve_sample_rate(&options.format, options.sample_rate_hz);
     if let Some(sr) = sample_rate {
         codec_args.extend(["-ar".to_string(), sr.to_string()]);
     }
@@ -130,27 +153,7 @@ pub fn build_conversion_args(
         codec_args.extend(["-ac".to_string(), ch.to_string()]);
     }
 
-    let is_boosted = trim
-        .and_then(|t| t.boost_enabled)
-        .unwrap_or(options.boost_enabled);
-    let preset = trim
-        .and_then(|t| t.boost_preset)
-        .or(options.boost_preset);
-    let manual_gain = trim
-        .and_then(|t| t.boost_manual_gain_percent)
-        .or(options.boost_manual_gain_percent);
-
-    let boost_filter = if is_boosted {
-        preset.map(|p| {
-            crate::processing::sound_booster::presets::build_preset_filter_chain(
-                p,
-                manual_gain,
-                None,
-            )
-        })
-    } else {
-        None
-    };
+    let boost_filter = resolve_boost_filter(options, trim);
 
     if !use_filters {
         if let Some(ref bf) = boost_filter {
@@ -190,7 +193,10 @@ pub fn build_conversion_args(
             labels.push_str(&format!("[{label}]"));
         }
         if let Some(ref bf) = boost_filter {
-            chains.push(format!("{labels}concat=n={}:v=0:a=1,{bf}[a{pi}];", segs.len()));
+            chains.push(format!(
+                "{labels}concat=n={}:v=0:a=1,{bf}[a{pi}];",
+                segs.len()
+            ));
         } else {
             chains.push(format!("{labels}concat=n={}:v=0:a=1[a{pi}];", segs.len()));
         }
@@ -261,7 +267,10 @@ pub fn run_job(
     }
     // Clamp the trim window to what the file actually contains so progress
     // math and split planning stay on the real (post-trim) duration.
-    let start = trim.and_then(|t| t.start_time_secs).unwrap_or(0.0).min(total);
+    let start = trim
+        .and_then(|t| t.start_time_secs)
+        .unwrap_or(0.0)
+        .min(total);
     let end = trim
         .and_then(|t| t.end_time_secs)
         .map(|e| e.min(total))
@@ -317,7 +326,8 @@ pub fn run_job(
     }
 
     // ---- Phase 4: disk space check BEFORE encoding --------------------------
-    let est = disk::estimate_output_bytes(options.effective_bitrate(), post_total) + DISK_HEADROOM_SAFETY_BYTES;
+    let est = disk::estimate_output_bytes(options.effective_bitrate(), post_total)
+        + DISK_HEADROOM_SAFETY_BYTES;
     if let Some(free) = disk::free_bytes(finals[0].parent().unwrap_or(Path::new("."))) {
         if free < est {
             return Err(AppError::InsufficientDiskSpace {
@@ -660,7 +670,10 @@ mod tests {
         let to_val: f64 = args[args.iter().position(|a| a == "-to").unwrap() + 1]
             .parse()
             .unwrap();
-        assert!((to_val - 20.0).abs() < 1e-9, "rebased -to should be 20, got {to_val}");
+        assert!(
+            (to_val - 20.0).abs() < 1e-9,
+            "rebased -to should be 20, got {to_val}"
+        );
         assert!(args.iter().any(|a| a == "-vn"), "-vn required");
     }
 
@@ -704,7 +717,7 @@ mod tests {
         let idx_i = args.iter().position(|a| a == "-i").unwrap();
         assert_eq!(args[idx_i - 1], "45.000");
         assert!(!args.iter().any(|a| a == "-to"));
-        assert!(args.iter().any(|a| a == "-c:a" ) && args.iter().any(|a| a == "flac"));
+        assert!(args.iter().any(|a| a == "-c:a") && args.iter().any(|a| a == "flac"));
     }
 
     #[test]
@@ -733,7 +746,10 @@ mod tests {
             let args = encoder_args(&fmt, None);
             assert_eq!(args[0], "-c:a");
             assert_eq!(args[1], codec, "codec mismatch for {fmt:?}");
-            assert!(!args.iter().any(|a| a.starts_with("libx264")), "no video encoders allowed");
+            assert!(
+                !args.iter().any(|a| a.starts_with("libx264")),
+                "no video encoders allowed"
+            );
         }
     }
 

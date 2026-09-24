@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, renderHook, act } from "@testing-library/react";
-import { getResponsiveAlbumCols, useAlbumColumns } from "../AlbumGridVirtualized";
+import { getResponsiveAlbumCols, useAlbumColumns } from "../useAlbumColumns";
 
 describe("AlbumGridVirtualized Responsive Columns", () => {
   afterEach(() => {

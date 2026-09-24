@@ -53,7 +53,11 @@ impl Inner {
         });
     }
 
-    fn update(&self, id: &str, mutate: impl FnOnce(&mut TranscriptionJob)) -> Option<TranscriptionJob> {
+    fn update(
+        &self,
+        id: &str,
+        mutate: impl FnOnce(&mut TranscriptionJob),
+    ) -> Option<TranscriptionJob> {
         let mut guard = self.jobs.lock().unwrap();
         let rec = guard.get_mut(id)?;
         mutate(rec);
@@ -86,7 +90,10 @@ impl TranscribeQueueManager {
         config.validate()?;
         let key = crate::secrets::require_gemini_api_key()?;
         let (ffmpeg, ffprobe) = crate::queue::resolve_binaries()?;
-        if !source.starts_with("content://") && !source.starts_with("file://") && !std::path::Path::new(&source).exists() {
+        if !source.starts_with("content://")
+            && !source.starts_with("file://")
+            && !std::path::Path::new(&source).exists()
+        {
             return Err(AppError::NotFound(source));
         }
 
@@ -110,9 +117,24 @@ impl TranscribeQueueManager {
         self.inner.emit_for_record(&rec);
 
         let inner = Arc::clone(&self.inner);
-        let token = inner.tokens.lock().unwrap().get(&id).cloned().unwrap_or_default();
+        let token = inner
+            .tokens
+            .lock()
+            .unwrap()
+            .get(&id)
+            .cloned()
+            .unwrap_or_default();
         std::thread::spawn(move || {
-            run_transcribe_job(inner, id, PathBuf::from(source), config, key, ffmpeg, ffprobe, token);
+            run_transcribe_job(
+                inner,
+                id,
+                PathBuf::from(source),
+                config,
+                key,
+                ffmpeg,
+                ffprobe,
+                token,
+            );
         });
         Ok(rec.id)
     }
@@ -190,9 +212,10 @@ impl TranscribeQueueManager {
         let rec = guard
             .get(job_id)
             .ok_or_else(|| AppError::NotFound(job_id.to_string()))?;
-        let result = rec.result.clone().ok_or_else(|| {
-            AppError::InvalidInput("Transcript is not ready yet".to_string())
-        })?;
+        let result = rec
+            .result
+            .clone()
+            .ok_or_else(|| AppError::InvalidInput("Transcript is not ready yet".to_string()))?;
         Ok((rec.clone(), result))
     }
 
@@ -206,7 +229,10 @@ impl TranscribeQueueManager {
 
         #[cfg(target_os = "android")]
         let dir: PathBuf = crate::android_fs::output_root().unwrap_or_else(|| {
-            source.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."))
+            source
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."))
         });
         #[cfg(not(target_os = "android"))]
         let dir: PathBuf = source

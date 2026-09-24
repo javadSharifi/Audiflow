@@ -292,7 +292,7 @@ mod tests {
         for f in [&keep, &lookalike, &orphan] {
             std::fs::write(f, b"x").unwrap();
         }
-        sweep_orphan_temps(&[dir.clone()]);
+        sweep_orphan_temps(std::slice::from_ref(&dir));
         assert!(keep.exists());
         assert!(lookalike.exists());
         assert!(!orphan.exists());

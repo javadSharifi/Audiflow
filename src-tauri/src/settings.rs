@@ -71,7 +71,8 @@ impl Default for TranscribeSettings {
 }
 
 impl TranscribeSettings {
-    pub fn validate(&mut self) {        if !self.default_language.is_empty() {
+    pub fn validate(&mut self) {
+        if !self.default_language.is_empty() {
             let ok = self.default_language.len() <= 20
                 && self
                     .default_language
@@ -172,7 +173,7 @@ pub fn max_reasonable_concurrency() -> u32 {
 }
 
 pub fn default_concurrency() -> u32 {
-    ((max_reasonable_concurrency() / 2).max(1)).min(4)
+    (max_reasonable_concurrency() / 2).clamp(1, 4)
 }
 
 #[cfg(test)]
@@ -230,7 +231,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "ac-settings-corrupt-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::env::set_var("AUDIO_CONVERTER_DATA_DIR", &dir);
@@ -247,13 +251,18 @@ mod tests {
         let dir = std::env::temp_dir().join(format!(
             "ac-settings-atomic-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::env::set_var("AUDIO_CONVERTER_DATA_DIR", &dir);
 
-        let mut s = Settings::default();
-        s.language = "fa".into();
+        let s = Settings {
+            language: "fa".into(),
+            ..Default::default()
+        };
         s.save().unwrap();
         assert!(dir.join("settings.json").exists());
         assert!(!dir.join("settings.json.tmp").exists());

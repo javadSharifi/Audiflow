@@ -324,10 +324,7 @@ fn e2e_no_audio_track_fails_gracefully() {
     )
     .expect_err("must fail on video-only file");
 
-    assert!(matches!(
-        err,
-        audiflow::error::AppError::NoAudioTrack(_)
-    ));
+    assert!(matches!(err, audiflow::error::AppError::NoAudioTrack(_)));
     // And no partial output left behind.
     let leftovers: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()

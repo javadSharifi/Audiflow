@@ -263,7 +263,10 @@ mod tests {
     #[test]
     fn unchanged_file_reuses_record_and_changed_file_misses() {
         let mut memo = empty_memo();
-        memo.remember("/music/a.mp3".to_string(), &sample_track("/music/a.mp3", 100, 1000));
+        memo.remember(
+            "/music/a.mp3".to_string(),
+            &sample_track("/music/a.mp3", 100, 1000),
+        );
 
         // Identical identity → hit, no re-parse.
         let hit = memo.reuse_if_unchanged("/music/a.mp3", 100, 1000);
@@ -283,7 +286,10 @@ mod tests {
     #[test]
     fn memo_roundtrips_through_json_with_schema_guard() {
         let mut memo = empty_memo();
-        memo.remember("/music/a.mp3".to_string(), &sample_track("/music/a.mp3", 5, 9));
+        memo.remember(
+            "/music/a.mp3".to_string(),
+            &sample_track("/music/a.mp3", 5, 9),
+        );
         let file = MemoFile {
             schema: MEMO_SCHEMA_VERSION,
             records: memo.records.clone(),
@@ -295,4 +301,3 @@ mod tests {
         assert_eq!(rec.track.size_bytes, 5);
     }
 }
-

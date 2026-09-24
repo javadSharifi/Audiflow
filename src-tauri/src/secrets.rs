@@ -44,9 +44,12 @@ pub fn save_gemini_api_key(key: &str) -> Result<()> {
     if trimmed.is_empty() {
         return Err(AppError::InvalidInput("API key is empty".into()));
     }
-    entry()?
-        .set_password(trimmed)
-        .map_err(|e| AppError::Other(format!("Failed to save API key to keychain: {}", platform_hint(e))))?;
+    entry()?.set_password(trimmed).map_err(|e| {
+        AppError::Other(format!(
+            "Failed to save API key to keychain: {}",
+            platform_hint(e)
+        ))
+    })?;
     crate::log_info!("gemini api key saved (prefix={})", mask_key(trimmed));
     Ok(())
 }
@@ -57,7 +60,10 @@ pub fn load_gemini_api_key() -> Result<Option<String>> {
         Ok(pw) if !pw.trim().is_empty() => Ok(Some(pw)),
         Ok(_) => Ok(None),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(AppError::Other(format!("Failed to read API key: {}", platform_hint(e)))),
+        Err(e) => Err(AppError::Other(format!(
+            "Failed to read API key: {}",
+            platform_hint(e)
+        ))),
     }
 }
 
@@ -74,7 +80,10 @@ pub fn delete_gemini_api_key() -> Result<()> {
             Ok(())
         }
         Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(AppError::Other(format!("Failed to delete API key: {}", platform_hint(e)))),
+        Err(e) => Err(AppError::Other(format!(
+            "Failed to delete API key: {}",
+            platform_hint(e)
+        ))),
     }
 }
 

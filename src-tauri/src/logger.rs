@@ -39,11 +39,7 @@ pub fn log(level: &str, msg: &str) {
         let _ = std::fs::create_dir_all(&logs);
         let log_file = logs.join("app.log");
         rotate_if_needed(&log_file);
-        if let Ok(mut f) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_file)
-        {
+        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_file) {
             let _ = writeln!(f, "{line}");
         }
     }

@@ -2,34 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plus } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
+import { useAlbumColumns } from "./useAlbumColumns";
 import { useAppStore } from "../../stores/useAppStore";
 import { translate } from "../../i18n";
 import type { AlbumItem } from "../../types";
-
-export function getResponsiveAlbumCols(w: number): number {
-  if (w >= 1024) return 6;
-  if (w >= 768) return 5;
-  if (w >= 640) return 4;
-  return 3;
-}
-
-export function useAlbumColumns(): number {
-  const [cols, setCols] = useState(() => {
-    const w = typeof window !== "undefined" ? window.innerWidth : 0;
-    return getResponsiveAlbumCols(w);
-  });
-
-  useEffect(() => {
-    const upd = () => {
-      const w = typeof window !== "undefined" ? window.innerWidth : 0;
-      setCols(getResponsiveAlbumCols(w));
-    };
-    upd();
-    window.addEventListener("resize", upd);
-    return () => window.removeEventListener("resize", upd);
-  }, []);
-  return cols;
-}
 
 type CombinedItem = { kind: "create" } | { kind: "album"; album: AlbumItem };
 

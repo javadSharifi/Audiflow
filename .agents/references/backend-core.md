@@ -13,13 +13,22 @@ Domain: Tauri app root, commands, queues, settings/secrets. Part of `PROJECT_GRA
 | `src-tauri/capabilities/default.json` | Capability for `main` window: core/event/dialog/opener. |
 | `src-tauri/examples/export_types.rs` | Specta exporter to `src/types/generated.ts`; run via `generate:types`. |
 | `src-tauri/src/android_fs.rs` | Android Content-URI staging + MediaStore publish + JNI bridge; `ensure_local_path`. |
-| `src-tauri/src/commands/mod.rs` | All `#[tauri::command]` handlers 1000+ lines: resolve/stat/probe/start/waveform/cancel/disk/booster/library/player/transcribe; no raw ffmpeg in frontend. |
+| `src-tauri/src/commands/mod.rs` | Re-exports all IPC command modules (android, audio, library, player, queue, system, transcribe). |
+| `src-tauri/src/commands/android.rs` | Android staging, permissions, app settings, cold-start file queue, and exit handlers. |
+| `src-tauri/src/commands/audio.rs` | Audio analysis IPC: ffprobe metadata inspection, waveform peak decoding, volume detection, and A/B preview. |
+| `src-tauri/src/commands/library.rs` | Music library scanner triggers, cache stats, track deletion/ringtone/share, and path/artwork resolution. |
+| `src-tauri/src/commands/player.rs` | Native Android Media3 player controls and stream volume management (19 IPC commands). |
+| `src-tauri/src/commands/queue.rs` | Audio conversion and sound boost enqueueing, job cancellation, and queue inspection. |
+| `src-tauri/src/commands/system.rs` | Disk space query (`disk_free`), application settings load/save, and frontend logger bridge. |
+| `src-tauri/src/commands/transcribe.rs` | Gemini cloud transcription API key management, transcription jobs, queue inspection, and export. |
 | `src-tauri/src/disk.rs` | Free-space preflight + size estimate; `free_bytes`, `estimate_output_bytes`. |
 | `src-tauri/src/error.rs` | Error taxonomy; `AppError` + `GeminiErrorKind::i18n_key`. |
 | `src-tauri/src/lib.rs` | App root: `specta_builder` ~50 commands, setup (settings/queues/open-file), single-instance, kill ffmpeg on exit; exports `run`. |
 | `src-tauri/src/logger.rs` | File+console logger with 5MB rotation `app.log`. |
 | `src-tauri/src/main.rs` | Binary entry calling `audio_converter::run`. |
-| `src-tauri/src/queue/mod.rs` | `QueueManager`: FIFO, per-job options snapshot, CancelToken map, job-event emit, 605 lines. |
+| `src-tauri/src/queue/mod.rs` | `QueueManager`: FIFO manager, batch enqueueing (`enqueue_batch`), CancelToken map, and job events. |
+| `src-tauri/src/queue/job.rs` | Queue domain structs: `JobRecord`, `JobKind`, `QueuedJob`, and `BatchJobItem`. |
+| `src-tauri/src/queue/worker.rs` | Background conversion and sound boost worker loops, binary path resolution, and cancel handling. |
 | `src-tauri/src/secrets.rs` | OS keychain Gemini key only; `save/load/delete/require_gemini_api_key`, `mask_key`. |
 | `src-tauri/src/settings.rs` | `settings.json` load/save/validate + concurrency clamp 1..32; atomic tmp-rename. |
 | `src-tauri/src/transcribe_queue.rs` | `TranscribeQueueManager` mirroring queue lifecycle; emits `transcription-event`. |

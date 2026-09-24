@@ -93,7 +93,8 @@ impl GeminiClient {
                 "Unsupported audio type for transcription: {mime}"
             )));
         }
-        let bytes = std::fs::read(path).map_err(|e| AppError::Io(format!("Cannot read {path:?}: {e}")))?;
+        let bytes =
+            std::fs::read(path).map_err(|e| AppError::Io(format!("Cannot read {path:?}: {e}")))?;
         let display_name = path
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
@@ -261,7 +262,9 @@ fn parse_file_resource(body: &serde_json::Value) -> Result<UploadedFile> {
     let res: FileResource = serde_json::from_value(node.clone())
         .map_err(|_| AppError::Other("File resource had an unexpected shape".to_string()))?;
     if res.name.is_empty() || res.uri.is_empty() {
-        return Err(AppError::Other("File resource missing name/uri".to_string()));
+        return Err(AppError::Other(
+            "File resource missing name/uri".to_string(),
+        ));
     }
     let active = res.state.as_deref() == Some("ACTIVE");
     Ok(UploadedFile {
@@ -313,7 +316,9 @@ pub fn parse_interaction_response(body: &serde_json::Value) -> Result<Transcript
         .unwrap_or("")
         .to_string();
     if full_text.trim().is_empty() {
-        return Err(AppError::Other("Transcription returned empty text".to_string()));
+        return Err(AppError::Other(
+            "Transcription returned empty text".to_string(),
+        ));
     }
     let mut words: Vec<WordInfo> = Vec::new();
     if let Some(steps) = ix.get("steps").and_then(|s| s.as_array()) {
@@ -350,11 +355,16 @@ pub fn parse_interaction_response(body: &serde_json::Value) -> Result<Transcript
             }
         }
     }
-    let language_detected = ["language_code", "detected_language", "detected_language_code", "language"]
-        .iter()
-        .filter_map(|k| ix.get(k).and_then(|v| v.as_str()))
-        .next()
-        .map(|s| s.to_string());
+    let language_detected = [
+        "language_code",
+        "detected_language",
+        "detected_language_code",
+        "language",
+    ]
+    .iter()
+    .filter_map(|k| ix.get(k).and_then(|v| v.as_str()))
+    .next()
+    .map(|s| s.to_string());
     Ok(TranscriptionResult {
         full_text,
         words,
@@ -397,11 +407,13 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/v1beta/models"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"models": []})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"models": []})),
+            )
             .mount(&server)
             .await;
         let client = GeminiClient::with_base_url("k", server.uri());
-        assert_eq!(client.validate_api_key().await.unwrap(), true);
+        assert!(client.validate_api_key().await.unwrap());
     }
 
     #[tokio::test]
@@ -409,9 +421,10 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/v1beta/models"))
-            .respond_with(ResponseTemplate::new(403).set_body_string(
-                r#"{"error":{"code":403,"message":"API key not valid"}}"#,
-            ))
+            .respond_with(
+                ResponseTemplate::new(403)
+                    .set_body_string(r#"{"error":{"code":403,"message":"API key not valid"}}"#),
+            )
             .mount(&server)
             .await;
         let client = GeminiClient::with_base_url("bad", server.uri());
@@ -532,7 +545,9 @@ mod tests {
             err,
             AppError::Gemini(crate::error::GeminiErrorKind::QuotaExceeded { .. })
         ));
-        if let AppError::Gemini(crate::error::GeminiErrorKind::QuotaExceeded { metric, value }) = err {
+        if let AppError::Gemini(crate::error::GeminiErrorKind::QuotaExceeded { metric, value }) =
+            err
+        {
             assert_eq!(metric, "m");
             assert_eq!(value, "v");
         }

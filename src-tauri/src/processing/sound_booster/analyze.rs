@@ -77,10 +77,7 @@ pub fn analyze_volume(
         args.extend(["-ss".to_string(), format!("{s:.3}")]);
     }
 
-    args.extend([
-        "-i".to_string(),
-        source.to_string_lossy().into_owned(),
-    ]);
+    args.extend(["-i".to_string(), source.to_string_lossy().into_owned()]);
 
     if let Some(d) = duration_secs {
         args.extend(["-t".to_string(), format!("{d:.3}")]);
@@ -110,7 +107,9 @@ pub fn analyze_volume(
     let outcome = spec.run()?;
     if !outcome.success && outcome.code != Some(0) {
         let err_tail = outcome.stderr_tail.join("\n");
-        return Err(AppError::FFmpeg(format!("Volume analysis failed: {err_tail}")));
+        return Err(AppError::FFmpeg(format!(
+            "Volume analysis failed: {err_tail}"
+        )));
     }
 
     let raw_stderr = stderr_buf.lock().unwrap().clone();

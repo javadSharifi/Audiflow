@@ -75,7 +75,8 @@ impl TranscriptionRequestConfig {
         let detailed = self.diarization_enabled || self.timestamps_enabled;
         if !self.custom_vocabulary.is_empty() && detailed {
             return Err(AppError::InvalidInput(
-                "Custom vocabulary cannot be combined with speaker diarization or word timestamps".into(),
+                "Custom vocabulary cannot be combined with speaker diarization or word timestamps"
+                    .into(),
             ));
         }
         if self.custom_vocabulary.len() > MAX_CUSTOM_VOCAB_TERMS {
@@ -93,8 +94,15 @@ impl TranscriptionRequestConfig {
         }
         for code in &self.language_codes {
             let c = code.trim();
-            if c.is_empty() || c.len() > 20 || !c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
-                return Err(AppError::InvalidInput(format!("Invalid language code: {code}")));
+            if c.is_empty()
+                || c.len() > 20
+                || !c
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+            {
+                return Err(AppError::InvalidInput(format!(
+                    "Invalid language code: {code}"
+                )));
             }
         }
         Ok(())

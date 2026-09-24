@@ -257,9 +257,7 @@ fn stage_uri_via_jni(uri: &str) -> Result<String, String> {
 /// from the Java-invoked context (background threads cannot FindClass app
 /// classes — system classloader only).
 #[cfg(target_os = "android")]
-fn main_activity_class<'a>(
-    env: &mut jni::JNIEnv<'a>,
-) -> Result<jni::objects::JClass<'a>, String> {
+fn main_activity_class<'a>(env: &mut jni::JNIEnv<'a>) -> Result<jni::objects::JClass<'a>, String> {
     if let Some(class) = MAIN_ACTIVITY_CLASS.get() {
         // Zero-cost JClass view over the cached GlobalRef's raw object.
         return Ok(unsafe { jni::objects::JClass::from_raw(class.as_obj().as_raw()) });
@@ -286,11 +284,7 @@ fn with_jni_env<T>(f: impl FnOnce(&mut jni::JNIEnv) -> Result<T, String>) -> Res
 
 /// Call a `static String method(String)` on MainActivity.
 #[cfg(target_os = "android")]
-fn call_static_string(
-    method: &str,
-    signature: &str,
-    arg: &str,
-) -> Result<String, String> {
+fn call_static_string(method: &str, signature: &str, arg: &str) -> Result<String, String> {
     with_jni_env(|env| {
         let j_arg = env
             .new_string(arg)
@@ -322,11 +316,7 @@ fn call_static_string(
 /// String bridge that never errors — empty string on failure (for stat).
 #[cfg(target_os = "android")]
 pub fn call_static_string_quiet(method: &str, arg: &str) -> String {
-    match call_static_string(
-        method,
-        "(Ljava/lang/String;)Ljava/lang/String;",
-        arg,
-    ) {
+    match call_static_string(method, "(Ljava/lang/String;)Ljava/lang/String;", arg) {
         Ok(s) => s,
         Err(e) => {
             crate::log_error!("call_static_string_quiet({method}) failed: {e}");
@@ -419,9 +409,7 @@ pub fn call_player_play_jni(
 ) -> Result<String, String> {
     with_jni_env(|env| {
         let j_track = env.new_string(track_json).map_err(|e| format!("{e}"))?;
-        let j_playlist = env
-            .new_string(playlist_json)
-            .map_err(|e| format!("{e}"))?;
+        let j_playlist = env.new_string(playlist_json).map_err(|e| format!("{e}"))?;
         let cls = main_activity_class(env)?;
         let j_val = env
             .call_static_method(

@@ -25,7 +25,11 @@ pub struct ChunkTranscript {
 /// `(chunk_start + word_offset) / speed_factor`. Texts join with a newline,
 /// `language_detected` is the first non-empty value.
 pub fn stitch_chunks(chunks: &[ChunkTranscript], speed_factor: f64) -> TranscriptionResult {
-    let speed = if speed_factor > 0.0 { speed_factor } else { 1.0 };
+    let speed = if speed_factor > 0.0 {
+        speed_factor
+    } else {
+        1.0
+    };
     let mut words: Vec<WordInfo> = Vec::new();
     let mut texts: Vec<String> = Vec::new();
     let mut language_detected: Option<String> = None;
@@ -48,7 +52,11 @@ pub fn stitch_chunks(chunks: &[ChunkTranscript], speed_factor: f64) -> Transcrip
     }
     // Chunks are appended in order, so words are already sorted; enforce it
     // defensively (stable) in case of float edge cases.
-    words.sort_by(|a, b| a.start_offset.partial_cmp(&b.start_offset).unwrap_or(std::cmp::Ordering::Equal));
+    words.sort_by(|a, b| {
+        a.start_offset
+            .partial_cmp(&b.start_offset)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     TranscriptionResult {
         full_text: texts.join("\n"),
         words,
@@ -72,7 +80,9 @@ impl TranscriptFormat {
             "txt" => Ok(TranscriptFormat::Txt),
             "srt" => Ok(TranscriptFormat::Srt),
             "vtt" => Ok(TranscriptFormat::Vtt),
-            other => Err(AppError::InvalidInput(format!("Unknown transcript format: {other}"))),
+            other => Err(AppError::InvalidInput(format!(
+                "Unknown transcript format: {other}"
+            ))),
         }
     }
 
@@ -202,10 +212,7 @@ mod tests {
 
     #[test]
     fn fast_mode_divides_by_speed() {
-        let stitched = stitch_chunks(
-            &[chunk("x", vec![word("x", 1.5, 3.0, None)], 0.0)],
-            1.5,
-        );
+        let stitched = stitch_chunks(&[chunk("x", vec![word("x", 1.5, 3.0, None)], 0.0)], 1.5);
         assert!((stitched.words[0].start_offset - 1.0).abs() < 1e-9);
         assert!((stitched.words[0].end_offset - 2.0).abs() < 1e-9);
     }
@@ -266,7 +273,10 @@ mod tests {
 
     #[test]
     fn format_parse() {
-        assert_eq!(TranscriptFormat::parse("srt").unwrap(), TranscriptFormat::Srt);
+        assert_eq!(
+            TranscriptFormat::parse("srt").unwrap(),
+            TranscriptFormat::Srt
+        );
         assert!(TranscriptFormat::parse("pdf").is_err());
     }
 }

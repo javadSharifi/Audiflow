@@ -6,12 +6,20 @@ Domain: Android Kotlin + generated project + icons. Part of `PROJECT_GRAPH.md` d
 
 | File | Summary |
 | ---- | ------- |
-| `src-tauri/android/AudioSessionReceiver.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
-| `src-tauri/android/AudioStreamManager.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
-| `src-tauri/android/BoostEngine.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
-| `src-tauri/android/BoostVolumeService.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
-| `src-tauri/android/MainActivity.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
-| `src-tauri/android/PlaybackService.kt` | Android Kotlin source (player/booster/MediaStore bridge; mirrors `src-tauri/android/`). |
+| `src-tauri/android/AppPermissionManager.kt` | Android runtime media, video, and notification permission checks and requests. |
+| `src-tauri/android/ArtworkManager.kt` | Android embedded cover art extraction and disk cache (`cacheDir/artworks/`). |
+| `src-tauri/android/AudioSessionReceiver.kt` | Android Kotlin source (external player boost audio effect control session receiver). |
+| `src-tauri/android/AudioStreamManager.kt` | Android hardware AudioManager facade for STREAM_MUSIC manipulation and Reduce Hurt protection. |
+| `src-tauri/android/BoostEngine.kt` | Android LoudnessEnhancer and equalizer engine for hardware sound boosting. |
+| `src-tauri/android/BoostVolumeService.kt` | Background Audio Booster Service with WakeLock. |
+| `src-tauri/android/MainActivity.kt` | Android Tauri Activity orchestration, webview configuration, back-press handling, and JNI bridge. |
+| `src-tauri/android/MediaItemBuilder.kt` | Android Media3 MediaItem builder from track JSON and track JSON serialization. |
+| `src-tauri/android/MediaStoreManager.kt` | Android MediaStore queries, output publishing (`Music/Audiflow`), and track deletion. |
+| `src-tauri/android/MediaUriStager.kt` | Android content:// and file:// URI lazy staging and metadata inspection (`statUri`). |
+| `src-tauri/android/PlaybackNotificationHelper.kt` | Media3 notification channels, placeholder notifications, and closeable notification providers. |
+| `src-tauri/android/PlaybackService.kt` | Android Jetpack Media3 foreground playback service for background audio and lock screen controls. |
+| `src-tauri/android/RingtoneHelper.kt` | Android system ringtone assignment and WRITE_SETTINGS handling. |
+| `src-tauri/android/ShareHelper.kt` | Android audio track sharing via FileProvider and system chooser sheet. |
 | `src-tauri/gen/android/.editorconfig` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/android/.gitignore` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
 | `src-tauri/gen/android/app/.gitignore` | Generated Tauri Android project file (do not hand-edit; patched via `patch-android-project.sh`). |
@@ -43,3 +51,17 @@ Domain: Android Kotlin + generated project + icons. Part of `PROJECT_GRAPH.md` d
 | `src-tauri/icons/** (desktop + iconset)` | Desktop icon set via `gen-icons.py` (do not edit). |
 | `src-tauri/icons/{android,ios}/**` | Mobile icon variants (generated, do not edit). |
 
+## Android unit tests (Phase 6)
+
+Test command: `./gradlew :app:testArmDebugUnitTest -x rustBuildArmDebug` (run from `src-tauri/gen/android/`)
+
+| File | Tests | Coverage |
+| ---- | ----- | -------- |
+| `src-tauri/gen/android/app/src/test/java/com/audiflow/app/ArtworkManagerTest.kt` | 8 | `artworkCacheFileFor` naming/idempotency/blank-guard/dir-creation, `deleteArtworkCache` |
+| `src-tauri/gen/android/app/src/test/java/com/audiflow/app/MediaStoreManagerTest.kt` | 11 | `mimeFor` all 7 extensions + case-insensitivity + unknown fallback (via reflection) |
+| `src-tauri/gen/android/app/src/test/java/com/audiflow/app/MediaUriStagerTest.kt` | 20 | `cleanupStagingDirectory`, `safeName` regex (all illegal chars, Persian Unicode, spaces), dedup naming pattern |
+| `src-tauri/gen/android/app/src/test/java/com/audiflow/app/MediaItemBuilderTest.kt` | 12 | `safeCoverUrl` android.resource stripping, URI fallback `file://` prepend, mediaId blank-fallback |
+
+**Deps added to `build.gradle.kts`:** `testImplementation("org.mockito:mockito-core:5.11.0")` + `testOptions { unitTests { isReturnDefaultValues = true } }`.
+
+**Not covered by unit tests (require instrumentation):** `statUri`, `resolveUriToLocalPath`, `stageUriToCache`, `publishOutputs`, `queryMediaStoreMusic`, `deleteAudioTrack`, `buildMediaItem`, `mediaItemToTrackJson` — all depend on live ContentResolver or Media3 framework.

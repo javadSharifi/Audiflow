@@ -85,7 +85,11 @@ fn is_pacific_dst(unix_secs: i64) -> bool {
 
 /// "YYYY-MM-DD" of `unix_secs` in Pacific Time.
 fn pacific_date_string(unix_secs: i64) -> String {
-    let offset = if is_pacific_dst(unix_secs) { -7 * 3600 } else { -8 * 3600 };
+    let offset = if is_pacific_dst(unix_secs) {
+        -7 * 3600
+    } else {
+        -8 * 3600
+    };
     let (y, m, d) = civil_from_days((unix_secs + offset).div_euclid(86400));
     format!("{y:04}-{m:02}-{d:02}")
 }
@@ -173,7 +177,9 @@ fn stats_in(dir: &Path, day: &str) -> UsageStats {
 
 /// Add `minutes` of sent audio to today's (Pacific) counter.
 pub fn record_sent_minutes(minutes: f64) -> Result<()> {
-    let Some(path) = usage_file_path() else { return Ok(()) };
+    let Some(path) = usage_file_path() else {
+        return Ok(());
+    };
     let dir = path.parent().map(Path::to_path_buf).unwrap_or(path);
     let day = pacific_date_string(now_unix_secs() as i64);
     record_in(&dir, &day, minutes)
@@ -181,7 +187,9 @@ pub fn record_sent_minutes(minutes: f64) -> Result<()> {
 
 /// Cache a real `QuotaFailure` observed from Google.
 pub fn note_quota_failure(metric: &str, value: &str) -> Result<()> {
-    let Some(path) = usage_file_path() else { return Ok(()) };
+    let Some(path) = usage_file_path() else {
+        return Ok(());
+    };
     let dir = path.parent().map(Path::to_path_buf).unwrap_or(path);
     note_in(&dir, metric, value, now_unix_secs())
 }
@@ -189,7 +197,10 @@ pub fn note_quota_failure(metric: &str, value: &str) -> Result<()> {
 /// Current stats: today's local counter + last observed real limit, if any.
 pub fn get_usage_stats() -> UsageStats {
     let Some(path) = usage_file_path() else {
-        return UsageStats { sent_minutes_today: 0.0, last_observed_quota: None };
+        return UsageStats {
+            sent_minutes_today: 0.0,
+            last_observed_quota: None,
+        };
     };
     let dir = path.parent().map(Path::to_path_buf).unwrap_or(path);
     let day = pacific_date_string(now_unix_secs() as i64);
@@ -264,7 +275,10 @@ mod tests {
         note_in(&dir, "m", "v", 12345).unwrap();
         let stats = stats_in(&dir, "2026-09-14");
         let q = stats.last_observed_quota.unwrap();
-        assert_eq!((q.metric.as_str(), q.value.as_str(), q.discovered_at), ("m", "v", 12345));
+        assert_eq!(
+            (q.metric.as_str(), q.value.as_str(), q.discovered_at),
+            ("m", "v", 12345)
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -107,7 +107,9 @@ pub fn preprocess_for_transcribe(
     }
     let out = temp_output_path();
     let args = build_preprocess_args(source, &out, fast_mode);
-    let outcome = RunSpec::new(ffmpeg.to_path_buf(), args).cancellable(cancel.clone()).run()?;
+    let outcome = RunSpec::new(ffmpeg.to_path_buf(), args)
+        .cancellable(cancel.clone())
+        .run()?;
     if !outcome.success {
         let _ = std::fs::remove_file(&out);
         let tail = outcome.stderr_tail.join("\n");
@@ -157,7 +159,10 @@ mod tests {
         assert!(s.contains("libopus"));
         assert!(s.contains("-b:a 32k"));
         assert!(s.contains("-vn"));
-        assert!(!s.contains("atempo"), "fast filter must be absent by default");
+        assert!(
+            !s.contains("atempo"),
+            "fast filter must be absent by default"
+        );
         // Injection guard precedes the output, mirroring the main pipeline.
         let dashdash = args.iter().position(|a| a == "--").unwrap();
         assert_eq!(args[dashdash + 1], "/out.opus");
@@ -168,7 +173,10 @@ mod tests {
         let args = build_preprocess_args(Path::new("/in.mp4"), Path::new("/out.opus"), true);
         let s = args.join(" ");
         assert!(s.contains("atempo=1.5"));
-        assert!(!s.contains("asetrate"), "asetrate shifts pitch and is forbidden");
+        assert!(
+            !s.contains("asetrate"),
+            "asetrate shifts pitch and is forbidden"
+        );
     }
 
     #[test]

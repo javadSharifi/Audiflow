@@ -27,3 +27,11 @@ local.properties
 # Local reference project (read-only study material, never commit)
 Rhythm-main/
 
+# Local IDE and agent caches
+.repowise/
+.claude/
+.vscode/
+.agent/
+.mcp.json
+**/.kotlin/
+

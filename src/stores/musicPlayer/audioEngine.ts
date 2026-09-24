@@ -3,12 +3,13 @@ import * as api from "../../utils/tauri";
 import { isAndroid, isLinux } from "../../utils/platform";
 import { revokeActiveBlobSrc, toPlayableLinuxAudioSrc } from "./linuxAssetAudio";
 import { initMediaSession, syncMediaSession } from "../../utils/mediaSession";
+import type { StoreApi } from "zustand";
 import type { AudioTrackInfo } from "../../types";
-import type { useMusicPlayerStore } from "../useMusicPlayerStore";
+import type { MusicPlayerState } from "./types";
 import { createAdvanceGuard, clearUnplayable, trackKey } from "./autoAdvance";
 import { playbackIdentityKey } from "./trackUtils";
 
-type MusicStore = typeof useMusicPlayerStore;
+type MusicStore = StoreApi<MusicPlayerState>;
 
 let boundStore: MusicStore | null = null;
 let androidPollTimer: ReturnType<typeof setInterval> | null = null;

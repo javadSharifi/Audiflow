@@ -29,6 +29,69 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-24 — Code Health & Circular Dependency Elimination (spec 020)
+
+**Decision:**
+1. Eliminated circular imports in frontend stores:
+   - Extracted shared slice types to `src/stores/slices/types.ts` so `fileSlice.ts` and `queueSlice.ts` no longer circularly import each other.
+   - Decoupled `src/stores/musicPlayer/audioEngine.ts` from importing `useMusicPlayerStore.ts` by using `StoreApi<MusicPlayerState>`.
+   - Removed redundant re-export `export * from "./musicPlayer/selectors"` in `useMusicPlayerStore.ts`.
+   - Verified 0 circular dependencies with `madge --circular src/`.
+2. Decoupled Android Kotlin bridge:
+   - Inverted dependency between `PlaybackService.kt` and `MainActivity.kt` using `PlaybackEventListener` callbacks instead of direct static invocations.
+   - Introduced `PlaybackCallbackContracts.kt`.
+3. Characterization test coverage:
+   - Added `commands_characterization.rs` and `queue_characterization.rs` covering pure settings, queue records, and command structures.
+   - Added `dictionaryParity.test.ts` verifying `en.ts` and `fa.ts` dictionary alignment.
+   - Added `types.test.ts` verifying frontend contracts.
+4. Decomposed complex methods:
+   - Extracted `resolve_sample_rate` and `resolve_boost_filter` in `pipeline.rs`.
+   - Extracted `isDirectPlayableProtocol` in `audioSource.ts`.
+
+**Why:** Addresses structural debt and untested hotspots flagged by Repowise code health pass without introducing any behavioral regressions.
+
+**Implication:** All 436 Vitest tests, 141 Rust unit/lib tests, and Specta type generation gates remain 100% passing.
+
+## 2026-09-24 — Android Architecture Refactoring (Phase 5)
+
+**Decision:**
+Decomposed the monolithic `MainActivity.kt` (~1496 lines) and `PlaybackService.kt` (~1119 lines) into focused, single-responsibility components under `src-tauri/android/`:
+1. `MediaUriStager`: Handles content:// and file:// URI lazy staging to `cacheDir/staged_inputs/` and fast metadata inspection (`statUri`).
+2. `MediaStoreManager`: Handles MediaStore queries, output publishing to `Music/Audiflow`, and audio track deletion.
+3. `ArtworkManager`: Handles embedded picture extraction (`MediaMetadataRetriever`) and cache storage under `cacheDir/artworks/`.
+4. `RingtoneHelper`: Handles system default ringtone assignment and WRITE_SETTINGS permissions.
+5. `ShareHelper`: Stages and serves audio files to Android system share sheet via FileProvider.
+6. `AppPermissionManager`: Encapsulates runtime media, video, and notification permission requests and checks.
+7. `MediaItemBuilder`: Translates track JSON definitions into Media3 `MediaItem` instances and converts `MediaItem` back to JSON.
+8. `PlaybackNotificationHelper`: Manages notification channels, placeholder notifications, and closeable notification providers for Media3.
+`MainActivity.kt` is reduced from 1496 lines to 650 lines (an orchestration & bridge shell) and `PlaybackService.kt` from 1119 lines to 747 lines. All companion static bridge methods on `MainActivity` and `PlaybackService` remain intact with 100% IPC compatibility.
+
+**Why:** Reduce coupling, simplify future Android maintenance, maintain zero behavioral regressions, preserve Media3 background playback, and honor the single-active-audio-stream architecture.
+
+**Implication:** Future Android enhancements should modify or add to the relevant dedicated manager instead of growing `MainActivity.kt`.
+
+## 2026-09-24 — Rust Commands & Queue Modularization (Phase 4)
+
+**Decision:**
+1. Split the monolithic ~1185-line `src-tauri/src/commands/mod.rs` into 7 focused domain submodules:
+   - `android`: Android staging, permissions, app settings, cold-start file queue, and exit handlers.
+   - `audio`: Probe files metadata inspection, waveform peak analysis, volume detection, and A/B boost preview.
+   - `library`: Music library scan triggers, cache stats, track deletion/ringtone/share, and path/artwork resolution.
+   - `player`: Android Media3 player controls and stream volume management (19 IPC commands).
+   - `queue`: Conversion and sound boost enqueueing, job cancellation, and queue snapshot/clear.
+   - `system`: Free disk space queries (`disk_free`), settings load/save, and frontend logger bridge.
+   - `transcribe`: Gemini API key keychain management, transcription jobs, queue inspection, and export.
+   All command functions are re-exported in `commands/mod.rs` (`pub use ...`) to preserve zero IPC breaking changes.
+2. Refactored `src-tauri/src/queue/`:
+   - Extracted job definitions to `queue/job.rs` (`JobRecord`, `JobKind`, `QueuedJob`, `BatchJobItem`).
+   - Extracted worker loop and binary resolution to `queue/worker.rs`.
+   - Replaced duplicated job creation and cancellation loops in `QueueManager::enqueue` and `QueueManager::enqueue_boost` with a unified `enqueue_batch` method in `queue/mod.rs`.
+3. Enforced <= 300 lines ceiling across all Rust files in `commands/` and `queue/`.
+
+**Why:** Maintain architectural cleanliness, adhere strictly to the project-wide 300-line limit per file, eliminate repetitive job setup code, and enable isolated testing without mutating any frontend-backend contract.
+
+**Implication:** Future backend commands should be added to their respective domain module under `src-tauri/src/commands/` rather than expanding a single monolithic file.
+
 ## 2026-09-23 — Unified audio path resolution and context-aware drag-and-drop playback (spec 019)
 
 **Decision:** (1) Desktop drag-and-drop routing is context-aware via `useAppDragDrop`: dropping onto the Music Player tab triggers immediate playback of dropped audio files and folders, while dropping onto the Converter tab routes to converter batching without player interruption. (2) All audio path resolution (files, folders, recursive traversal, MIME/extension filtering) funnels through a single typed Rust command `resolve_audio_paths` (`music_library::resolver.rs`), keeping track ordering natural (alphanumeric) and execution fast (<50ms). (3) Visual drop feedback is rendered via `PlayerDropOverlay` when dragging over the window in player mode. (4) Linux desktop packaging entry in `packaging/arch/PKGBUILD` includes `%U` and audio MIME types so OS file managers pass paths directly to Audiflow.
@@ -159,3 +222,38 @@ When a later decision supersedes an earlier one, preserve the historical entry a
 **Why:** extends the existing local packaging flow to releases with zero new jobs; PKGBUILD consumes prebuilt output (research R1), no in-container rebuild.
 
 **Implication:** PKGBUILD source paths use makepkg-canonical `$startdir/../..` (repo root) — `$srcdir` location varies with BUILDIR and must not be used for repo paths. `license=()` remains unset (no LICENSE choice yet; makepkg warns). Container adds ~1–2 min (pacman install) to linux-x64.
+
+## 2026-09-24 — Android test foundation: JUnit4 + Mockito without Robolectric
+
+**Decision:** Phase 6 Android test foundation uses plain JUnit4 with `org.mockito:mockito-core:5.11.0` to stub `Context.cacheDir`. Robolectric was evaluated and rejected.
+
+**Why:** The logic extracted in Phase 5 is grouped into three testability tiers:
+1. Pure Kotlin (no Android dependency): `mimeFor`, `safeName` regex, dedup naming, `safeCoverUrl`, URI/mediaId fallbacks — testable with plain JUnit4, zero extra deps.
+2. I/O logic using only `Context.cacheDir`: `artworkCacheFileFor`, `cleanupStagingDirectory` — Mockito stubs the single `Context` method; no Android runtime needed.
+3. ContentResolver/Media3 methods: `statUri`, `resolveUriToLocalPath`, `mediaItemToTrackJson`, `buildMediaItem` — excluded from unit tests (require instrumentation or real Android runtime); Robolectric would add ~40 MB of deps to test these, which is disproportionate for methods that primarily coordinate I/O.
+
+`android { testOptions { unitTests { isReturnDefaultValues = true } } }` is set in `build.gradle.kts` to prevent android.jar stubs from throwing during JVM unit test class loading.
+
+**Alternatives considered:** Robolectric (rejected — large dependency for minimal gain on the targeted methods), FakeContext abstract stub (rejected — requires implementing all of Context's abstract methods).
+
+**Implication:** 51 Android unit tests run via `./gradlew :app:testArmDebugUnitTest -x rustBuildArmDebug`. Methods depending on ContentResolver/MediaStore remain untested at unit level; instrumentation tests would be the correct venue if device-level coverage is needed in future.
+
+## 2026-09-24 — delete_audio_track: audio-extension defensive guard
+
+**Decision:** Added extension-based validation to `delete_audio_track` in `src-tauri/src/music_library/mod.rs`. The command now rejects any path whose file extension is not in the canonical `AUDIO_EXTENSIONS` set (the same list used by the scanner: `mp3 m4a flac wav aac ogg opus wma aiff alac weba`).
+
+**Threat model:** Audiflow is a local-only application with no remote HTTP server. The realistic threat is not remote exploitation but defensive hardening against:
+1. Logic bugs in frontend code accidentally sending wrong file paths
+2. XSS in the embedded WebView reaching the IPC layer (Tauri's WebKit sandbox limits this, but defence-in-depth is appropriate)
+
+The validation fires before any `fs::remove_file` call. `content://` Android URIs are unchanged (MediaStore-scoped by the OS). The guard is case-insensitive (`to_ascii_lowercase`).
+
+**What is NOT restricted:** The command deliberately does NOT restrict which directory audio may live in. External drives, Downloads, custom folders, and any user-accessible path are all fine — only the file extension is validated. This preserves all legitimate library use cases.
+
+**ffmpeg_path_override:** Not touched. A local user choosing an executable does not constitute privilege escalation. The previous audit's rejection of this "finding" stands.
+
+**CSP / assetProtocol:** Not touched. `scope: ["**"]` is necessary for audio on arbitrary local paths (external drives, etc.). No safe narrowing was identified. Documented separately in this entry rather than forced into code changes.
+
+**Alternatives considered:** Directory allowlist (rejected — breaks external drives and custom folders), symlink canonicalization (rejected — breaks some valid external-drive paths on macOS), no validation (status quo — insufficient defence in depth).
+
+**Implication:** 20 new Rust unit tests cover the guard (valid audio, non-audio, no extension, file:// URI, percent-encoded URI, nonexistent path, path traversal, uppercase extension). Total Rust tests: 141 lib + 9 e2e = 150.

@@ -10,6 +10,7 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/components/music-player/AlbumCard.tsx` | Album tile with cover/play/menu; exports `AlbumCard`. |
 | `src/components/music-player/AlbumDetailView.tsx` | Album header + virtualized track list (useTrackVirtualizer); exports `AlbumDetailView`. |
 | `src/components/music-player/AlbumGridVirtualized.tsx` | Virtualized album grid (TanStack) + create card; exports `AlbumGridVirtualized`. |
+| `src/components/music-player/useAlbumColumns.ts` | Responsive column calculation and hook for album grid; exports `getResponsiveAlbumCols`, `useAlbumColumns`. |
 | `src/components/music-player/AlbumsView.tsx` | Album search/grid + create/rename/delete; exports `AlbumsView`. |
 | `src/components/music-player/BoosterView.tsx` | System volume-gain dial with >200% confirm; exports `BoosterView`. |
 | `src/components/music-player/ConvertSongIcon.tsx` | Stroke waveform converter icon; exports `ConvertSongIcon`. |
@@ -30,7 +31,11 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/components/music-player/NowPlayingTransportControls.tsx` | Playback control buttons (play/pause/prev/next/shuffle/repeat); exports `NowPlayingTransportControls`. |
 | `src/components/music-player/NowPlayingView.tsx` | Fullscreen player with drag-to-dismiss and swipeable artwork; exports `NowPlayingView`. |
 | `src/components/music-player/PermissionGate.tsx` | Fullscreen Android media-permission gate; exports `PermissionGate`. |
-| `src/components/music-player/SetRingtoneModal.tsx` | Ringtone trimmer with canvas waveform; exports `SetRingtoneModal`. |
+| `src/components/music-player/RingtoneConfirmActions.tsx` | Bottom action bar with cancel and confirm/setting/success states; exports `RingtoneConfirmActions`. |
+| `src/components/music-player/RingtoneModalHeader.tsx` | Header bar for SetRingtoneModal with cover, track title/artist, and close button; exports `RingtoneModalHeader`. |
+| `src/components/music-player/RingtonePresetsBar.tsx` | Quick selection duration presets bar (15s, 30s, 45s, Full); exports `RingtonePresetsBar`. |
+| `src/components/music-player/RingtoneSteppersBar.tsx` | Start/end stepper buttons and center play/pause audition button; exports `RingtoneSteppersBar`. |
+| `src/components/music-player/SetRingtoneModal.tsx` | Ringtone trimmer dialog composed from shared waveform modules and ringtone subcomponents; exports `SetRingtoneModal`. |
 | `src/components/music-player/SongsView.tsx` | All-songs wrapper around `TrackListView`; exports `SongsView`. |
 | `src/components/music-player/TrackBoosterSheet.tsx` | In-player sound booster bottom sheet with safe speaker protection; exports `TrackBoosterSheet`. |
 | `src/components/music-player/TrackCover.tsx` | Artwork cover with gradient fallback + lazy extract; exports `TrackCover`. |
@@ -74,5 +79,14 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/stores/musicPlayer/audioEngine.ts` | Unified desktop HTMLAudio+WebAudio-gain / Android native bridge; exports `bindMusicStore`, `unified*`. |
 | `src/stores/musicPlayer/persistence.ts` | localStorage liked/folders/sort/albums/tracks-cache; exports `load*/persist*`. |
 | `src/stores/musicPlayer/trackUtils.ts` | Track key/liked/filter-sort helpers; exports `getTrackKey`, `filterAndSortTracks`. |
-| `src/stores/useMusicPlayerStore.ts` | Library/playback store bridging desktop/Android audio; exports `useMusicPlayerStore`; deps `audioEngine`, `autoAdvance`, `persistence`, `trackUtils`; `playNextTrack` resolves via `resolveNextTrack` (explicit stop at queue end, manual wraps), `handleTrackStartFailure` skips unplayable with `playerSkippedUnplayable` toast. |
+| `src/stores/musicPlayer/types.ts` | Type definitions for playback, queue, library, favorites, albums, selection slices and combined `MusicPlayerState`. |
+| `src/stores/musicPlayer/selectors.ts` | Granular selector hooks with `useShallow` for zero-re-render component subscriptions. |
+| `src/stores/musicPlayer/slices/playbackSlice.ts` | Playback transport, seek debouncer, gain glider, repeat/shuffle mode slice. |
+| `src/stores/musicPlayer/slices/queueSlice.ts` | Playlist queue management, track progression and unplayable skip slice. |
+| `src/stores/musicPlayer/slices/librarySlice.ts` | Library scanning, permissions, custom folders, and artwork pre-warming slice. |
+| `src/stores/musicPlayer/slices/favoritesSlice.ts` | Liked paths management, toggles, queries slice. |
+| `src/stores/musicPlayer/slices/albumsSlice.ts` | Custom albums CRUD and track membership slice. |
+| `src/stores/musicPlayer/slices/selectionSlice.ts` | Multi-select mode, track deletion with artwork eviction, ringtone, share slice. |
+| `src/stores/musicPlayer/__tests__/slices.test.ts` | Unit tests for slice boundaries, selectors, and state operations. |
+| `src/stores/useMusicPlayerStore.ts` | Modular Zustand store composing all 6 music player slices, preserving backward compatibility and registering with audioEngine. |
 

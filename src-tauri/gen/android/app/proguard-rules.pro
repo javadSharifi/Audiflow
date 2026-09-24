@@ -58,6 +58,46 @@
     public <methods>;
     *;
 }
+-keep class com.audiflow.app.MediaUriStager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.ArtworkManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.MediaStoreManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.RingtoneHelper {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.ShareHelper {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.PlaybackNotificationHelper {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.MediaItemBuilder {
+    public static <methods>;
+    public <methods>;
+    *;
+}
+-keep class com.audiflow.app.AppPermissionManager {
+    public static <methods>;
+    public <methods>;
+    *;
+}
 -keepclassmembers class com.audiflow.app.AudioStreamManager {
     public static <methods>;
     public <methods>;

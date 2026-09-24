@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::analyze::analyze_volume;
-use super::boost::build_boost_args;
+use super::boost::{build_boost_args, BoostAudioParams};
 use super::presets::BoosterPreset;
 use crate::disk;
 use crate::error::{AppError, Result};
@@ -65,7 +65,10 @@ pub fn run_boost_job(
         )));
     }
 
-    let start = trim.and_then(|t| t.start_time_secs).unwrap_or(0.0).min(total);
+    let start = trim
+        .and_then(|t| t.start_time_secs)
+        .unwrap_or(0.0)
+        .min(total);
     let end = trim
         .and_then(|t| t.end_time_secs)
         .map(|e| e.min(total))
@@ -109,7 +112,10 @@ pub fn run_boost_job(
         Some((stem, ext)) if !ext.is_empty() => format!("{stem}.{job_id}.part.{ext}"),
         _ => format!("{fname}.{job_id}.part"),
     };
-    let temp_path = final_path.parent().unwrap_or(Path::new(".")).join(temp_name);
+    let temp_path = final_path
+        .parent()
+        .unwrap_or(Path::new("."))
+        .join(temp_name);
 
     // 6. Build boost args
     let args = build_boost_args(
@@ -117,12 +123,14 @@ pub fn run_boost_job(
         &temp_path,
         preset,
         manual_gain_percent,
-        &options.format,
-        options.effective_bitrate(),
-        options.sample_rate_hz,
-        options.channels,
-        trim,
-        analysis.as_ref(),
+        BoostAudioParams {
+            format: &options.format,
+            bitrate_kbps: options.effective_bitrate(),
+            sample_rate_hz: options.sample_rate_hz,
+            channels: options.channels,
+            trim,
+            analysis: analysis.as_ref(),
+        },
     );
 
     // 7. Execute FFmpeg with progress tracking
@@ -195,7 +203,9 @@ pub fn run_boost_job(
         Ok(outcome) => {
             let _ = std::fs::remove_file(&temp_path);
             let tail = outcome.stderr_tail.join("\n");
-            Err(AppError::FFmpeg(format!("Sound booster conversion failed: {tail}")))
+            Err(AppError::FFmpeg(format!(
+                "Sound booster conversion failed: {tail}"
+            )))
         }
         Err(e) => {
             let _ = std::fs::remove_file(&temp_path);

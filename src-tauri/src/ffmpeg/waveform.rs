@@ -85,10 +85,7 @@ impl StreamingBucketer {
             let value = if self.mins[i] == i16::MAX && self.maxs[i] == i16::MIN {
                 carry.unwrap_or((0.0, 0.0))
             } else {
-                let v = (
-                    self.mins[i] as f32 / 32768.0,
-                    self.maxs[i] as f32 / 32768.0,
-                );
+                let v = (self.mins[i] as f32 / 32768.0, self.maxs[i] as f32 / 32768.0);
                 carry = Some(v);
                 v
             };
@@ -247,9 +244,7 @@ pub fn extract_peaks(
                     }
                     Err(e) => {
                         let _ = child.kill();
-                        return Err(AppError::Io(format!(
-                            "Failed reading waveform data: {e}"
-                        )));
+                        return Err(AppError::Io(format!("Failed reading waveform data: {e}")));
                     }
                 }
             }
@@ -379,7 +374,10 @@ mod tests {
         let mut streamer = StreamingBucketer::new(5, 1000);
         streamer.push_bytes(&[]);
         assert!(!streamer.has_samples());
-        assert!(streamer.finish().iter().all(|&(mn, mx)| mn == 0.0 && mx == 0.0));
+        assert!(streamer
+            .finish()
+            .iter()
+            .all(|&(mn, mx)| mn == 0.0 && mx == 0.0));
     }
 
     #[test]

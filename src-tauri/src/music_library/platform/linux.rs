@@ -7,7 +7,10 @@ pub fn get_music_directories() -> Vec<PathBuf> {
     #[cfg(target_os = "linux")]
     {
         // 1. Try querying `xdg-user-dir MUSIC`
-        if let Ok(output) = std::process::Command::new("xdg-user-dir").arg("MUSIC").output() {
+        if let Ok(output) = std::process::Command::new("xdg-user-dir")
+            .arg("MUSIC")
+            .output()
+        {
             if output.status.success() {
                 let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 let p = PathBuf::from(&path_str);

@@ -47,9 +47,7 @@ fn parse_quota_failure(body: &str) -> (String, String) {
         Ok(v) => v,
         Err(_) => return (String::new(), String::new()),
     };
-    let details = parsed
-        .pointer("/error/details")
-        .and_then(|d| d.as_array());
+    let details = parsed.pointer("/error/details").and_then(|d| d.as_array());
     let Some(details) = details else {
         return (String::new(), String::new());
     };
@@ -62,9 +60,7 @@ fn parse_quota_failure(body: &str) -> (String, String) {
         if !is_quota_failure {
             continue;
         }
-        let violations = entry
-            .get("violations")
-            .and_then(|v| v.as_array());
+        let violations = entry.get("violations").and_then(|v| v.as_array());
         if let Some(violations) = violations {
             if let Some(first) = violations.first() {
                 let metric = first
@@ -116,13 +112,13 @@ mod tests {
     #[test]
     fn plain_403_maps_to_invalid_key() {
         assert_eq!(
-            classify_gemini_error(403, r#"{"error":{"code":403,"message":"API key not valid"}}"#),
+            classify_gemini_error(
+                403,
+                r#"{"error":{"code":403,"message":"API key not valid"}}"#
+            ),
             GeminiErrorKind::InvalidKey
         );
-        assert_eq!(
-            classify_gemini_error(403, ""),
-            GeminiErrorKind::InvalidKey
-        );
+        assert_eq!(classify_gemini_error(403, ""), GeminiErrorKind::InvalidKey);
     }
 
     #[test]

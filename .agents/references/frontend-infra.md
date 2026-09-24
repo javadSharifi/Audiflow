@@ -36,4 +36,15 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/utils/tauri.ts` | SOLE typed IPC facade over `generated.ts`; exports probe/queue/waveform/disk/booster/library/player/transcribe wrappers + `formatAppError`. |
 | `src/utils/themeTransition.test.ts` | Vitest for reveal radius/origin/fallback/guard. |
 | `src/utils/themeTransition.ts` | Circular-reveal theme switching via View Transitions API; exports `revealThemeChange`, `revealOrigin`, `computeRevealRadius`. |
+| `src/components/waveform/index.ts` | Barrel export for shared waveform UI components, hooks, and geometry helpers. |
+| `src/components/waveform/types.ts` | Shared waveform types (`DragTarget`, `WaveformPeak`, `WaveformGripStyle`, `SelectionBounds`). |
+| `src/components/waveform/geometry.ts` | Pure mathematical waveform calculations (`timeToPixel`, `pixelToTime`, `clampTime`, `applySelectionBound`, `hitTestHandle`). |
+| `src/components/waveform/geometry.test.ts` | Unit tests for waveform geometry, clamping, bounds, and hit testing (15 tests). |
+| `src/components/waveform/renderer.ts` | Pure canvas waveform renderer (DPR scaling, unselected dimming, selection gradient, capsule bars, handle grips, laser playhead). |
+| `src/components/waveform/audioSource.ts` | Cross-platform preview audio URL resolution (safConvertFileSrc, Linux WebKitGTK scoped blob, sync probe). |
+| `src/components/waveform/useWaveformAudio.ts` | Shared hook managing preview `<audio>` element, scrubbing, time bounds clamping, and audition playback. |
+| `src/components/waveform/useWaveformInteraction.ts` | Shared hook managing pointer events, handle drag tracking, timeline scrub, and haptic feedback. |
+| `src/components/waveform/useWaveformLoader.ts` | Shared hook for loading waveform peaks via IPC facade with synthetic fallback and audio src resolution. |
+| `src/components/waveform/WaveformCanvas.tsx` | Reusable responsive canvas component with rAF paint loop, loading skeleton, error boundary, and teardown guards. |
+| `src/components/waveform/WaveformAccessibleHandles.tsx` | Accessible invisible 44px handle buttons for screen readers and keyboard navigation. |
 

@@ -63,7 +63,9 @@ fn extract_audio_chunk(
         "--".into(),
         out.to_string_lossy().into_owned(),
     ];
-    let outcome = RunSpec::new(ffmpeg.to_path_buf(), args).cancellable(cancel.clone()).run()?;
+    let outcome = RunSpec::new(ffmpeg.to_path_buf(), args)
+        .cancellable(cancel.clone())
+        .run()?;
     if !outcome.success {
         let _ = std::fs::remove_file(out);
         return Err(AppError::FFmpeg(format!(
@@ -79,7 +81,10 @@ fn chunk_temp_path(index: usize) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("ac-tx-chunk-{index}-{}-{nanos}.opus", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "ac-tx-chunk-{index}-{}-{nanos}.opus",
+        std::process::id()
+    ))
 }
 
 fn check_cancel(cancel: &CancelToken) -> Result<()> {
@@ -112,7 +117,8 @@ pub async fn run_transcription(
     progress(TranscriptionStatus::Preprocessing, 2.0);
 
     // ---- Phase 1: mandatory compression (+ optional fast mode) ------------
-    let pre = preprocess::preprocess_for_transcribe(ffmpeg, ffprobe, source, config.fast_mode, cancel)?;
+    let pre =
+        preprocess::preprocess_for_transcribe(ffmpeg, ffprobe, source, config.fast_mode, cancel)?;
     let total = pre.duration_secs;
     let speed = pre.speed_factor;
 
@@ -128,7 +134,11 @@ pub async fn run_transcription(
         let len = total / n as f64;
         for i in 0..n {
             let start = i as f64 * len;
-            let end = if i + 1 == n { total } else { (i + 1) as f64 * len };
+            let end = if i + 1 == n {
+                total
+            } else {
+                (i + 1) as f64 * len
+            };
             // Defensive: no chunk may exceed the model's hard per-request cap.
             if end - start > max_single {
                 preprocess::cleanup_preprocessed(&pre);
@@ -158,7 +168,10 @@ pub async fn run_transcription(
                 (out, true, end - start)
             };
 
-            progress(TranscriptionStatus::Uploading, base + 84.0 * 0.15 / n as f64);
+            progress(
+                TranscriptionStatus::Uploading,
+                base + 84.0 * 0.15 / n as f64,
+            );
             let uploaded = client
                 .upload_file(&chunk_path, &pre.mime_type)
                 .await
@@ -166,7 +179,10 @@ pub async fn run_transcription(
             // Book the minutes actually sent, right after each upload.
             let _ = usage_tracker::record_sent_minutes(chunk_len / 60.0);
 
-            progress(TranscriptionStatus::Transcribing, base + 84.0 * 0.35 / n as f64);
+            progress(
+                TranscriptionStatus::Transcribing,
+                base + 84.0 * 0.35 / n as f64,
+            );
             let file = client
                 .poll_file_active(&uploaded.resource_name)
                 .await
@@ -180,8 +196,14 @@ pub async fn run_transcription(
             if is_temp {
                 let _ = std::fs::remove_file(&chunk_path);
             }
-            chunks.push(ChunkTranscript { result, start_secs: *start });
-            progress(TranscriptionStatus::Transcribing, 8.0 + 84.0 * (i + 1) as f64 / n as f64);
+            chunks.push(ChunkTranscript {
+                result,
+                start_secs: *start,
+            });
+            progress(
+                TranscriptionStatus::Transcribing,
+                8.0 + 84.0 * (i + 1) as f64 / n as f64,
+            );
         }
         Ok(())
     }

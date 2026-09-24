@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-use std::path::Path;
 use super::models::AudioTrackInfo;
 use super::scan_memo::ScanResultMemo;
 use super::scanner;
+use std::collections::HashSet;
+use std::path::Path;
 
 pub fn percent_encoding_decode(input: &str) -> String {
     let mut bytes = Vec::with_capacity(input.len());
@@ -40,17 +40,16 @@ pub fn resolve_single_track(path_or_uri: &str) -> Result<AudioTrackInfo, String>
                 .and_then(|s| s.parse::<i64>().ok())
                 .unwrap_or(0)
                 .max(0) as u64;
-            let duration_secs = parts.next().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0).max(0)
-                as f64
+            let duration_secs = parts
+                .next()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(0)
+                .max(0) as f64
                 / 1000.0;
             let ok = parts.next().map(|s| s.trim() == "1").unwrap_or(false);
             let perm = parts.next().map(|s| s.trim() == "1").unwrap_or(false);
             if ok && !name.is_empty() {
-                let ext = name
-                    .rsplit('.')
-                    .next()
-                    .unwrap_or("")
-                    .to_ascii_lowercase();
+                let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
                 let (format, mime_type) = if ext.is_empty() {
                     ("audio".to_string(), "audio/*".to_string())
                 } else {
@@ -206,7 +205,7 @@ pub fn resolve_paths(paths: Vec<String>) -> Vec<AudioTrackInfo> {
         if path.is_dir() {
             let mut batch = Vec::new();
             scanner::scan_local_directory(path, 5, &mut batch, 2000, &mut memo);
-            batch.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            batch.sort_by_key(|a| a.name.to_lowercase());
             for track in batch {
                 if seen_uris.insert(track.uri.clone()) {
                     results.push(track);
@@ -234,7 +233,13 @@ mod tests {
 
     #[test]
     fn test_resolve_paths_directory_and_files() {
-        let temp_dir = std::env::temp_dir().join(format!("audiflow_test_drop_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "audiflow_test_drop_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         let _ = std::fs::create_dir_all(&temp_dir);
         let sub_dir = temp_dir.join("sub");
         let _ = std::fs::create_dir_all(&sub_dir);
@@ -262,7 +267,10 @@ mod tests {
 
     #[test]
     fn test_resolve_paths_empty_or_nonexistent() {
-        let resolved = resolve_paths(vec!["/non/existent/path/here.mp3".to_string(), "   ".to_string()]);
+        let resolved = resolve_paths(vec![
+            "/non/existent/path/here.mp3".to_string(),
+            "   ".to_string(),
+        ]);
         assert!(resolved.is_empty());
     }
 }

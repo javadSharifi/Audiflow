@@ -41,9 +41,13 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
   const initialCached = getCachedArtworkSrc(track);
   const [extractedSrc, setExtractedSrc] = useState<string | null>(initialCached ?? null);
 
+  const artKey = `${artworkCacheKey(track)}|${track.coverUrl ?? ""}`;
+  const [prevArtKey, setPrevArtKey] = useState(artKey);
+
   // Synchronously reset state during render when track identity changes
-  if (identityKey !== prevIdentity) {
+  if (identityKey !== prevIdentity || artKey !== prevArtKey) {
     setPrevIdentity(identityKey);
+    setPrevArtKey(artKey);
     setImgFailed(false);
     const sync = getCachedArtworkSrc(track);
     setExtractedSrc(sync ?? null);
@@ -51,21 +55,19 @@ export function TrackCover({ track, className = "", size = "md" }: TrackCoverPro
 
   // Lazy embedded-art extraction: covers that can't load directly
   // are resolved on demand through the native artwork cache.
-  const artKey = `${artworkCacheKey(track)}|${track.coverUrl ?? ""}`;
   useEffect(() => {
     let cancelled = false;
     const sync = getCachedArtworkSrc(track);
     if (sync !== undefined) {
-      setExtractedSrc(sync);
       return;
     }
-    setExtractedSrc(null);
     void resolveArtworkSrc(track).then((src) => {
       if (!cancelled) setExtractedSrc(src);
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- artKey captures artwork identity; track reference is unstable across rescans
   }, [artKey]);
 
   const gradient = useMemo(() => {

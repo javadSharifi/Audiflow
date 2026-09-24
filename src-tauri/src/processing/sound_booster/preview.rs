@@ -69,6 +69,13 @@ fn preview_cache_dir() -> PathBuf {
     p
 }
 
+/// Timing window specification for an A/B audition snippet.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PreviewTimeWindow {
+    pub start_time_secs: Option<f64>,
+    pub requested_duration: Option<f64>,
+}
+
 /// Generate a fast 10-15s audition sample for A/B comparison (Original vs Boosted).
 pub fn generate_ab_preview(
     ffmpeg: &Path,
@@ -76,8 +83,7 @@ pub fn generate_ab_preview(
     source: &Path,
     preset: BoosterPreset,
     manual_gain_percent: Option<f64>,
-    start_time_secs: Option<f64>,
-    requested_duration: Option<f64>,
+    window: PreviewTimeWindow,
     cancel: &CancelToken,
 ) -> Result<AbPreviewResult> {
     if !source.exists() {
@@ -87,11 +93,9 @@ pub fn generate_ab_preview(
     let probed = probe::probe_file(ffprobe, &source.to_string_lossy())?;
     let total_duration = probed.duration_secs().unwrap_or(0.0);
 
-    let snippet_len = requested_duration.unwrap_or(15.0).clamp(3.0, 30.0);
-    let start_pos = match start_time_secs {
-        Some(s) if s >= 0.0 && s < total_duration => {
-            s.min((total_duration - snippet_len).max(0.0))
-        }
+    let snippet_len = window.requested_duration.unwrap_or(15.0).clamp(3.0, 30.0);
+    let start_pos = match window.start_time_secs {
+        Some(s) if s >= 0.0 && s < total_duration => s.min((total_duration - snippet_len).max(0.0)),
         _ => 0.0,
     };
     let effective_duration = if total_duration > 0.0 {
@@ -217,8 +221,14 @@ pub fn generate_ab_preview(
     )
     .unwrap_or_else(|_| vec![(0.0, 0.0); buckets]);
 
-    let original_peaks = orig_peaks_tuples.into_iter().map(|(mn, mx)| [mn, mx]).collect();
-    let boosted_peaks = boost_peaks_tuples.into_iter().map(|(mn, mx)| [mn, mx]).collect();
+    let original_peaks = orig_peaks_tuples
+        .into_iter()
+        .map(|(mn, mx)| [mn, mx])
+        .collect();
+    let boosted_peaks = boost_peaks_tuples
+        .into_iter()
+        .map(|(mn, mx)| [mn, mx])
+        .collect();
 
     Ok(AbPreviewResult {
         original_path: orig_file.to_string_lossy().into_owned(),

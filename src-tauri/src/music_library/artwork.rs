@@ -13,7 +13,7 @@
 //! cover resolved once is reused by the list UI *and* by the media
 //! notification (PlaybackService checks the same `artworks/` dir).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Stable 64-bit FNV-1a hash (unlike `DefaultHasher`, deterministic across
 /// processes — required so cache files are found again after a restart).
@@ -89,12 +89,16 @@ fn legacy_artwork_cache_dir() -> Option<PathBuf> {
         Some(dir)
     } else {
         let old = std::env::temp_dir().join("audio-converter-artworks");
-        if old.is_dir() { Some(old) } else { None }
+        if old.is_dir() {
+            Some(old)
+        } else {
+            None
+        }
     }
 }
 
 #[cfg(not(target_os = "android"))]
-fn cached_hit(dir: &PathBuf, name: &str) -> Option<String> {
+fn cached_hit(dir: &Path, name: &str) -> Option<String> {
     let path = dir.join(name);
     match std::fs::metadata(&path) {
         // Oversized files are legacy full-res extractions: serve nothing so
@@ -211,8 +215,14 @@ mod tests {
 
     #[test]
     fn stable_hash_is_deterministic() {
-        assert_eq!(stable_hash("content://media/1"), stable_hash("content://media/1"));
-        assert_ne!(stable_hash("content://media/1"), stable_hash("content://media/2"));
+        assert_eq!(
+            stable_hash("content://media/1"),
+            stable_hash("content://media/1")
+        );
+        assert_ne!(
+            stable_hash("content://media/1"),
+            stable_hash("content://media/2")
+        );
     }
 
     #[test]
@@ -230,10 +240,7 @@ mod tests {
 
     #[test]
     fn missing_file_returns_none_without_panic() {
-        assert_eq!(
-            get_track_artwork("/definitely/not/here/song.mp3"),
-            None
-        );
+        assert_eq!(get_track_artwork("/definitely/not/here/song.mp3"), None);
         assert_eq!(
             get_track_artwork("file:///definitely/not/here/song.mp3"),
             None

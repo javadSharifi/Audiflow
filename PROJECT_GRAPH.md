@@ -27,7 +27,7 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | `packaging/` | Arch PKGBUILD + README (`packaging/arch/`), mac zip README (`packaging/macos/`); arch artifact ships via release.yml linux job (archlinux container) |
 | `.github/workflows/` | ci + release pipelines (release: 3-OS matrix + android + arch-in-container + release job) |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
-| `specs/` | Feature specs (tracked; latest `019-os-open-drag-playback` — OS "Open With" Context Menu & Drag-and-Drop Audio Playback, Draft) |
+| `specs/` | Feature specs (tracked; latest `021-android-media-rescan` — Android Media Rescan & Indexing Sync, Draft) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |
 | `src/fonts/` + `public/` | IRANSans fonts + static assets |
 
@@ -36,7 +36,7 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | Domain | File | Files |
 | ---- | ---- | ----- |
 | Converter shell + queue UI + converter stores | `.agents/references/frontend-converter.md` | 35 |
-| Music library / player UI + player stores | `.agents/references/frontend-player.md` | 49 |
+| Music library / player UI + player stores | `.agents/references/frontend-player.md` | 50 |
 | Sound Booster + Transcribe Studio UI | `.agents/references/frontend-features.md` | 34 |
 | IPC facade, utils, i18n, types, styles | `.agents/references/frontend-infra.md` | 24 |
 | Tauri app root, commands, queues, settings/secrets | `.agents/references/backend-core.md` | 20 |
@@ -88,6 +88,15 @@ git status --short  # workdir changes since sync
 - branch: main
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
+
+Workdir drift since sync (2026-09-24, spec 021 implemented — Android Media Rescan & Indexing Sync):
+Added `MediaScanSynchronizer.kt` (`src-tauri/android/`) to discover audio files in `Music`, `Download`, and OTG volumes and batch-sync with `MediaScannerConnection.scanFile` (2.5s latch timeout). Integrated into `MediaStoreManager.kt` query and broadened selection to include untagged/OEM-unclassified audio files. Added `MediaScanSynchronizerTest.kt` (4/4 passing) and store slice test in `slices.test.ts` (7/7 passing).
+
+Workdir drift since sync (2026-09-23, Phase 3 — Music Player Store Refactoring):
+Refactored monolithic `src/stores/useMusicPlayerStore.ts` (981 -> 55 lines) into 6 focused responsibility slices in `src/stores/musicPlayer/slices/` (`playbackSlice.ts`, `queueSlice.ts`, `librarySlice.ts`, `favoritesSlice.ts`, `albumsSlice.ts`, `selectionSlice.ts`), slice types (`types.ts`), and granular selector hooks with shallow comparison (`selectors.ts`). Added unit tests `slices.test.ts` (6/6 passing). All files strictly <= 300 lines ceiling.
+
+Workdir drift since sync (2026-09-23, Phase 2 — Shared Waveform Extraction):
+Extracted duplicated waveform math, canvas rendering, preview audio, and pointer interaction from `TrimEditor.tsx` (954 -> 283 lines) and `SetRingtoneModal.tsx` (965 -> 280 lines) into `src/components/waveform/` (`geometry.ts`, `renderer.ts`, `audioSource.ts`, `useWaveformAudio.ts`, `useWaveformInteraction.ts`, `useWaveformLoader.ts`, `WaveformCanvas.tsx`, `WaveformAccessibleHandles.tsx`, `types.ts`, `index.ts`), with unit tests `geometry.test.ts` (15/15 passing). Sub-components split into `TrimTimeSummary.tsx`, `RingtoneModalHeader.tsx`, `RingtonePresetsBar.tsx`, `RingtoneSteppersBar.tsx`, `RingtoneConfirmActions.tsx`. All files <= 300 lines ceiling.
 
 Workdir drift since sync (2026-09-23, spec 019 implemented on branch 019-os-open-drag-playback):
 OS context menu & drag-and-drop playback — `src-tauri/src/music_library/resolver.rs` (recursive directory & audio path resolution), `src-tauri/src/commands/mod.rs` (+`resolve_audio_paths`), `src/hooks/useAppDragDrop.ts` (context-aware drop hook), `src/components/music-player/PlayerDropOverlay.tsx` (drop visual overlay), `src/utils/openWith.ts` (folder & multi-file playback support), `packaging/arch/PKGBUILD` (%U & audio MIME associations), `src/i18n/en.ts`/`fa.ts` (+drop playback keys), `App.tsx` (293/300 ceiling).
@@ -149,8 +158,8 @@ hand-written sources an agent would actually navigate to or edit.
 | Convert/trim/split/silence behavior | `src-tauri/src/processing/pipeline.rs` | `processing/silence.rs`, `processing/split.rs`, `processing/naming.rs`, `ffmpeg/` | player UI |
 | Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | transcribe queue |
 | Converter UI/options | `src/components/converter-wizard/ConverterWizard.tsx` (4-step wizard: upload/configs/progress/result) | `converter-wizard/Wizard*Step.tsx`, `OptionsPanel.tsx`, `FileList.tsx`, `JobsPanel.tsx` (bare), `ConverterResultSection.tsx` | Rust internals |
-| Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |
-| Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |
+| Waveform trimmer / Ringtone modal | `src/components/TrimEditor.tsx`, `src/components/music-player/SetRingtoneModal.tsx` | `src/components/waveform/`, `src-tauri/src/ffmpeg/waveform.rs` | icons |
+| Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src/stores/musicPlayer/slices/`, `src/stores/useMusicPlayerStore.ts`, `src-tauri/src/music_library/` | converter DSP |
 | Mac add-folder button (018) | `src/components/music-player/AddFolderButton.tsx` + `useAddFolderPick.ts` (pick→dedupe→batch add→one scan→toast outcomes; mac-only render) | `useMusicPlayerStore.addCustomFolders` (batched, N+1 avoided), `utils/dialog.pickDirectories`, i18n keys `addFolder*` | picker UI changes |
 | Drag-drop / OS open playback (019) | `src/hooks/useAppDragDrop.ts` + `src/components/music-player/PlayerDropOverlay.tsx` | `src/utils/openWith.ts`, `src-tauri/src/music_library/resolver.rs`, `src/App.tsx` | DSP internals |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |

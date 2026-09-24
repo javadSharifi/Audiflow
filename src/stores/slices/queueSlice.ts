@@ -1,21 +1,10 @@
 import type { StateCreator } from "zustand";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { QueueItem, TrimSpec } from "../../types";
-import type { FileSlice } from "./fileSlice";
-import type { SettingsSlice } from "./settingsSlice";
-import type { ToastSlice } from "./toastSlice";
+import type { QueueSlice, FileSlice, SettingsSlice, ToastSlice } from "./types";
 import * as api from "../../utils/tauri";
 
-export interface QueueSlice {
-  jobs: Map<string, QueueItem>;
-  starting: boolean;
-
-  startQueue: () => Promise<void>;
-  cancelJob: (id: string) => Promise<void>;
-  cancelAll: () => Promise<void>;
-  clearFinishedJobs: () => Promise<void>;
-  initEventListeners: () => Promise<() => void>;
-}
+export type { QueueSlice };
 
 export const createQueueSlice: StateCreator<
   QueueSlice & FileSlice & SettingsSlice & ToastSlice,

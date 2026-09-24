@@ -16,7 +16,8 @@ Domain: Converter shell + queue UI + converter stores. Part of `PROJECT_GRAPH.md
 | `src/components/ModernSlider.tsx` | Reusable styled range slider; exports `ModernSlider`, `ModernSliderProps`; React only. |
 | `src/components/OptionsPanel.tsx` | Output format/quality/split/silence/folder form + estimates; exports `OptionsPanel`; deps stores, `estimate`/`format`. |
 | `src/components/Toasts.tsx` | Auto-dismiss toast stack; exports `Toasts`; deps `useAppStore` toasts. |
-| `src/components/TrimEditor.tsx` | Canvas waveform trim editor (5s quick preview buttons, seek latency guard, subtle sub-waveform hint, 44px handles, از/تا typed inputs without steppers); exports `TrimEditor`; deps `api.waveformPeaks`, `format`. |
+| `src/components/TrimEditor.tsx` | Canvas waveform trim editor (5s quick preview buttons, seek latency guard, subtle sub-waveform hint, 44px handles, از/تا typed inputs without steppers); exports `TrimEditor`; deps `src/components/waveform/`, `TrimTimeSummary`. |
+| `src/components/TrimTimeSummary.tsx` | Start/end timecode inputs and selected duration display for TrimEditor; exports `TrimTimeSummary`. |
 | `src/components/converter-wizard/WizardStepper.tsx` | Type-only module; exports `WizardStep` (component removed 2026-09: never rendered). |
 | `src/components/__tests__/FileList.test.tsx` | Vitest for converter file list rendering/actions. |
 | `src/components/__tests__/MobileEditModal.test.tsx` | Vitest for mobile edit modal `z-[80]` stacking and dismissal. |

@@ -1,24 +1,11 @@
 import type { StateCreator } from "zustand";
 import type { InputFile } from "../../types";
-import type { QueueSlice } from "./queueSlice";
-import type { ToastSlice } from "./toastSlice";
+import type { FileSlice, QueueSlice, ToastSlice } from "./types";
 import { isAndroid } from "../../utils/platform";
 import * as api from "../../utils/tauri";
 import { isAudioPath } from "../../utils/dialog";
 
-export interface FileSlice {
-  files: InputFile[];
-  probing: boolean;
-
-  addPaths: (paths: string[]) => Promise<void>;
-  removeFile: (path: string) => void;
-  clearFiles: () => void;
-  setTrim: (path: string, field: "trimStartSecs" | "trimEndSecs", secs: number | null) => void;
-  updateFileMeta: (
-    path: string,
-    patch: Partial<InputFile>,
-  ) => void;
-}
+export type { FileSlice };
 
 function isWindowsRuntime(): boolean {
   if (typeof navigator === "undefined") return false;
