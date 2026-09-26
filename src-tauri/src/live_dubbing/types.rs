@@ -61,6 +61,7 @@ pub struct LiveDubbingStatus {
     pub ducking_percent: u32,
     pub is_overlay_active: bool,
     pub latency_ms: u32,
+    #[specta(type = u32)]
     pub bytes_streamed: u64,
     pub error_message: Option<String>,
 }

@@ -31,7 +31,6 @@ impl DesktopOverlayManager {
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
-        .transparent(true)
         .skip_taskbar(true)
         .build()
         .map_err(|e| format!("Failed to create overlay window: {}", e))?;

@@ -48,5 +48,6 @@ pub struct DownloadedMedia {
     pub title: String,
     pub artist: String,
     pub format: String,
+    #[specta(type = u32)]
     pub size_bytes: u64,
 }

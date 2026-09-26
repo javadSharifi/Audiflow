@@ -53,7 +53,7 @@ pub async fn search_online_tracks(
 }
 
 pub async fn resolve_online_stream(
-    track_id: String,
+    _track_id: String,
     stream_identifier: String,
     provider: String,
 ) -> Result<StreamSource, String> {
