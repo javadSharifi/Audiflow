@@ -6,6 +6,7 @@ import { createLibrarySlice, warmLibraryArtwork } from "./musicPlayer/slices/lib
 import { createFavoritesSlice } from "./musicPlayer/slices/favoritesSlice";
 import { createAlbumsSlice } from "./musicPlayer/slices/albumsSlice";
 import { createSelectionSlice } from "./musicPlayer/slices/selectionSlice";
+import { createOnlineSlice } from "./musicPlayer/slices/onlineSlice";
 import { bindMusicStore } from "./musicPlayer/audioEngine";
 
 export type {
@@ -16,6 +17,7 @@ export type {
   FavoritesSlice,
   AlbumsSlice,
   SelectionSlice,
+  OnlineSlice,
   MusicPlayerState,
 } from "./musicPlayer/types";
 
@@ -39,6 +41,7 @@ export const useMusicPlayerStore = create<MusicPlayerState>()((...a) => ({
   ...createFavoritesSlice(...a),
   ...createAlbumsSlice(...a),
   ...createSelectionSlice(...a),
+  ...createOnlineSlice(...a),
 }));
 
 bindMusicStore(useMusicPlayerStore);

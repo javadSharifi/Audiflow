@@ -29,6 +29,22 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-26 — Real-Time AI Live Audio Dubbing & ALAD Integration (spec 023)
+
+**Decision:**
+Integrated ALAD-Mobile architecture into Audiflow:
+1. Cross-platform internal system audio capture: Windows WASAPI loopback (`platform_windows.rs`) via `cpal` with linear audio resampler to 16kHz mono PCM (`audio_capture.rs`), and Android `AudioPlaybackCapture` (`AudioCaptureManager.kt`).
+2. Centralized Gemini Live bidirectional WebSocket client in Rust (`client.rs`) via `tokio-tungstenite` connecting to `GenerativeService.BidiGenerateContent`.
+3. Low-latency PCM playback engine (`player.rs`) using `cpal` ring buffers.
+4. Smart dynamic audio ducking with 100ms attack and 400ms release curves (`ducking.rs`, `ducking_windows.rs`, `DubbingService.kt`).
+5. Opt-in floating overlay pill with edge snapping and double-tap haptic gesture (`FloatingOverlayView.kt`, `overlay.rs`).
+6. UI integration placed in `HeaderBar.tsx` via glowing pulse radio trigger and modal portal rather than bottom navigation bar to avoid crowding navigation dock and breaking existing tab contracts.
+7. Mutual playback pause between Music Player and Live Dubbing ensuring single active audio stream discipline (Principle VI).
+
+**Why:** Fulfills 100% integration of ALAD-Mobile real-time dubbing into Audiflow while respecting all Constitution principles (strict <= 300 LOC per file, zero plaintext secrets, offline core untouched).
+
+**Implication:** Future agents must preserve mutual playback pausing between `useMusicPlayerStore` and `liveDubbingSlice`, maintain keychain storage for Gemini keys, and keep all files <= 300 LOC.
+
 ## 2026-09-24 — Code Health & Circular Dependency Elimination (spec 020)
 
 **Decision:**

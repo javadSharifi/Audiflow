@@ -1,6 +1,8 @@
 pub mod android;
 pub mod audio;
 pub mod library;
+pub mod live_dubbing;
+pub mod online;
 pub mod player;
 pub mod queue;
 pub mod system;
@@ -9,6 +11,8 @@ pub mod transcribe;
 pub use android::*;
 pub use audio::*;
 pub use library::*;
+pub use live_dubbing::*;
+pub use online::*;
 pub use player::*;
 pub use queue::*;
 pub use system::*;

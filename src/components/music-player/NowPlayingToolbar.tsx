@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 export interface NowPlayingToolbarProps {
+  lyricsOpen?: boolean;
+  onToggleLyrics?: () => void;
   playbackRate: number;
   volumeGainPercent: number;
   playbackMode: PlaybackMode;

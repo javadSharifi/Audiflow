@@ -1,5 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import * as api from "../../utils/tauri";
+import { resolveOnlineStream } from "../../utils/onlineTauri";
 import { isAndroid, isLinux } from "../../utils/platform";
 import { revokeActiveBlobSrc, toPlayableLinuxAudioSrc } from "./linuxAssetAudio";
 import { initMediaSession, syncMediaSession } from "../../utils/mediaSession";
@@ -824,6 +825,24 @@ export async function unifiedStop(): Promise<void> {  stopAndroidStateSync();
 export async function resolveAudioSource(track: AudioTrackInfo): Promise<string> {
   const target = track.uri || track.path || "";
   if (!target) return "";
+
+  if (target.startsWith("online-stream://")) {
+    try {
+      const rest = target.replace("online-stream://", "");
+      const slash1 = rest.indexOf("/");
+      const slash2 = rest.indexOf("/", slash1 + 1);
+      if (slash1 !== -1 && slash2 !== -1) {
+        const id = rest.substring(0, slash1);
+        const provider = rest.substring(slash1 + 1, slash2);
+        const ident = decodeURIComponent(rest.substring(slash2 + 1));
+        const res = await resolveOnlineStream(id, ident, provider);
+        return res.streamUrl;
+      }
+    } catch (e) {
+      console.warn("Failed to resolve dynamic online stream URL:", e);
+      return "";
+    }
+  }
 
   if (
     target.startsWith("http://") ||

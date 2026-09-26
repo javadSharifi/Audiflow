@@ -125,12 +125,39 @@ export interface SelectionSlice {
   shareTrack: (track: AudioTrackInfo) => Promise<void>;
 }
 
+export interface OnlineSlice {
+  isOnlineMode: boolean;
+  onlineQuery: string;
+  onlineResults: import("../../types/generated").OnlineTrack[];
+  isSearchingOnline: boolean;
+  onlineError: string | null;
+  activeOnlineTrack: import("../../types/generated").OnlineTrack | null;
+  isResolvingStream: boolean;
+  timedLyrics: import("../../types/generated").TimedLyrics | null;
+  isLoadingLyrics: boolean;
+  downloadingTrackIds: Record<string, boolean>;
+  downloadedPaths: Record<string, string>;
+  onlineBookmarks: import("../../types/generated").OnlineTrack[];
+
+  toggleOnlineMode: (force?: boolean) => void;
+  setOnlineQuery: (q: string) => void;
+  searchOnline: (q: string) => Promise<void>;
+  playOnlineTrack: (track: import("../../types/generated").OnlineTrack, playlist?: import("../../types/generated").OnlineTrack[]) => Promise<void>;
+  downloadOnlineTrack: (track: import("../../types/generated").OnlineTrack) => Promise<void>;
+  fetchLyrics: (track: { title: string; artist: string; durationSecs: number; [key: string]: unknown }) => Promise<void>;
+  openInConverter: (filePath: string) => void;
+  toggleBookmark: (track: import("../../types/generated").OnlineTrack) => void;
+  isBookmarked: (trackId: string) => boolean;
+  clearOnlineSearch: () => void;
+}
+
 export type MusicPlayerState = PlaybackSlice &
   QueueSlice &
   LibrarySlice &
   FavoritesSlice &
   AlbumsSlice &
-  SelectionSlice;
+  SelectionSlice &
+  OnlineSlice;
 
 /** Decoupled event listener interface for AudioEngine events */
 export interface IAudioEngineListener {
@@ -139,4 +166,5 @@ export interface IAudioEngineListener {
   onError?: (err: Error) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
 }
+
 

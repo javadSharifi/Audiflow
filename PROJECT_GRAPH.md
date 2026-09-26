@@ -27,7 +27,7 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | `packaging/` | Arch PKGBUILD + README (`packaging/arch/`), mac zip README (`packaging/macos/`); arch artifact ships via release.yml linux job (archlinux container) |
 | `.github/workflows/` | ci + release pipelines (release: 3-OS matrix + android + arch-in-container + release job) |
 | `.specify/` / `.opencode/` | Spec-kit constitution, templates, slash-commands |
-| `specs/` | Feature specs (tracked; latest `021-android-media-rescan` — Android Media Rescan & Indexing Sync, Draft) |
+| `specs/` | Feature specs (tracked; latest `023-live-audio-dubbing` — Real-Time AI Live Audio Dubbing & ALAD Integration, Implemented) |
 | `.agents/skills/` | UI/UX skill pack (guidance only) |
 | `src/fonts/` + `public/` | IRANSans fonts + static assets |
 
@@ -89,6 +89,24 @@ git status --short  # workdir changes since sync
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
 
+Workdir drift since sync (2026-09-26, spec 022 implemented — Online Multi-Source Music Streaming & Player):
+Implemented serverless multi-provider online search & streaming (YouTube/Invidious, SoundCloud, JioSaavn), synchronized timed lyrics (LRCLIB), one-click download & "Open in Converter" bridge.
+- Backend: `src-tauri/src/online_player/` (`client.rs`, `types.rs`, `lyrics.rs`, `downloader.rs`, `providers/` for youtube/soundcloud/jiosaavn, `mod.rs`), registered IPC commands in `src-tauri/src/commands/online.rs` & `src-tauri/src/lib.rs`.
+- Frontend: `src/components/music-player/` (`OnlineSearchButton.tsx`, `TrackListSearchBar.tsx`, `OnlineSearchResultsView.tsx`, `OnlineTrackRow.tsx`, `TimedLyricsSheet.tsx`), `src/stores/musicPlayer/slices/onlineSlice.ts`, `src/utils/onlineTauri.ts`, `NowPlayingToolbar.tsx`, `NowPlayingView.tsx`, `TrackListView.tsx`.
+- i18n: full English and Persian localization in `src/i18n/en.ts` and `src/i18n/fa.ts`.
+- Quality: all files strictly <= 300 LOC (Principle VIII), 100% typed with Specta, single active audio stream (Principle VI), and unit test suite in `onlineSlice.test.ts` (7/7 passing).
+
+Workdir drift since sync (2026-09-26, spec 023 implemented — Real-Time AI Live Audio Dubbing & ALAD Integration):
+Integrated ALAD-Mobile architecture into Audiflow for real-time AI live audio dubbing powered by Google Gemini Live bidirectional WebSockets.
+- Backend (Rust): `src-tauri/src/live_dubbing/` (`mod.rs`, `types.rs`, `audio_capture.rs`, `platform_windows.rs`, `client.rs`, `player.rs`, `ducking.rs`, `ducking_windows.rs`, `overlay.rs`, `android_bridge.rs`), commands registered in `src-tauri/src/commands/live_dubbing.rs` & `src-tauri/src/lib.rs`.
+- Android (Kotlin): `src-tauri/android/` (`AudioCaptureManager.kt` via MediaProjection AudioPlaybackCapture, `DubbingService.kt` with transient audio focus ducking, `FloatingOverlayView.kt` with edge-snapping drag, double-tap gesture, and haptic feedback).
+- Frontend (React): `src/components/live-dubbing/` (`LiveDubbingPanel.tsx`, `LiveDubbingModal.tsx`, `LanguagePickerModal.tsx` for 78 languages, `VoicePersonaSelect.tsx` for 5 personas, `DuckingSlider.tsx` for 30%-90% smooth attenuation, `FloatingOverlayToggle.tsx`, `ApiKeyCard.tsx` with keychain preflight), `src/stores/slices/liveDubbingSlice.ts`, `src/utils/liveDubbingTauri.ts`, `HeaderBar.tsx`.
+- i18n: Complete 25 localized keys in English (`src/i18n/en.ts`) and Persian RTL (`src/i18n/fa.ts`).
+- Quality: All 25 files strictly <= 300 LOC (Principle VIII), 100% typed, single active audio stream discipline (Principle VI), and 72 Vitest suites (462 tests) passing with 0 errors.
+
+Workdir drift since sync (2026-09-26, fix types.test.ts InputFile mock contract):
+Fixed `src/types/__tests__/types.test.ts` to match `InputFile` interface (`sizeBytes`, `durationSecs`, `formatName`, `error` instead of `size` and `status`), unblocking `tsc --noEmit` and all CI/Release bundle builds.
+
 Workdir drift since sync (2026-09-24, spec 021 implemented — Android Media Rescan & Indexing Sync):
 Added `MediaScanSynchronizer.kt` (`src-tauri/android/`) to discover audio files in `Music`, `Download`, and OTG volumes and batch-sync with `MediaScannerConnection.scanFile` (2.5s latch timeout). Integrated into `MediaStoreManager.kt` query and broadened selection to include untagged/OEM-unclassified audio files. Added `MediaScanSynchronizerTest.kt` (4/4 passing) and store slice test in `slices.test.ts` (7/7 passing).
 
@@ -140,9 +158,9 @@ path below as overriding the table (modified) or voiding it (deleted).
 Refresh this section on every sync from live `git status --short`.
 
 ```text
-M .agents/references/frontend-converter.md
 M BUGFIXES.md
 M PROJECT_GRAPH.md
+M src/types/__tests__/types.test.ts
 ```
 
 Table scope: noisy collateral (icons, fonts, `gen/` outputs, skill data, lockfiles,

@@ -15,11 +15,8 @@ import { NowPlayingSpeedModal } from "./NowPlayingSpeedModal";
 import { NowPlayingMobileQueue } from "./NowPlayingMobileQueue";
 import { NowPlayingDesktopQueue } from "./NowPlayingDesktopQueue";
 import { NowPlayingTransportControls } from "./NowPlayingTransportControls";
-import {
-  ArrowLeft,
-  MoreHorizontal,
-  Heart,
-} from "lucide-react";
+import { TimedLyricsSheet } from "./TimedLyricsSheet";
+import { ArrowLeft, MoreHorizontal, Heart } from "lucide-react";
 
 export function NowPlayingView(): React.JSX.Element | null {
   const lang = useAppStore((s) => s.lang);
@@ -53,44 +50,27 @@ export function NowPlayingView(): React.JSX.Element | null {
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [boosterOpen, setBoosterOpen] = useState(false);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
 
   const {
-    containerRef,
-    cardRef,
-    dragY,
-    swipeX,
-    cardRotation,
-    cardOpacity,
-    isInteracting,
-    transitionState,
-    bindContainer,
+    containerRef, cardRef, dragY, swipeX, cardRotation, cardOpacity,
+    isInteracting, transitionState, bindContainer,
   } = useNowPlayingGestures({
     onDismiss: () => setFullscreenOpen(false),
     onNextTrack: () => void playNextTrack(),
     onPreviousTrack: () => void playPreviousTrack(),
-    canGoNext: true,
-    canGoPrevious: true,
+    canGoNext: true, canGoPrevious: true,
   });
 
-  const handleTogglePlay = () => {
-    if (isPlaying) {
-      pauseTrack();
-    } else {
-      resumeTrack();
-    }
-  };
+  const handleTogglePlay = () => (isPlaying ? pauseTrack() : resumeTrack());
 
-  // Android back: sheets first, then fullscreen
   useEffect(() => {
     if (!isAndroid()) return;
     const onBack = () => {
-      if (wasBackConsumed()) return;
-      if (!fullscreenOpen) return;
-      if (optionsOpen || queueOpen || speedOpen || boosterOpen) {
-        setOptionsOpen(false);
-        setQueueOpen(false);
-        setSpeedOpen(false);
-        setBoosterOpen(false);
+      if (wasBackConsumed() || !fullscreenOpen) return;
+      if (optionsOpen || queueOpen || speedOpen || boosterOpen || lyricsOpen) {
+        setOptionsOpen(false); setQueueOpen(false); setSpeedOpen(false);
+        setBoosterOpen(false); setLyricsOpen(false);
         markBackConsumed();
         return;
       }
@@ -99,23 +79,16 @@ export function NowPlayingView(): React.JSX.Element | null {
     };
     window.addEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
-  }, [fullscreenOpen, optionsOpen, queueOpen, speedOpen, boosterOpen, setFullscreenOpen]);
+  }, [fullscreenOpen, optionsOpen, queueOpen, speedOpen, boosterOpen, lyricsOpen, setFullscreenOpen]);
 
-  const activeList = useMemo(() => {
-    return currentPlaylist.length > 0 ? currentPlaylist : tracks;
-  }, [currentPlaylist, tracks]);
+  const activeList = useMemo(() => (currentPlaylist.length > 0 ? currentPlaylist : tracks), [currentPlaylist, tracks]);
 
   if (!fullscreenOpen || !currentTrack) return null;
-
   const isLiked = isTrackLiked(currentTrack, likedPaths);
 
   const handleOpenInConverter = () => {
-    if (currentTrack) {
-      const targetPath = currentTrack.path || currentTrack.uri;
-      if (targetPath) {
-        void addPaths([targetPath]);
-      }
-    }
+    const p = currentTrack.path || currentTrack.uri;
+    if (p) void addPaths([p]);
     setFullscreenOpen(false);
     setActiveTool("converter");
   };
@@ -131,35 +104,24 @@ export function NowPlayingView(): React.JSX.Element | null {
   return createPortal(
     <div
       ref={containerRef}
-      style={{
-        transform: rootTransform,
-        transition: rootTransition,
-        willChange: isInteracting ? "transform" : undefined,
-      }}
+      style={{ transform: rootTransform, transition: rootTransition, willChange: isInteracting ? "transform" : undefined }}
       {...bindContainer}
       className="fixed inset-0 z-[70] flex flex-col w-full h-[100dvh] min-h-0 bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 px-4 sm:px-6 pt-[calc(1.75rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] select-none overflow-y-auto overflow-x-hidden justify-between animate-in slide-in-from-bottom duration-300"
     >
-      {/* Top Ambient Glow */}
       <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-orange-500/15 via-amber-500/5 to-transparent pointer-events-none" />
-      {/* Bottom Ambient Glow */}
       <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-orange-500/10 via-amber-500/[0.04] to-transparent pointer-events-none" />
 
-      {/* Main Container */}
       <div className="relative z-10 flex flex-col lg:flex-row flex-1 w-full min-h-0 gap-6 overflow-visible max-w-5xl mx-auto">
-        {/* LEFT COLUMN: MAIN MUSIC PLAYER */}
         <div className="flex flex-col flex-1 min-h-0 min-w-0 justify-between overflow-visible max-w-xl mx-auto w-full">
-          {/* 1. TOP HEADER BAR */}
           <div className="relative z-10 flex items-center justify-between h-12 mb-2 pb-1 shrink-0">
             <button
               type="button"
               onClick={() => setFullscreenOpen(false)}
               title={translate(lang, "collapsePlayer")}
-              aria-label={translate(lang, "collapsePlayer")}
               className="flex items-center justify-center h-9 w-9 rounded-2xl bg-black/[0.05] hover:bg-black/10 dark:bg-white/[0.08] dark:hover:bg-white/15 text-zinc-800 dark:text-zinc-200 transition-all cursor-pointer active:scale-95 shadow-sm"
             >
               <ArrowLeft className="h-4 w-4 stroke-[2.5]" />
             </button>
-
             <button
               type="button"
               onClick={() => setOptionsOpen(true)}
@@ -170,7 +132,6 @@ export function NowPlayingView(): React.JSX.Element | null {
             </button>
           </div>
 
-          {/* 2. HERO CENTER CARD: SWIPEABLE ALBUM ARTWORK CAROUSEL */}
           <NowPlayingArtworkCarousel
             currentTrack={currentTrack}
             cardRef={cardRef}
@@ -180,36 +141,24 @@ export function NowPlayingView(): React.JSX.Element | null {
             transitionState={transitionState}
           />
 
-          {/* 3. TOOLBAR: Converter, Speed, Booster, Repeat, Shuffle, Queue */}
           <NowPlayingToolbar
             playbackRate={playbackRate}
             volumeGainPercent={volumeGainPercent}
             playbackMode={playbackMode}
             queueOpen={queueOpen}
+            lyricsOpen={lyricsOpen}
             onOpenConverter={handleOpenInConverter}
-            onToggleSpeed={() => {
-              setSpeedOpen(!speedOpen);
-              setBoosterOpen(false);
-            }}
-            onToggleBooster={() => {
-              setBoosterOpen(!boosterOpen);
-              setSpeedOpen(false);
-            }}
+            onToggleSpeed={() => { setSpeedOpen(!speedOpen); setBoosterOpen(false); setLyricsOpen(false); }}
+            onToggleBooster={() => { setBoosterOpen(!boosterOpen); setSpeedOpen(false); setLyricsOpen(false); }}
+            onToggleLyrics={() => { setLyricsOpen(!lyricsOpen); setSpeedOpen(false); setBoosterOpen(false); }}
             onCyclePlaybackMode={() => {
               const order: PlaybackMode[] = ["normal", "shuffle", "repeatAll", "repeatOne"];
-              const idx = order.indexOf(playbackMode);
-              const next = order[(idx + 1) % order.length];
-              setPlaybackMode(next);
+              setPlaybackMode(order[(order.indexOf(playbackMode) + 1) % order.length]);
             }}
-            onToggleQueue={() => {
-              setQueueOpen(!queueOpen);
-              setSpeedOpen(false);
-              setBoosterOpen(false);
-            }}
+            onToggleQueue={() => { setQueueOpen(!queueOpen); setSpeedOpen(false); setBoosterOpen(false); setLyricsOpen(false); }}
             lang={lang}
           />
 
-          {/* 4. TRACK METADATA & LIKE BUTTON ROW */}
           <div className="relative z-10 flex items-center justify-between gap-4 pt-1 pb-1 shrink-0">
             <div className="flex flex-col min-w-0 flex-1">
               <h1 className="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
@@ -219,7 +168,6 @@ export function NowPlayingView(): React.JSX.Element | null {
                 {currentTrack.artist || "Unknown Artist"}
               </p>
             </div>
-
             <button
               type="button"
               onClick={() => toggleLike(currentTrack)}
@@ -230,14 +178,10 @@ export function NowPlayingView(): React.JSX.Element | null {
                   : "text-zinc-400 hover:text-rose-500 bg-black/[0.04] dark:bg-white/[0.06] border border-black/5 dark:border-white/5"
               }`}
             >
-              <Heart
-                className={`h-5 w-5 ${isLiked ? "fill-rose-500 scale-110" : ""}`}
-                strokeWidth={isLiked ? 0 : 2}
-              />
+              <Heart className={`h-5 w-5 ${isLiked ? "fill-rose-500 scale-110" : ""}`} strokeWidth={isLiked ? 0 : 2} />
             </button>
           </div>
 
-          {/* 5. WAVEFORM VISUALIZER & PROGRESS SCRUBBING */}
           <div data-no-gesture className="relative z-10 py-1 shrink-0">
             <WaveformSeekbar
               currentTime={currentTime}
@@ -247,7 +191,6 @@ export function NowPlayingView(): React.JSX.Element | null {
             />
           </div>
 
-          {/* 6. HALO PLAYBACK CONTROLS */}
           <NowPlayingTransportControls
             isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}
@@ -257,7 +200,6 @@ export function NowPlayingView(): React.JSX.Element | null {
           />
         </div>
 
-        {/* RIGHT COLUMN: DESKTOP QUEUE SIDEBAR */}
         <NowPlayingDesktopQueue
           activeList={activeList}
           currentTrack={currentTrack}
@@ -267,7 +209,6 @@ export function NowPlayingView(): React.JSX.Element | null {
         />
       </div>
 
-      {/* Speed Modal */}
       <NowPlayingSpeedModal
         isOpen={speedOpen}
         onClose={() => setSpeedOpen(false)}
@@ -275,11 +216,7 @@ export function NowPlayingView(): React.JSX.Element | null {
         onSelectRate={setPlaybackRate}
         lang={lang}
       />
-
-      {/* Sound Booster Sheet */}
       <TrackBoosterSheet isOpen={boosterOpen} onClose={() => setBoosterOpen(false)} />
-
-      {/* Mobile Queue Drawer */}
       <NowPlayingMobileQueue
         isOpen={queueOpen}
         onClose={() => setQueueOpen(false)}
@@ -289,8 +226,7 @@ export function NowPlayingView(): React.JSX.Element | null {
         onPlayTrack={playTrack}
         lang={lang}
       />
-
-      {/* 3-Dots Track Options Bottom Sheet */}
+      <TimedLyricsSheet isOpen={lyricsOpen} onClose={() => setLyricsOpen(false)} />
       {optionsOpen && <TrackOptionsSheet track={currentTrack} onClose={() => setOptionsOpen(false)} />}
     </div>,
     document.body

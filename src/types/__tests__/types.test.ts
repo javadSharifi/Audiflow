@@ -40,12 +40,14 @@ describe("Types Structure Verification", () => {
     const file: InputFile = {
       path: "/audio/test.mp3",
       name: "test.mp3",
-      size: 1024,
-      status: "idle",
+      sizeBytes: 1024,
+      durationSecs: 60,
+      formatName: "mp3",
       hasAudio: true,
+      error: null,
     };
 
     expect(file.hasAudio).toBe(true);
-    expect(file.status).toBe("idle");
+    expect(file.sizeBytes).toBe(1024);
   });
 });

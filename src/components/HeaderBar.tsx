@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap, Download } from "lucide-react";
+import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap, Download, Radio } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { applyResolvedTheme, resolveTheme } from "../hooks/useTheme";
 import { revealOrigin, revealThemeChange } from "../utils/themeTransition";
 import { useGithubUpdate } from "../hooks/useGithubUpdate";
 import { UpdateModal } from "./UpdateModal";
+import { LiveDubbingModal } from "./live-dubbing/LiveDubbingModal";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
@@ -19,9 +20,12 @@ export function HeaderBar(): React.JSX.Element {
   const settings = useAppStore((s) => s.settings);
   const reducedBlur = useAppStore((s) => s.reducedBlur);
   const setReducedBlur = useAppStore((s) => s.setReducedBlur);
+  const dubbingState = useAppStore((s) => s.dubbingState);
   const [open, setOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [dubbingOpen, setDubbingOpen] = useState(false);
   const [version, setVersion] = useState("");
+  const isDubbingActive = dubbingState !== "idle" && dubbingState !== "error";
   const { latest, updateAvailable } = useGithubUpdate();
 
   useEffect(() => {
@@ -96,6 +100,25 @@ export function HeaderBar(): React.JSX.Element {
           aria-label="Toggle theme"
         >
           {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDubbingOpen(true)}
+          className={`relative flex min-h-[44px] min-w-[44px] h-11 w-11 items-center justify-center rounded-xl border transition-all active:scale-95 cursor-pointer ${
+            isDubbingActive
+              ? "border-teal-500/40 bg-teal-500/15 text-teal-600 dark:border-teal-400/40 dark:bg-teal-400/15 dark:text-teal-400"
+              : "border-black/5 bg-black/[0.03] text-zinc-600 hover:bg-black/[0.06] dark:border-white/5 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
+          }`}
+          title={translate(lang, "liveDubbingTitle")}
+          aria-label={translate(lang, "liveDubbingTitle")}
+        >
+          <Radio className="h-[18px] w-[18px]" strokeWidth={2} />
+          {isDubbingActive && (
+            <span className="absolute top-2 end-2 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-500 opacity-75 motion-reduce:animate-none" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500" />
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -243,6 +266,11 @@ export function HeaderBar(): React.JSX.Element {
           onClose={() => setUpdateOpen(false)}
         />
       )}
+      {/* Live Dubbing Dialog Portal */}
+      <LiveDubbingModal
+        isOpen={dubbingOpen}
+        onClose={() => setDubbingOpen(false)}
+      />
     </header>
   );
 }

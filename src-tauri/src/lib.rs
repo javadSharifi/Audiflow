@@ -5,6 +5,8 @@ pub mod error;
 pub mod ffmpeg;
 pub mod logger;
 pub mod music_library;
+pub mod live_dubbing;
+pub mod online_player;
 pub mod processing;
 pub mod queue;
 pub mod secrets;
@@ -135,6 +137,18 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::clear_finished_transcriptions,
         commands::get_usage_stats,
         commands::export_transcript,
+        commands::search_online_tracks,
+        commands::resolve_online_stream,
+        commands::fetch_online_lyrics,
+        commands::download_online_track,
+        commands::start_live_dubbing,
+        commands::stop_live_dubbing,
+        commands::toggle_live_dubbing_pause,
+        commands::set_ducking_level,
+        commands::set_floating_overlay_enabled,
+        commands::get_live_dubbing_status,
+        commands::verify_gemini_api_key,
+        commands::save_live_dubbing_key,
     ])
 }
 
@@ -216,6 +230,7 @@ pub fn run() {
             app.manage(transcribe_queue::TranscribeQueueManager::new(
                 app.handle().clone(),
             ));
+            app.manage(crate::live_dubbing::LiveDubbingState::default());
 
             let open_queue = AppOpenFileQueue::default();
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

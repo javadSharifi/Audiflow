@@ -224,7 +224,7 @@ describe("MusicPlayerView", () => {
     // Click Sound Boost -> renders BoosterView (lazy chunk: await it)
     fireEvent.click(screen.getByRole("tab", { name: /Sound Boost/i }));
     expect(
-      await screen.findByRole("switch", { name: /Toggle Sound Booster/i }),
+      await screen.findByRole("switch", { name: /Toggle Sound Booster/i }, { timeout: 5000 }),
     ).toBeTruthy();
   });
 

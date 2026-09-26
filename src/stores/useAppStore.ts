@@ -4,15 +4,17 @@ import { type ToastSlice, createToastSlice, type ToastMessage } from "./slices/t
 import { type FileSlice, createFileSlice } from "./slices/fileSlice";
 import { type SettingsSlice, createSettingsSlice } from "./slices/settingsSlice";
 import { type QueueSlice, createQueueSlice } from "./slices/queueSlice";
+import { type LiveDubbingSlice, createLiveDubbingSlice } from "./slices/liveDubbingSlice";
 
 export type { ToastMessage };
-export type AppState = FileSlice & SettingsSlice & QueueSlice & ToastSlice;
+export type AppState = FileSlice & SettingsSlice & QueueSlice & ToastSlice & LiveDubbingSlice;
 
 export const useAppStore = create<AppState>()((...a) => ({
   ...createToastSlice(...a),
   ...createFileSlice(...a),
   ...createSettingsSlice(...a),
   ...createQueueSlice(...a),
+  ...createLiveDubbingSlice(...a),
 }));
 
 export function statusLabelKey(status: JobStatus): "statusWaiting" | "statusProcessing" | "statusCompleted" | "statusFailed" | "statusCancelled" {

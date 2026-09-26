@@ -190,9 +190,53 @@ export const commands = {
 	 *  SRT/VTT require word timestamps from the original request.
 	 */
 	exportTranscript: (jobId: string, format: string) => typedError<string, AppError>(__TAURI_INVOKE("export_transcript", { jobId, format })),
+	searchOnlineTracks: (query: string, provider: string | null) => typedError<OnlineTrack[], string>(__TAURI_INVOKE("search_online_tracks", { query, provider })),
+	resolveOnlineStream: (trackId: string, streamIdentifier: string, provider: string) => typedError<StreamSource, string>(__TAURI_INVOKE("resolve_online_stream", { trackId, streamIdentifier, provider })),
+	fetchOnlineLyrics: (title: string, artist: string, durationSecs: number | null) => typedError<TimedLyrics | null, string>(__TAURI_INVOKE("fetch_online_lyrics", { title, artist, durationSecs })),
+	downloadOnlineTrack: (track: OnlineTrack, targetDir: string | null) => typedError<DownloadedMedia, string>(__TAURI_INVOKE("download_online_track", { track, targetDir })),
 };
 
 /* Types */
+export type OnlineTrack = {
+	id: string,
+	title: string,
+	artist: string,
+	album: string | null,
+	durationSecs: number,
+	thumbnailUrl: string | null,
+	provider: string,
+	streamIdentifier: string,
+};
+
+export type StreamSource = {
+	streamUrl: string,
+	mimeType: string,
+	format: string,
+	bitrateKbps: number | null,
+	isProxied: boolean,
+	headers: Record<string, string>,
+};
+
+export type TimedLyricLine = {
+	timeMs: number,
+	text: string,
+};
+
+export type TimedLyrics = {
+	trackId: string,
+	isSynced: boolean,
+	lines: TimedLyricLine[],
+	plainText: string | null,
+};
+
+export type DownloadedMedia = {
+	filePath: string,
+	title: string,
+	artist: string,
+	format: string,
+	sizeBytes: number,
+};
+
 export type AbPreviewResult = {
 	originalPath: string,
 	boostedPath: string,
