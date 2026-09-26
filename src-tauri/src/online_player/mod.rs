@@ -6,10 +6,7 @@ pub mod types;
 
 use crate::online_player::client::create_http_client;
 use crate::online_player::types::{DownloadedMedia, OnlineTrack, StreamSource, TimedLyrics};
-use tauri::command;
 
-#[command]
-#[specta::specta]
 pub async fn search_online_tracks(
     query: String,
     provider: Option<String>,
@@ -55,8 +52,6 @@ pub async fn search_online_tracks(
     Ok(results)
 }
 
-#[command]
-#[specta::specta]
 pub async fn resolve_online_stream(
     track_id: String,
     stream_identifier: String,
@@ -71,8 +66,6 @@ pub async fn resolve_online_stream(
     }
 }
 
-#[command]
-#[specta::specta]
 pub async fn fetch_online_lyrics(
     title: String,
     artist: String,
@@ -82,8 +75,6 @@ pub async fn fetch_online_lyrics(
     lyrics::fetch_lyrics(&client, &title, &artist, duration_secs).await
 }
 
-#[command]
-#[specta::specta]
 pub async fn download_online_track(
     track: OnlineTrack,
     target_dir: Option<String>,

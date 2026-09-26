@@ -5,13 +5,13 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{SampleFormat, Stream};
+use cpal::SampleFormat;
 
 pub struct LiveAudioPlayer {
     buffer: Arc<Mutex<VecDeque<i16>>>,
     is_playing: Arc<AtomicBool>,
-    _stream: Option<Stream>,
 }
 
 impl LiveAudioPlayer {
@@ -19,38 +19,41 @@ impl LiveAudioPlayer {
         Self {
             buffer: Arc::new(Mutex::new(VecDeque::with_capacity(48000))),
             is_playing: Arc::new(AtomicBool::new(false)),
-            _stream: None,
         }
     }
 
     pub fn start(&mut self) -> Result<(), String> {
-        if self._stream.is_some() {
+        if self.is_playing.load(Ordering::SeqCst) {
             return Ok(());
         }
 
-        let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .ok_or_else(|| "No default output audio device found".to_string())?;
+        let is_playing = self.is_playing.clone();
+        is_playing.store(true, Ordering::SeqCst);
+        let buffer = self.buffer.clone();
 
-        let config = device
-            .default_output_config()
-            .map_err(|e| format!("Failed to get default output config: {}", e))?;
+        let thread_playing = is_playing.clone();
+        thread::spawn(move || {
+            let host = cpal::default_host();
+            let Some(device) = host.default_output_device() else {
+                eprintln!("Audio playback: No default output audio device found");
+                thread_playing.store(false, Ordering::SeqCst);
+                return;
+            };
 
-        let sample_rate = config.sample_rate().0;
-        let channels = config.channels() as usize;
-        let sample_format = config.sample_format();
+            let Ok(config) = device.default_output_config() else {
+                eprintln!("Audio playback: Failed to get default output config");
+                thread_playing.store(false, Ordering::SeqCst);
+                return;
+            };
 
-        let buffer_clone = self.buffer.clone();
-        let is_playing_clone = self.is_playing.clone();
-        is_playing_clone.store(true, Ordering::SeqCst);
+            let channels = config.channels() as usize;
+            let sample_format = config.sample_format();
 
-        let err_fn = |err| eprintln!("Audio playback stream error: {}", err);
+            let buffer_clone = buffer.clone();
+            let err_fn = |err| eprintln!("Audio playback stream error: {}", err);
 
-        // Simple resampler / channel duplicator for output
-        let stream = match sample_format {
-            SampleFormat::F32 => {
-                device.build_output_stream(
+            let stream_result = match sample_format {
+                SampleFormat::F32 => device.build_output_stream(
                     &config.into(),
                     move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                         let mut buf = buffer_clone.lock().unwrap();
@@ -64,10 +67,8 @@ impl LiveAudioPlayer {
                     },
                     err_fn,
                     None,
-                )
-            }
-            SampleFormat::I16 => {
-                device.build_output_stream(
+                ),
+                SampleFormat::I16 => device.build_output_stream(
                     &config.into(),
                     move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
                         let mut buf = buffer_clone.lock().unwrap();
@@ -80,17 +81,23 @@ impl LiveAudioPlayer {
                     },
                     err_fn,
                     None,
-                )
+                ),
+                _ => {
+                    eprintln!("Audio playback: Unsupported sample format {:?}", sample_format);
+                    thread_playing.store(false, Ordering::SeqCst);
+                    return;
+                }
+            };
+
+            if let Ok(stream) = stream_result {
+                if stream.play().is_ok() {
+                    while thread_playing.load(Ordering::SeqCst) {
+                        thread::sleep(std::time::Duration::from_millis(50));
+                    }
+                }
             }
-            _ => return Err(format!("Unsupported playback sample format {:?}", sample_format)),
-        }
-        .map_err(|e| format!("Failed to build output stream: {}", e))?;
+        });
 
-        stream
-            .play()
-            .map_err(|e| format!("Failed to play output stream: {}", e))?;
-
-        self._stream = Some(stream);
         Ok(())
     }
 
@@ -103,7 +110,6 @@ impl LiveAudioPlayer {
         }
 
         if let Ok(mut buf) = self.buffer.lock() {
-            // Cap max buffer to 2 seconds to avoid latency build-up
             if buf.len() > 48000 {
                 buf.drain(..24000);
             }
@@ -124,7 +130,6 @@ impl LiveAudioPlayer {
         if let Ok(mut buf) = self.buffer.lock() {
             buf.clear();
         }
-        self._stream = None;
     }
 }
 

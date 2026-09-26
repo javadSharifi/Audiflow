@@ -24,8 +24,6 @@ impl Default for LiveDubbingState {
     }
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn start_live_dubbing(
     target_language: String,
     voice_persona: String,
@@ -54,8 +52,6 @@ pub async fn start_live_dubbing(
     Ok("Dubbing session started successfully".to_string())
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn stop_live_dubbing(
     state: State<'_, LiveDubbingState>,
 ) -> Result<(), String> {
@@ -68,8 +64,6 @@ pub async fn stop_live_dubbing(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn toggle_live_dubbing_pause(
     state: State<'_, LiveDubbingState>,
 ) -> Result<bool, String> {
@@ -87,8 +81,6 @@ pub async fn toggle_live_dubbing_pause(
     }
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn set_ducking_level(
     level_percent: u32,
     state: State<'_, LiveDubbingState>,
@@ -98,8 +90,6 @@ pub async fn set_ducking_level(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn set_floating_overlay_enabled(
     enabled: bool,
     state: State<'_, LiveDubbingState>,
@@ -109,8 +99,6 @@ pub async fn set_floating_overlay_enabled(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn get_live_dubbing_status(
     state: State<'_, LiveDubbingState>,
 ) -> Result<LiveDubbingStatus, String> {
@@ -118,8 +106,6 @@ pub async fn get_live_dubbing_status(
     Ok(status.clone())
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn verify_gemini_api_key(
     key: String,
 ) -> Result<bool, String> {
@@ -127,7 +113,6 @@ pub async fn verify_gemini_api_key(
     if trimmed.is_empty() {
         return Ok(false);
     }
-    // Simple preflight check ping to Google Gemini generative models endpoint
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models?key={}",
         trimmed
@@ -139,8 +124,6 @@ pub async fn verify_gemini_api_key(
     }
 }
 
-#[tauri::command]
-#[specta::specta]
 pub async fn save_live_dubbing_key(
     key: String,
 ) -> Result<(), String> {
