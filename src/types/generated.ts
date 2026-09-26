@@ -192,51 +192,24 @@ export const commands = {
 	exportTranscript: (jobId: string, format: string) => typedError<string, AppError>(__TAURI_INVOKE("export_transcript", { jobId, format })),
 	searchOnlineTracks: (query: string, provider: string | null) => typedError<OnlineTrack[], string>(__TAURI_INVOKE("search_online_tracks", { query, provider })),
 	resolveOnlineStream: (trackId: string, streamIdentifier: string, provider: string) => typedError<StreamSource, string>(__TAURI_INVOKE("resolve_online_stream", { trackId, streamIdentifier, provider })),
-	fetchOnlineLyrics: (title: string, artist: string, durationSecs: number | null) => typedError<TimedLyrics | null, string>(__TAURI_INVOKE("fetch_online_lyrics", { title, artist, durationSecs })),
-	downloadOnlineTrack: (track: OnlineTrack, targetDir: string | null) => typedError<DownloadedMedia, string>(__TAURI_INVOKE("download_online_track", { track, targetDir })),
-};
-
-/* Types */
-export type OnlineTrack = {
-	id: string,
-	title: string,
-	artist: string,
-	album: string | null,
-	durationSecs: number,
-	thumbnailUrl: string | null,
-	provider: string,
-	streamIdentifier: string,
-};
-
-export type StreamSource = {
-	streamUrl: string,
-	mimeType: string,
-	format: string,
-	bitrateKbps: number | null,
-	isProxied: boolean,
-	headers: Record<string, string>,
-};
-
-export type TimedLyricLine = {
-	timeMs: number,
-	text: string,
-};
-
-export type TimedLyrics = {
+	fetchOnlineLyrics: (title: string, artist: string, durationSecs: number | null) => typedError<{
 	trackId: string,
 	isSynced: boolean,
 	lines: TimedLyricLine[],
 	plainText: string | null,
+} | null, string>(__TAURI_INVOKE("fetch_online_lyrics", { title, artist, durationSecs })),
+	downloadOnlineTrack: (track: OnlineTrack, targetDir: string | null) => typedError<DownloadedMedia, string>(__TAURI_INVOKE("download_online_track", { track, targetDir })),
+	startLiveDubbing: (targetLanguage: string, voicePersona: string, duckingPercent: number, enableOverlay: boolean) => typedError<string, string>(__TAURI_INVOKE("start_live_dubbing", { targetLanguage, voicePersona, duckingPercent, enableOverlay })),
+	stopLiveDubbing: () => typedError<null, string>(__TAURI_INVOKE("stop_live_dubbing")),
+	toggleLiveDubbingPause: () => typedError<boolean, string>(__TAURI_INVOKE("toggle_live_dubbing_pause")),
+	setDuckingLevel: (levelPercent: number) => typedError<null, string>(__TAURI_INVOKE("set_ducking_level", { levelPercent })),
+	setFloatingOverlayEnabled: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_floating_overlay_enabled", { enabled })),
+	getLiveDubbingStatus: () => typedError<LiveDubbingStatus, string>(__TAURI_INVOKE("get_live_dubbing_status")),
+	verifyGeminiApiKey: (key: string) => typedError<boolean, string>(__TAURI_INVOKE("verify_gemini_api_key", { key })),
+	saveLiveDubbingKey: (key: string) => typedError<null, string>(__TAURI_INVOKE("save_live_dubbing_key", { key })),
 };
 
-export type DownloadedMedia = {
-	filePath: string,
-	title: string,
-	artist: string,
-	format: string,
-	sizeBytes: number,
-};
-
+/* Types */
 export type AbPreviewResult = {
 	originalPath: string,
 	boostedPath: string,
@@ -318,6 +291,16 @@ export type DiskFree = {
 	free_bytes: number,
 };
 
+export type DownloadedMedia = {
+	filePath: string,
+	title: string,
+	artist: string,
+	format: string,
+	sizeBytes: number,
+};
+
+export type DubbingSessionState = "idle" | "starting" | "capturing" | "translating" | "speaking" | "paused" | "error";
+
 export type FileMeta = {
 	name: string,
 	path: string,
@@ -357,12 +340,34 @@ export type JobStatus = "waiting" | "processing" | "completed" | "failed" | "can
 
 export type LibraryPermissionStatus = "granted" | "denied" | "permanentlyDenied" | "restricted" | "notRequired";
 
+export type LiveDubbingStatus = {
+	state: DubbingSessionState,
+	targetLanguage: string,
+	voicePersona: string,
+	duckingPercent: number,
+	isOverlayActive: boolean,
+	latencyMs: number,
+	bytesStreamed: number,
+	errorMessage: string | null,
+};
+
 /**  Last quota failure actually observed from Google (may be stale). */
 export type ObservedQuota = {
 	metric: string,
 	value: string,
 	/**  Unix seconds when Google returned it. */
 	discoveredAt: number,
+};
+
+export type OnlineTrack = {
+	id: string,
+	title: string,
+	artist: string,
+	album: string | null,
+	durationSecs: number,
+	thumbnailUrl: string | null,
+	provider: string,
+	streamIdentifier: string,
 };
 
 /**  Where output files are written. */
@@ -431,6 +436,27 @@ export type StatMediaPath = {
 	sizeBytes: number,
 	durationSecs: number | null,
 	error: string | null,
+};
+
+export type StreamSource = {
+	streamUrl: string,
+	mimeType: string,
+	format: string,
+	bitrateKbps: number | null,
+	isProxied: boolean,
+	headers: { [key in string]: string },
+};
+
+export type TimedLyricLine = {
+	timeMs: number,
+	text: string,
+};
+
+export type TimedLyrics = {
+	trackId: string,
+	isSynced: boolean,
+	lines: TimedLyricLine[],
+	plainText: string | null,
 };
 
 /**

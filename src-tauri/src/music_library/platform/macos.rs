@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 pub fn get_music_directories() -> Vec<PathBuf> {
+    #[allow(unused_mut)]
     let mut dirs = Vec::new();
 
     #[cfg(target_os = "macos")]
