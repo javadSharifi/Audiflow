@@ -7,6 +7,7 @@ pub const OVERLAY_WINDOW_LABEL: &str = "dubbing-overlay";
 
 pub struct DesktopOverlayManager;
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 impl DesktopOverlayManager {
     /// Shows or creates the desktop floating pill overlay.
     pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
@@ -43,6 +44,17 @@ impl DesktopOverlayManager {
         if let Some(window) = app.get_webview_window(OVERLAY_WINDOW_LABEL) {
             let _ = window.hide();
         }
+        Ok(())
+    }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+impl DesktopOverlayManager {
+    pub fn show_overlay(_app: &AppHandle) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn hide_overlay(_app: &AppHandle) -> Result<(), String> {
         Ok(())
     }
 }
