@@ -209,6 +209,13 @@ else
   echo -e "${GREEN}✔${NC} Existing Android FFmpeg binaries found in src-tauri/binaries/."
 fi
 
+# Ensure host yt-dlp is present for type generation (Specta invokes host build script)
+HOST_YTDLP="$ROOT/src-tauri/binaries/yt-dlp"
+if [ ! -f "$HOST_YTDLP" ]; then
+  echo -e "${YELLOW}Fetching yt-dlp for host (needed for type generation)...${NC}"
+  pnpm fetch:ytdlp
+fi
+
 # ------------------------------------------------------------------------------
 # 4. Initialize & Configure Tauri Android Project
 # ------------------------------------------------------------------------------

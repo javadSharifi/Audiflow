@@ -176,6 +176,9 @@ jobs:
           pnpm fetch:ffmpeg
           TARGET_TRIPLE=aarch64-linux-android pnpm fetch:ffmpeg
 
+      - name: Fetch/bundle yt-dlp for host (needed for Specta type sync)
+        run: pnpm fetch:ytdlp
+
       - name: Verify Rust-to-TypeScript type sync
         run: |
           pnpm generate:types
