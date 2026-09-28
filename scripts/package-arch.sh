@@ -12,6 +12,7 @@ MAKEPKG_DIR="$REPO_ROOT/packaging/arch"
 ELF="$REPO_ROOT/src-tauri/target/$TARGET_TRIPLE/release/audiflow"
 FFMPEG_SIDECAR="$REPO_ROOT/src-tauri/binaries/ffmpeg-$TARGET_TRIPLE"
 FFPROBE_SIDECAR="$REPO_ROOT/src-tauri/binaries/ffprobe-$TARGET_TRIPLE"
+YTDLP_SIDECAR="$REPO_ROOT/src-tauri/binaries/yt-dlp-$TARGET_TRIPLE"
 SKIP_BUILD=0
 FORCE_NON_ARCH=0
 
@@ -102,6 +103,7 @@ run_build() {
   cd "$REPO_ROOT"
   pnpm install --frozen-lockfile
   pnpm fetch:ffmpeg
+  pnpm fetch:ytdlp
   pnpm tauri build --target "$TARGET_TRIPLE"
   guard_build_outputs
 }
@@ -112,6 +114,7 @@ guard_build_outputs() {
   [ -f "$ELF" ] || die "missing tauri build output: src-tauri/target/$TARGET_TRIPLE/release/audiflow. Run ./scripts/package-arch.sh without --skip-build first." 4
   [ -f "$FFMPEG_SIDECAR" ] || die "missing sidecar: src-tauri/binaries/ffmpeg-$TARGET_TRIPLE (pnpm fetch:ffmpeg). Re-run ./scripts/package-arch.sh without --skip-build." 4
   [ -f "$FFPROBE_SIDECAR" ] || die "missing sidecar: src-tauri/binaries/ffprobe-$TARGET_TRIPLE (pnpm fetch:ffmpeg). Re-run ./scripts/package-arch.sh without --skip-build." 4
+  [ -f "$YTDLP_SIDECAR" ] || die "missing sidecar: src-tauri/binaries/yt-dlp-$TARGET_TRIPLE (pnpm fetch:ytdlp). Re-run ./scripts/package-arch.sh without --skip-build." 4
 }
 
 # ---------------------------------------------------------------

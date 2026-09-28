@@ -7,6 +7,11 @@ export function isAndroid(): boolean {
   return typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
 }
 
+export function isMobile(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+}
+
 export function isMacOS(): boolean {
   return typeof navigator !== "undefined" && /macintosh|mac os x/i.test(navigator.userAgent);
 }

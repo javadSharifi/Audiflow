@@ -1,6 +1,7 @@
 pub mod android_fs;
 mod commands;
 pub mod disk;
+pub mod downloader;
 pub mod error;
 pub mod ffmpeg;
 pub mod logger;
@@ -135,6 +136,14 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::clear_finished_transcriptions,
         commands::get_usage_stats,
         commands::export_transcript,
+        commands::search_internet_music,
+        commands::get_internet_preview_url,
+        commands::start_internet_download,
+        commands::cancel_internet_download,
+        commands::retry_internet_download,
+        commands::get_internet_downloads,
+        commands::get_ytdlp_info,
+        commands::get_internet_music_sources,
     ])
 }
 
@@ -216,6 +225,10 @@ pub fn run() {
             app.manage(transcribe_queue::TranscribeQueueManager::new(
                 app.handle().clone(),
             ));
+            app.manage(downloader::DownloadQueueManager::new(app.handle().clone()));
+            tauri::async_runtime::spawn(async {
+                let _ = downloader::StreamProxy::start().await;
+            });
 
             let open_queue = AppOpenFileQueue::default();
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -265,6 +278,9 @@ pub fn run() {
                 app_handle.state::<queue::QueueManager>().cancel_all();
                 app_handle
                     .state::<transcribe_queue::TranscribeQueueManager>()
+                    .cancel_all();
+                app_handle
+                    .state::<downloader::DownloadQueueManager>()
                     .cancel_all();
             }
         });

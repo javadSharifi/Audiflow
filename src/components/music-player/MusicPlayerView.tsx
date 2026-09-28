@@ -5,9 +5,10 @@ import { LikedView } from "./LikedView";
 import { AlbumsView } from "./AlbumsView";
 import { KeepAlivePane } from "./KeepAlivePane";
 import { MiniPlayer } from "./MiniPlayer";
+import { InternetSearchView } from "../internet-search/InternetSearchView";
 import { useMusicPlayerStore } from "../../stores/useMusicPlayerStore";
 import { ANDROID_BACK_EVENT, markBackConsumed, wasBackConsumed } from "../../utils/androidBack";
-import { isAndroid } from "../../utils/platform";
+import { isAndroid, isMobile } from "../../utils/platform";
 
 // Code splitting: the fullscreen player (largest component in the app) and
 // the booster dial are not part of first paint — load them on first use so
@@ -127,6 +128,9 @@ export function MusicPlayerView(props?: MusicPlayerViewProps): React.JSX.Element
 
       {/* Floating Mini Player (hidden in fullscreen so it never covers popups) */}
       {!fullscreenOpen && <MiniPlayer />}
+
+      {/* Internet Music Search & Download Modal */}
+      {!isAndroid() && !isMobile() && <InternetSearchView />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 [package]
 name = "audiflow"
-version = "1.5.9"
+version = "1.6.1"
 description = "Fast, private video-to-audio converter with quality presets, trimming, splitting, silence removal, and queue processing"
 edition = "2021"
 rust-version = "1.77"
@@ -31,7 +31,7 @@ specta-typescript = "0.0.12"
 tauri-specta = { version = "2.0.0-rc.25", features = ["typescript"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 keyring = "3"
-tokio = { version = "1", features = ["time", "macros", "rt"] }
+tokio = { version = "1", features = ["time", "macros", "rt", "net", "io-util"] }
 directories = "5"
 
 [dev-dependencies]

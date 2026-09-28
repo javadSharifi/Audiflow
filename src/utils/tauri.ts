@@ -401,6 +401,74 @@ export async function exitApp(): Promise<void> {
   }
 }
 
+export async function searchInternetMusic(
+  query: string,
+  source?: string,
+  limit?: number,
+): Promise<import("../types/downloader").MusicSearchResult[]> {
+  const res = await commands.searchInternetMusic(query, source ?? null, limit ?? null);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function getInternetPreviewUrl(url: string): Promise<string> {
+  const res = await commands.getInternetPreviewUrl(url);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function startInternetDownload(
+  request: import("../types/downloader").DownloadRequest,
+): Promise<string> {
+  const res = await commands.startInternetDownload(request);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function cancelInternetDownload(id: string): Promise<void> {
+  const res = await commands.cancelInternetDownload(id);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+}
+
+export async function retryInternetDownload(id: string): Promise<void> {
+  const res = await commands.retryInternetDownload(id);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+}
+
+export async function getInternetDownloads(): Promise<import("../types/downloader").DownloadItem[]> {
+  const res = await commands.getInternetDownloads();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function getYtdlpInfo(): Promise<import("../types/downloader").YtDlpInfo> {
+  const res = await commands.getYtdlpInfo();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function getInternetMusicSources(): Promise<import("../types/downloader").MusicSource[]> {
+  const res = await commands.getInternetMusicSources();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
 
 
 

@@ -41,7 +41,7 @@ impl CancelToken {
         }
     }
 
-    fn attach(&self, mut child: std::process::Child) {
+    pub fn attach(&self, mut child: std::process::Child) {
         // Race window: cancel may have fired between spawn and attach.
         if self.is_cancelled() {
             let _ = child.kill();
@@ -49,6 +49,10 @@ impl CancelToken {
             return;
         }
         *self.inner.child.lock().unwrap() = Some(child);
+    }
+
+    pub fn detach(&self) -> Option<std::process::Child> {
+        self.inner.child.lock().unwrap().take()
     }
 }
 

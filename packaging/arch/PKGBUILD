@@ -55,6 +55,10 @@ package() {
     echo "PKGBUILD: missing sidecar: src-tauri/binaries/ffprobe-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ffmpeg) first."
     return 1
   fi
+  if [ ! -f "$startdir/../../$_sidecars/yt-dlp-x86_64-unknown-linux-gnu" ]; then
+    echo "PKGBUILD: missing sidecar: src-tauri/binaries/yt-dlp-x86_64-unknown-linux-gnu. Run ./scripts/package-arch.sh (pnpm fetch:ytdlp) first."
+    return 1
+  fi
 
   # Launch stack per packaging-contract.md "Artifact Contract" (tasks T009, research R3):
   # ELF + statically built sidecars co-located in /usr/lib/audiflow so current_exe().parent()
@@ -62,6 +66,7 @@ package() {
   install -Dm755 "$startdir/../../$_pkgoutput/audiflow" "$pkgdir/usr/lib/audiflow/audiflow"
   install -Dm755 "$startdir/../../$_sidecars/ffmpeg-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffmpeg"
   install -Dm755 "$startdir/../../$_sidecars/ffprobe-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/ffprobe"
+  install -Dm755 "$startdir/../../$_sidecars/yt-dlp-x86_64-unknown-linux-gnu" "$pkgdir/usr/lib/audiflow/yt-dlp"
 
   # /usr/bin launcher (R3): execs the real ELF so the app's cwd/exe-relative contracts hold.
   install -d 755 "$pkgdir/usr/bin"

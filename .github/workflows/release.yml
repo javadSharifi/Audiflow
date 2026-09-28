@@ -66,6 +66,9 @@ jobs:
       - name: Fetch/bundle FFmpeg for this platform (LGPL)
         run: pnpm fetch:ffmpeg
 
+      - name: Fetch/bundle yt-dlp for this platform
+        run: pnpm fetch:ytdlp
+
       - name: Verify Rust-to-TypeScript type sync (Specta)
         if: runner.os == 'Linux'
         run: |

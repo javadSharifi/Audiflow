@@ -1,10 +1,10 @@
 # Project Graph
 
-_Last updated: 2026-09-19_
+_Last updated: 2026-09-28_
 
 ## Architecture overview
 
-Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
+Audiflow (audio-converter v1.6.1) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
 
 ## Folder structure
 
@@ -12,12 +12,14 @@ Audiflow (audio-converter v1.5.1) is an offline-first Tauri 2 + React 19 + Rust 
 | ---- | ---- |
 | `src/` | React 19 SPA (Tailwind v4, Zustand 5); never invokes ffmpeg/raw `invoke` |
 | `src/components/` | Converter presentation + `music-player/` library UI |
+| `src/components/internet-search/` | Internet search modal, result rows, download queue drawer UI |
 | `src/features/sound-booster/` | File booster UI + store |
-| `src/stores/` | `useAppStore` converter slices + `useMusicPlayerStore` + `musicPlayer/` engine |
+| `src/stores/` | `useAppStore` converter slices + `useMusicPlayerStore` + `useDownloaderStore` |
 | `src/utils/tauri.ts` | SOLE typed IPC facade; all commands funnel here |
 | `src/types/generated.ts` | Specta OUTPUT, CI-pinned; do not edit |
 | `src/i18n/` | en/fa dictionaries + `translate()`; RTL discipline |
-| `src-tauri/src/` | Rust backend: lib/commands/queue/processing/ffmpeg/music_library |
+| `src-tauri/src/` | Rust backend: lib/commands/queue/downloader/processing/ffmpeg/music_library |
+| `src-tauri/src/downloader/` | yt-dlp sidecar manager, search service, local CORS streaming proxy, download queue & worker |
 | `src-tauri/src/processing/` | Single-pass pipeline, naming/silence/split, booster, transcribe |
 | `src-tauri/src/ffmpeg/` | locate/probe/run/progress/waveform sidecars |
 | `src-tauri/src/music_library/` | Scanner + artwork + per-OS platform |
@@ -88,6 +90,9 @@ git status --short  # workdir changes since sync
 - branch: main
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
+
+Workdir drift since sync (2026-09-28, Internet Music Search, Preview, and Download):
+Added production-ready Internet Music Search and Downloader subsystem. Rust sidecar manager (`src-tauri/src/downloader/ytdlp.rs`) with multi-tier binary resolution (app data, YTDLP_PATH, next-to-exe, ancestor tree, compile-time baked manifest path, cwd, runtime CARGO_MANIFEST_DIR, system PATH), search extraction service (`service.rs`), local HTTP streaming proxy for WebAudio CORS playback (`proxy.rs`), download queue manager and worker (`queue.rs`, `worker.rs`), and IPC commands (`src-tauri/src/commands/downloader.rs`). Frontend Zustand store (`src/stores/useDownloaderStore.ts`), UI modal and components (`src/components/internet-search/`), English and Persian localization, and integration with `TrackListView.tsx` and `MusicPlayerView.tsx`. All files <= 300 lines ceiling.
 
 Workdir drift since sync (2026-09-24, spec 021 implemented — Android Media Rescan & Indexing Sync):
 Added `MediaScanSynchronizer.kt` (`src-tauri/android/`) to discover audio files in `Music`, `Download`, and OTG volumes and batch-sync with `MediaScannerConnection.scanFile` (2.5s latch timeout). Integrated into `MediaStoreManager.kt` query and broadened selection to include untagged/OEM-unclassified audio files. Added `MediaScanSynchronizerTest.kt` (4/4 passing) and store slice test in `slices.test.ts` (7/7 passing).
@@ -161,6 +166,7 @@ hand-written sources an agent would actually navigate to or edit.
 | Waveform trimmer / Ringtone modal | `src/components/TrimEditor.tsx`, `src/components/music-player/SetRingtoneModal.tsx` | `src/components/waveform/`, `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src/stores/musicPlayer/slices/`, `src/stores/useMusicPlayerStore.ts`, `src-tauri/src/music_library/` | converter DSP |
 | Mac add-folder button (018) | `src/components/music-player/AddFolderButton.tsx` + `useAddFolderPick.ts` (pick→dedupe→batch add→one scan→toast outcomes; mac-only render) | `useMusicPlayerStore.addCustomFolders` (batched, N+1 avoided), `utils/dialog.pickDirectories`, i18n keys `addFolder*` | picker UI changes |
+| Internet Search / Preview / Download | `src/components/internet-search/InternetSearchView.tsx` | `src/stores/useDownloaderStore.ts`, `src-tauri/src/downloader/`, `src-tauri/src/commands/downloader.rs` | converter DSP |
 | Drag-drop / OS open playback (019) | `src/hooks/useAppDragDrop.ts` + `src/components/music-player/PlayerDropOverlay.tsx` | `src/utils/openWith.ts`, `src-tauri/src/music_library/resolver.rs`, `src/App.tsx` | DSP internals |
 | Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |
 | File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |

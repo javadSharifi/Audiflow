@@ -29,6 +29,19 @@ Do not use it for:
 **Implication:** <what future agents should preserve or know>
 ```
 
+## 2026-09-28 — Internet Music Search, Preview, and Download (yt-dlp sidecar + local stream proxy)
+
+**Decision:**
+1. Integrated official `yt-dlp` standalone binary as external sidecar (`scripts/fetch-ytdlp.mjs`, `bundle.externalBin: ["binaries/yt-dlp"]` in `tauri.conf.json`). Resolution searches: user data dir -> `AUDIFLOW_YTDLP_PATH` -> exe dir -> cargo manifest binaries -> system PATH.
+2. Search & Extraction: Used `DownloaderService` with `--dump-json --flat-playlist` for fast searches and `--extractor-args "youtube:player_client=android,ios,web"` to bypass bot blocks and extract direct audio streams.
+3. Audio Preview via Local Stream Proxy: WebAudio `createMediaElementSource` silences audio from remote domains lacking CORS headers. `StreamProxy` runs a lightweight local HTTP server strictly bound to `127.0.0.1:<random_port>`. To prevent open proxy exploitation, remote URLs are never accepted in query strings; instead, `DownloaderService` generates opaque 32-char hex preview tokens with 1-hour TTL and automated expiry cleanup. Only `/preview/<token>` requests are proxied with byte-range slicing (206 Partial Content), CORS headers, and automatic URL refresh upon 403/410 upstream expiry.
+4. Download Queue & Indexing: `DownloadQueueManager` and `worker.rs` manage an asynchronous download pipeline using bundled `yt-dlp` and `ffmpeg`. Child processes are attached to `CancelToken` for instant SIGTERM killing upon cancellation. Downloads stage to temporary `.part` paths with non-destructive naming (`audiflow::processing::naming::unique_path`) before atomic rename upon completion, cleaning up orphan partials on exit, and triggering a library rescan.
+5. Strict adherence to <= 300 lines ceiling across all downloader modules (`proxy.rs`, `service.rs`, `queue.rs`, `worker.rs`, `ytdlp.rs`, `types.rs`, `downloader.rs`).
+
+**Why:** Delivers seamless internet music discovery, instant playback preview, and high-quality MP3 downloads without blocking the UI or requiring external browser downloads, while eliminating open-proxy vulnerabilities and partial-file corruption.
+
+**Implication:** When bundling for production releases, ensure `fetch:ytdlp` is invoked in CI workflows alongside `fetch:ffmpeg`.
+
 ## 2026-09-24 — Code Health & Circular Dependency Elimination (spec 020)
 
 **Decision:**

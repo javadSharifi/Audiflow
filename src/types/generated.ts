@@ -190,6 +190,14 @@ export const commands = {
 	 *  SRT/VTT require word timestamps from the original request.
 	 */
 	exportTranscript: (jobId: string, format: string) => typedError<string, AppError>(__TAURI_INVOKE("export_transcript", { jobId, format })),
+	searchInternetMusic: (query: string, source: string | null, limit: number | null) => typedError<MusicSearchResult[], AppError>(__TAURI_INVOKE("search_internet_music", { query, source, limit })),
+	getInternetPreviewUrl: (url: string) => typedError<string, AppError>(__TAURI_INVOKE("get_internet_preview_url", { url })),
+	startInternetDownload: (request: DownloadRequest) => typedError<string, AppError>(__TAURI_INVOKE("start_internet_download", { request })),
+	cancelInternetDownload: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("cancel_internet_download", { id })),
+	retryInternetDownload: (id: string) => typedError<null, AppError>(__TAURI_INVOKE("retry_internet_download", { id })),
+	getInternetDownloads: () => typedError<DownloadItem[], AppError>(__TAURI_INVOKE("get_internet_downloads")),
+	getYtdlpInfo: () => typedError<YtDlpInfo, AppError>(__TAURI_INVOKE("get_ytdlp_info")),
+	getInternetMusicSources: () => typedError<MusicSource[], AppError>(__TAURI_INVOKE("get_internet_music_sources")),
 };
 
 /* Types */
@@ -274,6 +282,33 @@ export type DiskFree = {
 	free_bytes: number,
 };
 
+export type DownloadItem = {
+	id: string,
+	webpageUrl: string,
+	title: string,
+	artist: string | null,
+	thumbnailUrl: string | null,
+	status: DownloadStatus,
+	percent: number | null,
+	downloadedBytes: number,
+	totalBytes: number,
+	speedBytesPerSec: number | null,
+	etaSecs: number,
+	outputPath: string | null,
+	error: string | null,
+};
+
+export type DownloadRequest = {
+	id: string,
+	webpageUrl: string,
+	title: string,
+	artist: string | null,
+	thumbnailUrl: string | null,
+	format: string | null,
+};
+
+export type DownloadStatus = "queued" | "preparing" | "downloading" | "processing" | "completed" | "failed" | "cancelled";
+
 export type FileMeta = {
 	name: string,
 	path: string,
@@ -312,6 +347,23 @@ export type JobRecord = {
 export type JobStatus = "waiting" | "processing" | "completed" | "failed" | "cancelled";
 
 export type LibraryPermissionStatus = "granted" | "denied" | "permanentlyDenied" | "restricted" | "notRequired";
+
+export type MusicSearchResult = {
+	id: string,
+	title: string,
+	artist: string | null,
+	uploader: string | null,
+	album: string | null,
+	durationSecs: number | null,
+	thumbnailUrl: string | null,
+	webpageUrl: string,
+	source: string,
+};
+
+export type MusicSource = {
+	id: string,
+	name: string,
+};
 
 /**  Last quota failure actually observed from Google (may be stale). */
 export type ObservedQuota = {
@@ -493,6 +545,12 @@ export type WordInfo = {
 	/**  Seconds from the start of the (rescaled) audio. */
 	startOffset: number | null,
 	endOffset: number | null,
+};
+
+export type YtDlpInfo = {
+	version: string,
+	binaryPath: string,
+	isBundled: boolean,
 };
 
 /* Tauri Specta runtime */

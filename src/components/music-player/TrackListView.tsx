@@ -4,10 +4,11 @@ import { useAppStore } from "../../stores/useAppStore";
 import { useMusicPlayerStore, filterAndSortTracks, isTrackLiked } from "../../stores/useMusicPlayerStore";
 import { translate } from "../../i18n";
 import { hasNotificationPermission } from "../../utils/tauri";
-import { isAndroid } from "../../utils/platform";
+import { isAndroid, isMobile } from "../../utils/platform";
 import { TrackRow } from "./TrackRow";
 import { TrackSortDropdown } from "./TrackSortDropdown";
 import { AddFolderButton } from "./AddFolderButton";
+import { InternetSearchButton } from "../internet-search/InternetSearchButton";
 import { TrackListBanners } from "./TrackListBanners";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import { useTrackVirtualizer } from "./useTrackVirtualizer";
@@ -27,11 +28,9 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const sortBy = useMusicPlayerStore((s) => s.sortBy);
   const likedPaths = useMusicPlayerStore((s) => s.likedPaths);
   const permissionStatus = useMusicPlayerStore((s) => s.permissionStatus);
-  const checkPermission = useMusicPlayerStore((s) => s.checkPermission);
-  const scanLibrary = useMusicPlayerStore((s) => s.scanLibrary);
-  const requestMediaPermission = useMusicPlayerStore((s) => s.requestMediaPermission);
-  const setSearchQuery = useMusicPlayerStore((s) => s.setSearchQuery);
-  const setSortBy = useMusicPlayerStore((s) => s.setSortBy);
+  const {
+    checkPermission, scanLibrary, requestMediaPermission, setSearchQuery, setSortBy,
+  } = useMusicPlayerStore.getState();
   const isSelectionMode = useMusicPlayerStore((s) => s.isSelectionMode);
   // Cheap boolean instead of the whole currentTrack object — the list only
   // needs to know "is anything playing" (bottom padding); subscribing to the
@@ -39,17 +38,11 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
   const isPlayerActive = useMusicPlayerStore((s) => s.playingKey !== "");
 
   const [notifBlocked, setNotifBlocked] = useState(false);
-  const [notifDismissed, setNotifDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem("ac:notif-banner-dismissed") === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [notifDismissed, setNotifDismissed] = useState(
+    () => typeof sessionStorage !== "undefined" && sessionStorage.getItem("ac:notif-banner-dismissed") === "1",
+  );
   const dismissNotifBanner = () => {
-    try {
-      sessionStorage.setItem("ac:notif-banner-dismissed", "1");
-    } catch { /* best-effort: ignore */ }
+    try { sessionStorage.setItem("ac:notif-banner-dismissed", "1"); } catch { /* ignore */ }
     setNotifDismissed(true);
   };
 
@@ -178,6 +171,8 @@ export function TrackListView({ likedOnly = false }: TrackListViewProps): React.
             </button>
           )}
         </div>
+
+        {!isAndroid() && !isMobile() && <InternetSearchButton />}
 
         <TrackSortDropdown sortBy={sortBy} onSelectSort={setSortBy} />
 

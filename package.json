@@ -1,7 +1,7 @@
 {
   "name": "audiflow",
   "private": true,
-  "version": "1.5.9",
+  "version": "1.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.mjs",
+    "fetch:ytdlp": "node scripts/fetch-ytdlp.mjs",
     "generate:types": "cargo run --example export_types --manifest-path src-tauri/Cargo.toml",
     "check:types": "cargo run --example export_types --manifest-path src-tauri/Cargo.toml && git diff --exit-code src/types/generated.ts",
     "build:android": "bash scripts/build-android-local.sh",
