@@ -387,6 +387,19 @@ export function stopSmoothTime(): void {
   }
 }
 
+/** Native state carries the track as an object or a JSON string; null if absent. */
+export function parseNativeTrack(raw: unknown): AudioTrackInfo | null {
+  let track: AudioTrackInfo | null = null;
+  if (raw && typeof raw === "object") {
+    track = raw as AudioTrackInfo;
+  } else if (typeof raw === "string" && raw.length > 2) {
+    try {
+      track = JSON.parse(raw) as AudioTrackInfo;
+    } catch { /* best-effort: ignore */ }
+  }
+  return track && (track.id || track.uri) ? track : null;
+}
+
 export function applyNativeStateToStore(state: NativePlayerState): void {
   if (!boundStore) return;
   const isPlaying = Boolean(state.isPlaying);
@@ -431,16 +444,8 @@ export function applyNativeStateToStore(state: NativePlayerState): void {
   // currentTrack — otherwise the notification shows track B while the UI
   // still shows track A. Match by stable id/uri against the known lists.
   try {
-    const rawTrack = state.currentTrack as unknown;
-    let nativeTrack: AudioTrackInfo | null = null;
-    if (rawTrack && typeof rawTrack === "object") {
-      nativeTrack = rawTrack as AudioTrackInfo;
-    } else if (typeof rawTrack === "string" && rawTrack.length > 2) {
-      try {
-        nativeTrack = JSON.parse(rawTrack) as AudioTrackInfo;
-      } catch { /* best-effort: ignore */ }
-    }
-    if (nativeTrack && (nativeTrack.id || nativeTrack.uri)) {
+    const nativeTrack = parseNativeTrack(state.currentTrack);
+    if (nativeTrack) {
       const nt: AudioTrackInfo = nativeTrack;
       const cur = currentStoreState.currentTrack;
       const same =
@@ -555,6 +560,43 @@ function startAndroidStateSync(): void {
     document.removeEventListener("visibilitychange", onVisible);
     document.addEventListener("visibilitychange", onVisible);
   } catch { /* best-effort: ignore */ }
+}
+
+/**
+ * Cold relaunch on Android: the playback service lives in the same process
+ * and outlives the activity, so music can still be playing when the user
+ * comes back. Seed the (empty) store from it and resume state sync — the
+ * normal sync path ignores a native track while the store holds none.
+ * Returns false when no live playback was found.
+ */
+export async function adoptRunningNativePlayer(): Promise<boolean> {
+  if (!isAndroid() || !boundStore) return false;
+  try {
+    const state = await api.androidPlayerGetState();
+    // Only a PLAYING snapshot proves the service is alive; a paused/idle one
+    // may be stale cache from a destroyed service.
+    if (!state || state.isPlaying !== true) return false;
+    const nt = parseNativeTrack(state.currentTrack);
+    if (!nt) return false;
+    const s = boundStore.getState();
+    if (s.currentTrack) return false;
+    const matched =
+      s.tracks.find((t) => (nt.id && t.id === nt.id) || (nt.uri && t.uri === nt.uri)) ?? null;
+    const adopted: AudioTrackInfo = matched ?? nt;
+    boundStore.setState({
+      currentTrack: adopted,
+      playingKey: playbackIdentityKey(adopted),
+      isPlaying: true,
+      currentTime: 0,
+      duration: adopted.durationSecs || 0,
+    });
+    applyNativeStateToStore(state);
+    startAndroidStateSync();
+    return true;
+  } catch (e) {
+    console.warn("Adopting running native player failed:", e);
+    return false;
+  }
 }
 
 function stopAndroidStateSync(): void {

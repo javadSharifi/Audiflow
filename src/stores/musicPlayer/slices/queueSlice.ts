@@ -12,6 +12,7 @@ import {
   snapshotUnplayableKeys,
   trackKey,
 } from "../autoAdvance";
+import { hasPendingRestore } from "../sessionRestore";
 import { useAppStore } from "../../useAppStore";
 
 export const createQueueSlice: StateCreator<
@@ -33,7 +34,8 @@ export const createQueueSlice: StateCreator<
     // ExoPlayer REPEAT_MODE_ONE). A MANUAL next must always advance — the
     // previous code restarted the same track on manual next, which disagrees
     // with Rhythm/platform convention.
-    if (isAndroid()) {
+    // A restored-but-unloaded track has no native queue to delegate to.
+    if (isAndroid() && !hasPendingRestore()) {
       try {
         await unifiedNext();
       } catch (e) {
@@ -113,7 +115,7 @@ export const createQueueSlice: StateCreator<
     // Android: delegate to the native queue (see playNextTrack). The >3s
     // restart-vs-previous rule is enforced natively by position: if the
     // native position is past 3s we seek to 0, else we step back.
-    if (isAndroid()) {
+    if (isAndroid() && !hasPendingRestore()) {
       if (state.currentTime > 3) {
         state.seekTo(0);
         return;

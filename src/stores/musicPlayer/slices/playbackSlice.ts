@@ -17,6 +17,14 @@ import {
 import { createSeekDebouncer } from "../seekDebounce";
 import { createGainGlider } from "../gainGlide";
 import { playbackIdentityKey } from "../trackUtils";
+import {
+  clearLastSession,
+  clearPendingRestore,
+  hasPendingRestore,
+  startRestoredPlayback,
+  takePendingRestore,
+  updatePendingRestorePosition,
+} from "../sessionRestore";
 
 /**
  * Module-scope trailing seek coalescer (003-volume-boost-accuracy US2).
@@ -84,6 +92,7 @@ export const createPlaybackSlice: StateCreator<
     // A new start takes over: kill any pending auto-advance token so a late
     // end pulse from the previous track can't double-advance (T017 race).
     cancelArmedAutoAdvance();
+    clearPendingRestore();
 
     set({
       currentTrack: track,
@@ -102,6 +111,8 @@ export const createPlaybackSlice: StateCreator<
   },
 
   closePlayer() {
+    clearPendingRestore();
+    clearLastSession();
     void unifiedStop();
     set({
       currentTrack: null,
@@ -114,6 +125,21 @@ export const createPlaybackSlice: StateCreator<
   },
 
   resumeTrack() {
+    // A track restored from the previous session is only shown, never loaded:
+    // the first resume has to start it for real, at the saved position.
+    const restoredPositionSecs = takePendingRestore();
+    const track = get().currentTrack;
+    if (restoredPositionSecs !== null && track) {
+      const playlist = get().currentPlaylist;
+      const list = playlist.length > 0 ? playlist : [track];
+      const index = list.findIndex((t) => t.id === track.id || t.uri === track.uri);
+      cancelArmedAutoAdvance();
+      set({ isPlaying: true });
+      startRestoredPlayback(track, list, index >= 0 ? index : 0, restoredPositionSecs).catch((e) =>
+        console.warn("Restored track failed to start:", e),
+      );
+      return;
+    }
     void unifiedResume();
     set({ isPlaying: true });
   },
@@ -134,6 +160,12 @@ export const createPlaybackSlice: StateCreator<
 
   seekTo(timeSecs) {
     if (Number.isFinite(timeSecs)) {
+      // Restored but not loaded yet: just move the saved position.
+      if (hasPendingRestore()) {
+        updatePendingRestorePosition(timeSecs);
+        set({ currentTime: timeSecs });
+        return;
+      }
       // 003-volume-boost-accuracy US2: coalesce scrub bursts so fast
       // scrubbing fires ~1 native seek per second and lands on the final
       // position. Optimistic UI stays instant; short tracks bypass.

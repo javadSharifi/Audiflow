@@ -18,6 +18,7 @@ import { handleIncomingFiles } from "./utils/openWith";
 import { ANDROID_BACK_EVENT, wasBackConsumed } from "./utils/androidBack";
 import { ConverterWizard } from "./components/converter-wizard/ConverterWizard";
 import { markBoot, logBootSummary } from "./utils/bootPerf";
+import { startSessionPersistence } from "./stores/musicPlayer/sessionRestore";
 
 // Module scope: everything before this line (store creation, cached-track
 // JSON parse, artwork-manifest hydration) lands in this first delta.
@@ -88,6 +89,12 @@ export default function App(): React.JSX.Element {
     };
     window.addEventListener(ANDROID_BACK_EVENT, onAndroidBack as EventListener);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onAndroidBack as EventListener);
+  }, []);
+
+  // Remember what is playing and bring the previous session's track back into
+  // the mini player (paused) after a full close.
+  useEffect(() => {
+    void startSessionPersistence(useMusicPlayerStore).catch(() => {});
   }, []);
 
   // Handle files opened via Open With, file association, or share sheet (cross-platform)
