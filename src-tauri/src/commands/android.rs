@@ -255,10 +255,14 @@ pub fn get_notification_permission_status() -> bool {
 pub fn exit_app(app: tauri::AppHandle) {
     #[cfg(target_os = "android")]
     {
-        // Ask Kotlin to finish the activity on the main thread.
-        let _ = crate::android_fs::call_static_void("exitApp");
-        // Fallback: also ask the runtime to exit in case the bridge is dead.
-        app.exit(0);
+        // Ask Kotlin to finish the activity on the main thread. The process
+        // must stay alive: PlaybackService runs in it, so exiting the runtime
+        // here would kill background playback the moment the user leaves.
+        if crate::android_fs::call_static_void("exitApp").is_err() {
+            // Fallback only when the bridge is dead and the activity cannot
+            // be finished any other way.
+            app.exit(0);
+        }
     }
     #[cfg(not(target_os = "android"))]
     {
