@@ -4,7 +4,7 @@ _Last updated: 2026-09-28_
 
 ## Architecture overview
 
-Audiflow (audio-converter v1.6.2) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
+Audiflow (audio-converter v1.6.3) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
 
 ## Folder structure
 
