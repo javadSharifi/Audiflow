@@ -16,7 +16,6 @@ export function useFileBooster() {
     outputMode,
     customOutputDir,
     preview,
-    activeAudition,
     isPlaying,
     setFile,
     setAnalysis,
@@ -34,7 +33,6 @@ export function useFileBooster() {
 
   const [currentTime, setCurrentTime] = useState(0);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeJobIdRef = useRef<string | null>(null);
   const reqSeqRef = useRef(0);
@@ -142,103 +140,17 @@ export function useFileBooster() {
   // Handle seeking within preview snippet
   const handleSeek = useCallback(
     (timeSecs: number) => {
-      if (audioRef.current) {
-        const maxDur = preview?.snippetDurationSecs || 15;
-        const clamped = Math.max(0, Math.min(maxDur, timeSecs));
-        audioRef.current.currentTime = clamped;
-        setCurrentTime(clamped);
-      }
+      const maxDur = preview?.snippetDurationSecs || 15;
+      const clamped = Math.max(0, Math.min(maxDur, timeSecs));
+      setCurrentTime(clamped);
     },
     [preview?.snippetDurationSecs],
   );
 
-  // Manage Audio element source when preview or activeAudition changes
-  useEffect(() => {
-    if (!preview) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
-      setIsPlaying(false);
-      setCurrentTime(0);
-      return;
-    }
-
-    const currentPath =
-      activeAudition === "original" ? preview.originalPath : preview.boostedPath;
-
-    let cancelled = false;
-    void api.fileToAssetUrl(currentPath).then((url) => {
-      if (cancelled) return;
-
-      if (!audioRef.current) {
-        const audio = new Audio();
-        audio.onended = () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        };
-        audio.onerror = () => setIsPlaying(false);
-        audio.ontimeupdate = () => {
-          if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime || 0);
-          }
-        };
-        audioRef.current = audio;
-      }
-
-      const audio = audioRef.current;
-      if (audio.src !== url) {
-        const wasPlaying = !audio.paused && audio.currentTime > 0;
-        const prevTime = audio.currentTime || 0;
-
-        audio.src = url;
-
-        if (wasPlaying) {
-          audio.currentTime = prevTime;
-          audio.play().catch(() => setIsPlaying(false));
-        } else {
-          audio.currentTime = 0;
-          setCurrentTime(0);
-        }
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preview?.originalPath, preview?.boostedPath, activeAudition, setIsPlaying]);
-
-  // Toggle playback cleanly without reconstructing Audio instance
+  // Toggle playback
   const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const maxDur = preview?.snippetDurationSecs || 12;
-
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-    } else {
-      if (audio.currentTime >= maxDur - 0.1) {
-        audio.currentTime = 0;
-        setCurrentTime(0);
-      }
-      audio
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
-    }
-  }, [isPlaying, setIsPlaying, preview?.snippetDurationSecs]);
-
-  // Stop playback on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
-    };
-  }, []);
+    setIsPlaying(!isPlaying);
+  }, [isPlaying, setIsPlaying]);
 
   // Listen to queue events strictly for the active booster job
   useEffect(() => {

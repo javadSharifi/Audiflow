@@ -141,10 +141,29 @@ class MainActivity : TauriActivity() {
     initNativePathsSafe()
   }
 
+  override fun onPause() {
+    // WryActivity.onPause() calls WebView.onPause(), which pauses <audio>.
+    // While the music player is playing, undo that so playback continues.
+    super.onPause()
+    if (PlaybackService.keepWebViewAlive) {
+      try {
+        findWebView(window.decorView)?.onResume()
+      } catch (t: Throwable) {
+        Log.w(TAG, "Failed to keep WebView alive for background playback", t)
+      }
+    }
+  }
+
   override fun onDestroy() {
     // Avoid leaking the Activity through the static handle.
     if (instance === this) {
       instance = null
+      // The WebView (and its audio) dies with the activity — drop the notification too.
+      try {
+        startService(Intent(this, PlaybackService::class.java).setAction(PlaybackService.ACTION_STOP))
+      } catch (t: Throwable) {
+        Log.w(TAG, "Failed to stop PlaybackService", t)
+      }
     }
     super.onDestroy()
   }
@@ -162,13 +181,23 @@ class MainActivity : TauriActivity() {
       return
     }
 
-    val denied = permissions.filterIndexed { i, _ ->
-      grantResults[i] != PackageManager.PERMISSION_GRANTED
-    }
-    if (denied.isEmpty()) {
+    val anyGranted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
+    if (anyGranted || hasMediaPermissions()) {
       Log.i(TAG, "Media permissions granted")
+      val act = instance ?: this
+      act.runOnUiThread {
+        try {
+          val webView = findWebView(act.window.decorView)
+          webView?.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('ac:permissions-updated', { detail: { granted: true } }));",
+            null
+          )
+        } catch (t: Throwable) {
+          Log.w(TAG, "Failed to notify webview of permissions update", t)
+        }
+      }
     } else {
-      Log.w(TAG, "Media permissions denied: $denied")
+      Log.w(TAG, "Media permissions denied")
       toastMain(R.string.permission_denied_hint)
     }
   }
@@ -257,10 +286,14 @@ class MainActivity : TauriActivity() {
     @JvmStatic
     fun hasMediaPermissions(): Boolean {
       val ctx = appContext ?: instance?.applicationContext ?: return true
-      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { // Android 14+ (API 34+)
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED ||
+          ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED ||
+          ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13 (API 33)
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED ||
           ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-      } else {
+      } else { // Android 12 and below
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
       }
     }
@@ -364,6 +397,170 @@ class MainActivity : TauriActivity() {
     @JvmStatic
     fun isLiveBoostSupported(): Boolean {
       return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+    }
+
+    @JvmStatic
+    fun startVolumeBooster(level: Int) {
+        val ctx = appContext ?: instance?.applicationContext ?: return
+        try {
+            val intent = Intent(ctx, com.audioconverter.app.booster.VolumeBoosterService::class.java).apply {
+                action = com.audioconverter.app.booster.VolumeBoosterService.ACTION_START
+                putExtra(com.audioconverter.app.booster.VolumeBoosterService.EXTRA_LEVEL, level.coerceIn(0, 100))
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ctx.startForegroundService(intent)
+            } else {
+                ctx.startService(intent)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to start VolumeBoosterService", t)
+        }
+    }
+
+    @JvmStatic
+    fun stopVolumeBooster() {
+        val ctx = appContext ?: instance?.applicationContext ?: return
+        try {
+            val intent = Intent(ctx, com.audioconverter.app.booster.VolumeBoosterService::class.java).apply {
+                action = com.audioconverter.app.booster.VolumeBoosterService.ACTION_STOP
+            }
+            ctx.startService(intent)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to stop VolumeBoosterService", t)
+        }
+    }
+
+    @JvmStatic
+    fun setBoostLevel(level: Int) {
+        val ctx = appContext ?: instance?.applicationContext ?: return
+        try {
+            val intent = Intent(ctx, com.audioconverter.app.booster.VolumeBoosterService::class.java).apply {
+                action = com.audioconverter.app.booster.VolumeBoosterService.ACTION_SET_LEVEL
+                putExtra(com.audioconverter.app.booster.VolumeBoosterService.EXTRA_LEVEL, level.coerceIn(0, 100))
+            }
+            ctx.startService(intent)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to update VolumeBoosterService level", t)
+        }
+    }
+
+    @JvmStatic
+    fun getBoosterStatus(): String {
+        // Returns JSON: {"enabled":true,"level":50,"engine":"loudnessEnhancer"}
+        val enabled = com.audioconverter.app.booster.VolumeBoosterService.isServiceRunning
+        val level = com.audioconverter.app.booster.VolumeBoosterService.currentLevel
+        val engine = com.audioconverter.app.booster.VolumeBoosterService.currentEngine
+        return "{\"enabled\":$enabled,\"level\":$level,\"engine\":\"$engine\"}"
+    }
+
+    /**
+     * Music player → PlaybackService (called over JNI). `stateJson` empty =
+     * stop and remove the notification. Never throws into native code.
+     */
+    @JvmStatic
+    fun updatePlayback(stateJson: String) {
+        val ctx = appContext ?: instance?.applicationContext ?: return
+        try {
+            val intent = Intent(ctx, PlaybackService::class.java)
+            if (stateJson.isEmpty()) {
+                intent.action = PlaybackService.ACTION_STOP
+                ctx.startService(intent)
+                return
+            }
+            intent.action = PlaybackService.ACTION_UPDATE
+            intent.putExtra(PlaybackService.EXTRA_STATE, stateJson)
+            val playing = org.json.JSONObject(stateJson).optBoolean("playing")
+            if (playing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ctx.startForegroundService(intent)
+            } else {
+                ctx.startService(intent)
+            }
+        } catch (t: Throwable) {
+            // e.g. ForegroundServiceStartNotAllowedException when started from background
+            Log.e(TAG, "Failed to update PlaybackService", t)
+        }
+    }
+
+    /**
+     * Music library from the system MediaStore index (needs READ_MEDIA_AUDIO).
+     * One line per song: `path\ttitle\tartist\talbum\tdurationMs\tsize`.
+     * DATA is a real file path — readable directly on Android 11+ with the
+     * media permission, so the player and ffprobe need no URI staging.
+     * Never throws into native code; "" on any failure.
+     */
+    @JvmStatic
+    fun queryAudioLibrary(@Suppress("UNUSED_PARAMETER") unused: String): String {
+        val ctx = appContext ?: instance?.applicationContext ?: return ""
+        return try {
+            @Suppress("DEPRECATION")
+            val cols = arrayOf(
+                android.provider.MediaStore.Audio.Media.DATA,
+                android.provider.MediaStore.Audio.Media.TITLE,
+                android.provider.MediaStore.Audio.Media.ARTIST,
+                android.provider.MediaStore.Audio.Media.ALBUM,
+                android.provider.MediaStore.Audio.Media.DURATION,
+                android.provider.MediaStore.Audio.Media.SIZE,
+            )
+            val clean = { s: String? -> (s ?: "").replace('\t', ' ').replace('\n', ' ') }
+            val sb = StringBuilder()
+            ctx.contentResolver.query(
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                cols,
+                "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0",
+                null,
+                "${android.provider.MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val path = c.getString(0) ?: continue
+                    sb.append(clean(path)).append('\t')
+                        .append(clean(c.getString(1))).append('\t')
+                        .append(clean(c.getString(2))).append('\t')
+                        .append(clean(c.getString(3))).append('\t')
+                        .append(c.getLong(4)).append('\t')
+                        .append(c.getLong(5)).append('\n')
+                }
+            }
+            sb.toString()
+        } catch (t: Throwable) {
+            Log.e(TAG, "queryAudioLibrary failed", t)
+            ""
+        }
+    }
+
+    /** Notification / MediaSession control press → JS `ac:media-action` event. */
+    @JvmStatic
+    fun dispatchMediaAction(action: String, value: Double) {
+        val act = instance ?: return
+        act.runOnUiThread {
+            try {
+                val webView = findWebView(act.window.decorView) ?: return@runOnUiThread
+                // A paused WebView may refuse play() — wake it before resuming audio.
+                if (action == "play") webView.onResume()
+                val safe = action.filter { it.isLetter() }
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('ac:media-action', { detail: { action: '$safe', value: $value } }));",
+                    null
+                )
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to dispatch media action", t)
+            }
+        }
+    }
+
+    @JvmStatic
+    fun notifyVolumeBoosterState(running: Boolean, level: Int, engine: String) {
+        val act = instance ?: return
+        act.runOnUiThread {
+            try {
+                val webView = findWebView(act.window.decorView)
+                webView?.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('ac:volume-booster-state', { detail: { enabled: $running, level: $level, engine: '$engine' } }));",
+                    null
+                )
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to notify webview of volume booster state", t)
+            }
+        }
     }
 
     /**

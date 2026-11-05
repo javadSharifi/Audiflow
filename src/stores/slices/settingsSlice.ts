@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { AppSettings, ConversionOptions } from "../../types";
+import type { AppMode, AppSettings, ConversionOptions } from "../../types";
 import type { Lang } from "../../i18n";
 import type { ToastSlice } from "./toastSlice";
 import { isAndroid } from "../../utils/platform";
@@ -10,7 +10,9 @@ export interface SettingsSlice {
   options: ConversionOptions;
   lang: Lang;
   theme: "light" | "dark" | "system";
+  appMode: AppMode;
 
+  setAppMode: (mode: AppMode) => void;
   updateOptions: (patch: Partial<ConversionOptions>) => void;
   loadSettings: () => Promise<void>;
   updateSettings: (patch: Partial<AppSettings>) => void;
@@ -35,6 +37,20 @@ export const defaultOptions: ConversionOptions = {
   boostManualGainPercent: 100,
 };
 
+function getInitialAppMode(): AppMode {
+  try {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ac:app-mode");
+      if (saved === "player" || saved === "converter") {
+        return saved;
+      }
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+  return "converter";
+}
+
 export const createSettingsSlice: StateCreator<
   SettingsSlice & ToastSlice,
   [],
@@ -45,6 +61,18 @@ export const createSettingsSlice: StateCreator<
   options: defaultOptions,
   lang: "en",
   theme: "system",
+  appMode: getInitialAppMode(),
+
+  setAppMode(mode: AppMode) {
+    set({ appMode: mode });
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ac:app-mode", mode);
+      }
+    } catch {
+      /* ignore */
+    }
+  },
 
   updateOptions(patch) {
     set((s) => ({ options: { ...s.options, ...patch } }));

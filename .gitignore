@@ -16,3 +16,5 @@ src-tauri/binaries/*
 secrets.android.env
 local.properties
 
+.vite/
+tsconfig.tsbuildinfo

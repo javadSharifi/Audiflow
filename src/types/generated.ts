@@ -50,6 +50,26 @@ export const commands = {
 	 *  Runs in a dedicated background task to prevent any UI freezing.
 	 */
 	waveformPeaks: (path: string, buckets: number | null) => typedError<([(number | null), (number | null)])[], AppError>(__TAURI_INVOKE("waveform_peaks", { path, buckets })),
+	/**  Tags + technical details for the music player ("stats for nerds"). */
+	trackInfo: (path: string) => typedError<TrackInfo, AppError>(__TAURI_INVOKE("track_info", { path })),
+	/**  Silent spans (start, end seconds) for the player's "skip silence" toggle. */
+	trackSilences: (path: string) => typedError<([(number | null), (number | null)])[], AppError>(__TAURI_INVOKE("track_silences", { path })),
+	/**
+	 *  Local lyrics: a sidecar `<name>.lrc` next to the file, else embedded
+	 *  lyrics tags. `None` when neither exists (the UI may then try online).
+	 */
+	trackLyrics: (path: string) => typedError<string | null, AppError>(__TAURI_INVOKE("track_lyrics", { path })),
+	trackCover: (path: string) => typedError<CoverArt | null, AppError>(__TAURI_INVOKE("track_cover", { path })),
+	/**
+	 *  Android: start/update (Some) or stop (None) the playback foreground
+	 *  service + MediaSession. No-op elsewhere (desktop uses navigator.mediaSession).
+	 */
+	setBackgroundPlayback: (state: BackgroundPlayback | null) => typedError<null, AppError>(__TAURI_INVOKE("set_background_playback", { state })),
+	/**
+	 *  Local music library. Android: the system MediaStore index (`dir` is
+	 *  ignored). Desktop: recursive scan of `dir` with tags read by ffprobe.
+	 */
+	scanMusicLibrary: (dir: string | null) => typedError<LibraryTrack[], AppError>(__TAURI_INVOKE("scan_music_library", { dir })),
 	cancelJob: (jobId: string) => __TAURI_INVOKE<void>("cancel_job", { jobId }),
 	cancelAllJobs: () => __TAURI_INVOKE<void>("cancel_all_jobs"),
 	clearFinished: () => __TAURI_INVOKE<void>("clear_finished"),
@@ -75,6 +95,14 @@ export const commands = {
 	getLiveBoostStatus: () => __TAURI_INVOKE<LiveBoostStatus>("get_live_boost_status"),
 	/**  Whether Live System Boost is supported on this platform. */
 	isLiveBoostSupported: () => __TAURI_INVOKE<boolean>("is_live_boost_supported"),
+	/**  Start Volume Booster (AudioEffect-based, Android only). */
+	startVolumeBooster: (level: number) => typedError<BoosterStatus, AppError>(__TAURI_INVOKE("start_volume_booster", { level })),
+	/**  Stop Volume Booster. */
+	stopVolumeBooster: () => typedError<null, AppError>(__TAURI_INVOKE("stop_volume_booster")),
+	/**  Update Volume Booster level without restarting. */
+	setBoosterLevel: (level: number) => typedError<BoosterStatus, AppError>(__TAURI_INVOKE("set_booster_level", { level })),
+	/**  Get Volume Booster status. */
+	getBoosterStatus: () => __TAURI_INVOKE<BoosterStatus>("get_booster_status"),
 };
 
 /* Types */
@@ -94,6 +122,8 @@ export type AppError = { kind: "Io"; message: string } | { kind: "FFmpeg"; messa
 } } | { kind: "InvalidInput"; message: string } | { kind: "Cancelled" } | { kind: "NotFound"; message: string } | { kind: "Other"; message: string };
 
 export type AudioFormat = "mp3" | "wav" | "aac" | "m4a" | "flac" | "opus";
+
+export type BoosterEngine = "loudnessEnhancer" | "dynamicsProcessing" | "none";
 
 export type BoosterJobSpec = {
 	trim: TrimSpec,
@@ -115,6 +145,12 @@ export type BoosterPreset =
 "extreme" | 
 /**  User-controlled slider (0% to 200%). */
 "manual";
+
+export type BoosterStatus = {
+	enabled: boolean,
+	level: number,
+	engine: BoosterEngine,
+};
 
 export type ConversionOptions = {
 	format: AudioFormat,
@@ -209,6 +245,46 @@ export type Settings = {
 	silenceMinDurationSecs: number | null,
 	/**  Advanced/debug only: override bundled ffmpeg location. */
 	ffmpegPathOverride: string | null,
+};
+
+/**  One song in the local music library. */
+export type LibraryTrack = {
+	path: string,
+	name: string,
+	title: string | null,
+	artist: string | null,
+	album: string | null,
+	durationSecs: number,
+	sizeBytes: number,
+};
+
+/**  Now-playing snapshot for the Android background-playback notification. */
+export type BackgroundPlayback = {
+	title: string,
+	artist: string,
+	album: string,
+	playing: boolean,
+	positionSecs: number,
+	durationSecs: number,
+	rate: number,
+};
+
+/**  Extracted cover art (cached JPEG) and its average color for theming. */
+export type CoverArt = {
+	path: string,
+	rgb: [number, number, number],
+};
+
+/**  Tags + technical details for the music player ("stats for nerds"). */
+export type TrackInfo = {
+	title: string | null,
+	artist: string | null,
+	album: string | null,
+	codec: string | null,
+	sampleRate: number | null,
+	channels: number | null,
+	bitDepth: number | null,
+	bitrateKbps: number | null,
 };
 
 /**

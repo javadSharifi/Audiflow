@@ -1,7 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands } from "../types/generated";
 import type { AppSettings, ConversionOptions, FileMeta, QueueItem, TrimSpec } from "../types";
-import type { ResolvedMediaPath, StatMediaPath } from "../types/generated";
+import type { BackgroundPlayback, CoverArt, LibraryTrack, ResolvedMediaPath, StatMediaPath, TrackInfo } from "../types/generated";
 
 function formatAppError(err: unknown): string {
   if (typeof err === "object" && err !== null) {
@@ -89,6 +89,45 @@ export async function waveformPeaks(path: string, buckets = 1000): Promise<[numb
     throw new Error(formatAppError(res.error));
   }
   return res.data.map(([mn, mx]) => [mn ?? 0, mx ?? 0]);
+}
+
+export async function trackInfo(path: string): Promise<TrackInfo> {
+  const res = await commands.trackInfo(path);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data;
+}
+
+/** Silent spans [start, end] in seconds. */
+export async function trackSilences(path: string): Promise<[number, number][]> {
+  const res = await commands.trackSilences(path);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data.map(([s, e]) => [s ?? 0, e ?? 0]);
+}
+
+/** Sidecar .lrc or embedded lyrics; null when the file has none. */
+export async function trackLyrics(path: string): Promise<string | null> {
+  const res = await commands.trackLyrics(path);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data;
+}
+
+/** Cover art extracted to a cache file + its average color; null when absent. */
+export async function trackCover(path: string): Promise<CoverArt | null> {
+  const res = await commands.trackCover(path);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data;
+}
+
+/** Android background playback notification; null stops it. Fire-and-forget. */
+export function setBackgroundPlayback(state: BackgroundPlayback | null): void {
+  void commands.setBackgroundPlayback(state).catch(() => {});
+}
+
+/** Desktop: scan `dir` recursively. Android: MediaStore (dir ignored). */
+export async function scanMusicLibrary(dir: string | null): Promise<LibraryTrack[]> {
+  const res = await commands.scanMusicLibrary(dir);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data;
 }
 
 /** Convert a local path into a streamable asset:// URL (Tauri built-in). */
@@ -210,4 +249,31 @@ export async function getLiveBoostStatus(): Promise<import("../types").LiveBoost
 
 export async function isLiveBoostSupported(): Promise<boolean> {
   return commands.isLiveBoostSupported();
+}
+
+export async function startVolumeBooster(level: number): Promise<import("../types/generated").BoosterStatus> {
+  const res = await commands.startVolumeBooster(level);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function stopVolumeBooster(): Promise<void> {
+  const res = await commands.stopVolumeBooster();
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+}
+
+export async function setBoosterLevel(level: number): Promise<import("../types/generated").BoosterStatus> {
+  const res = await commands.setBoosterLevel(level);
+  if (res.status === "error") {
+    throw new Error(formatAppError(res.error));
+  }
+  return res.data;
+}
+
+export async function getBoosterStatus(): Promise<import("../types/generated").BoosterStatus> {
+  return commands.getBoosterStatus();
 }

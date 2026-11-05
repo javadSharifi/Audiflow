@@ -7,11 +7,15 @@ import { OptionsPanel } from "./components/OptionsPanel";
 import { JobsPanel } from "./components/JobsPanel";
 import { Toasts } from "./components/Toasts";
 import { LiveBoosterPage } from "./features/sound-booster/live-booster/LiveBoosterPage";
+import { BoosterPanel } from "./components/BoosterPanel";
+import { MusicPlayerPage } from "./features/music-player/MusicPlayerPage";
+import { useMusicPlayerStore, type Track } from "./features/music-player/useMusicPlayerStore";
 import { useAppStore } from "./stores/useAppStore";
 import { translate } from "./i18n";
 import { useTheme, useDirection, resolveTheme } from "./hooks/useTheme";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { isLossy } from "./types";
 import { parseDurationInput } from "./utils/format";
 import { isAndroid } from "./utils/platform";
@@ -74,6 +78,7 @@ export default function App(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<AppTab>("converter");
   const lang = useAppStore((s) => s.lang);
   const theme = useAppStore((s) => s.theme);
+  const appMode = useAppStore((s) => s.appMode);
   const files = useAppStore((s) => s.files);
   const addPaths = useAppStore((s) => s.addPaths);
   const loadSettings = useAppStore((s) => s.loadSettings);
@@ -84,24 +89,47 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     if (!isAndroid()) return;
     let cancelled = false;
-    const check = () => {
+
+    const check = (explicit = false) => {
       void api.hasMediaPermissions().then((granted) => {
-        if (cancelled || granted) return;
-        try {
-          if (sessionStorage.getItem("ac:perm-modal-shown")) return;
-          sessionStorage.setItem("ac:perm-modal-shown", "1");
-        } catch {
-          /* storage unavailable */
+        if (cancelled) return;
+        if (granted) {
+          setPermOpen(false);
+          return;
+        }
+        if (!explicit) {
+          try {
+            if (sessionStorage.getItem("ac:perm-modal-shown")) return;
+            sessionStorage.setItem("ac:perm-modal-shown", "1");
+          } catch {
+            /* storage unavailable */
+          }
         }
         setPermOpen(true);
       });
     };
-    check();
-    const onShow = () => check();
+
+    check(false);
+
+    const onShow = () => check(true);
+    const onPermUpdated = () => check(false);
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        check(false);
+      }
+    };
+
     window.addEventListener("ac:show-permission-modal", onShow);
+    window.addEventListener("ac:permissions-updated", onPermUpdated);
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+
     return () => {
       cancelled = true;
       window.removeEventListener("ac:show-permission-modal", onShow);
+      window.removeEventListener("ac:permissions-updated", onPermUpdated);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
     };
   }, []);
 
@@ -111,8 +139,29 @@ export default function App(): React.JSX.Element {
       const customEvent = e as CustomEvent<{ uri?: string }>;
       const uri = customEvent.detail?.uri;
       if (uri) {
-        setActiveTab("converter");
-        void addPaths([uri]);
+        if (useAppStore.getState().appMode === "player") {
+          void (async () => {
+            try {
+              const stats = await api.statMediaPaths([uri]);
+              const newTracks: Track[] = stats.map((s, idx) => ({
+                id: `${s.input}-${Date.now()}-${idx}`,
+                path: s.input,
+                name: s.name,
+                title: s.name.replace(/\.[^.]+$/, ""),
+                durationSecs: s.durationSecs || 0,
+                sizeBytes: s.sizeBytes || 0,
+                format: s.input.split(".").pop()?.toUpperCase() || "AUDIO",
+                assetUrl: convertFileSrc(s.input),
+              }));
+              useMusicPlayerStore.getState().addTracks(newTracks);
+            } catch (err) {
+              console.error("Failed to add shared media to player", err);
+            }
+          })();
+        } else {
+          setActiveTab("converter");
+          void addPaths([uri]);
+        }
       }
     };
     window.addEventListener("ac:shared-media", handleShared);
@@ -124,7 +173,28 @@ export default function App(): React.JSX.Element {
   // Window-wide native drop
   const handleNativeDrop = useCallback(
     (paths: string[]) => {
-      addPaths(paths);
+      if (useAppStore.getState().appMode === "player") {
+        void (async () => {
+          try {
+            const stats = await api.statMediaPaths(paths);
+            const newTracks: Track[] = stats.map((s, idx) => ({
+              id: `${s.input}-${Date.now()}-${idx}`,
+              path: s.input,
+              name: s.name,
+              title: s.name.replace(/\.[^.]+$/, ""),
+              durationSecs: s.durationSecs || 0,
+              sizeBytes: s.sizeBytes || 0,
+              format: s.input.split(".").pop()?.toUpperCase() || "AUDIO",
+              assetUrl: convertFileSrc(s.input),
+            }));
+            useMusicPlayerStore.getState().addTracks(newTracks);
+          } catch (err) {
+            console.error("Failed to add dropped tracks to player", err);
+          }
+        })();
+      } else {
+        addPaths(paths);
+      }
     },
     [addPaths],
   );
@@ -161,29 +231,46 @@ export default function App(): React.JSX.Element {
   useTheme();
   useDirection(lang);
 
+  const isPlayer = appMode === "player";
+
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-zinc-100/90 text-zinc-900 select-none dark:bg-[#09090b] dark:text-zinc-100">
       <HeaderBar />
 
       <main
         className={`relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-5 md:gap-5 md:px-6 ${
-          activeTab === "converter" && files.length > 0 ? "pb-36" : "pb-24"
+          !isPlayer && activeTab === "converter" && files.length > 0
+            ? "pb-36"
+            : !isPlayer && isAndroid()
+              ? "pb-24"
+              : "pb-8"
         }`}
       >
-        {activeTab === "converter" && (
+        {isPlayer ? (
+          <MusicPlayerPage />
+        ) : (
           <>
-            {files.length === 0 && <DropZone />}
-            <FileList />
-            <OptionsPanel />
-            <JobsPanel />
+            {activeTab === "converter" && (
+              <>
+                {files.length === 0 && <DropZone />}
+                <FileList />
+                <OptionsPanel />
+                <JobsPanel />
+              </>
+            )}
+
+            {activeTab === "live_booster" && (
+              <>
+                <LiveBoosterPage />
+                <BoosterPanel />
+              </>
+            )}
           </>
         )}
-
-        {activeTab === "live_booster" && <LiveBoosterPage />}
       </main>
 
       {/* Converter Start Bar (docked cleanly above Bottom Navigation) */}
-      {activeTab === "converter" && files.length > 0 && (
+      {!isPlayer && activeTab === "converter" && files.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 z-30 border-t border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
           <div className="mx-auto w-full max-w-4xl">
             <StartBar />
@@ -192,7 +279,7 @@ export default function App(): React.JSX.Element {
       )}
 
       {/* Bottom Navigation Bar */}
-      <BottomNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
+      {!isPlayer && <BottomNavigation activeTab={activeTab} onSelectTab={setActiveTab} />}
 
       <Toasts />
 

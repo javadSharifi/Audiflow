@@ -21,6 +21,18 @@
 -keep class com.audioconverter.app.LiveSoundBoosterService$Companion {
     *;
 }
+-keep class com.audioconverter.app.PlaybackService {
+    *;
+}
+-keep class com.audioconverter.app.PlaybackService$Companion {
+    *;
+}
+-keep class com.audioconverter.app.booster.** {
+    *;
+}
+-keepclassmembers class com.audioconverter.app.booster.** {
+    *;
+}
 -keepclasseswithmembers class * {
     native <methods>;
 }

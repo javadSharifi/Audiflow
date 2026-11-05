@@ -1,4 +1,6 @@
 pub mod android_fs;
+pub mod android_booster;
+pub mod android_playback;
 mod commands;
 pub mod disk;
 pub mod error;
@@ -74,6 +76,12 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::probe_files,
         commands::start_conversion,
         commands::waveform_peaks,
+        commands::track_info,
+        commands::track_silences,
+        commands::track_lyrics,
+        commands::track_cover,
+        commands::set_background_playback,
+        commands::scan_music_library,
         commands::cancel_job,
         commands::cancel_all_jobs,
         commands::clear_finished,
@@ -90,6 +98,10 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::set_live_boost_gain,
         commands::get_live_boost_status,
         commands::is_live_boost_supported,
+        commands::start_volume_booster,
+        commands::stop_volume_booster,
+        commands::set_booster_level,
+        commands::get_booster_status,
     ])
 }
 

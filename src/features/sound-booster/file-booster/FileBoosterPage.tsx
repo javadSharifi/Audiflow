@@ -18,9 +18,6 @@ export function FileBoosterPage(): React.JSX.Element {
     manualGainPercent,
     format,
     preview,
-    activeAudition,
-    isPlaying,
-    currentTime,
     isPreviewGenerating,
     previewError,
     isExporting,
@@ -33,9 +30,6 @@ export function FileBoosterPage(): React.JSX.Element {
     setPreset,
     setManualGainPercent,
     setFormat,
-    setActiveAudition,
-    togglePlay,
-    handleSeek,
     startExport,
   } = useFileBooster();
 
@@ -121,14 +115,7 @@ export function FileBoosterPage(): React.JSX.Element {
       {/* A/B Preview Component with Interactive Seeking */}
       <ABPreview
         preview={preview}
-        activeAudition={activeAudition}
-        onSelectAudition={setActiveAudition}
-        isPlaying={isPlaying}
-        onTogglePlay={togglePlay}
         isLoading={isPreviewGenerating}
-        currentTime={currentTime}
-        duration={preview?.snippetDurationSecs || 12}
-        onSeek={handleSeek}
         error={previewError}
       />
 

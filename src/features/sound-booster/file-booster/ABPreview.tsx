@@ -1,17 +1,18 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Volume1, Volume2, Play, Pause, AlertTriangle, Loader2 } from "lucide-react";
 import type { AbPreviewResult } from "../../../types";
 import { translate } from "../../../i18n";
 import { useAppStore } from "../../../stores/useAppStore";
 import { formatTimecode } from "../../../utils/format";
+import * as api from "../../../utils/tauri";
 
 export interface ABPreviewProps {
   preview: AbPreviewResult | null;
-  activeAudition: "original" | "boosted" | null;
-  onSelectAudition: (mode: "original" | "boosted") => void;
-  isPlaying: boolean;
-  onTogglePlay: () => void;
-  isLoading: boolean;
+  activeAudition?: "original" | "boosted";
+  onSelectAudition?: (mode: "original" | "boosted") => void;
+  isPlaying?: boolean;
+  onTogglePlay?: () => void;
+  isLoading?: boolean;
   currentTime?: number;
   duration?: number;
   onSeek?: (timeSecs: number) => void;
@@ -38,7 +39,7 @@ function WaveformVisualizer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoverPct, setHoverPct] = useState<number | null>(null);
 
-  const safeDuration = duration > 0 ? duration : 12;
+  const safeDuration = duration > 0 ? duration : 15;
   const progressPct = Math.min(100, Math.max(0, (currentTime / safeDuration) * 100));
 
   // Sample 48 smooth bars for detailed visual waveform
@@ -138,32 +139,154 @@ function WaveformVisualizer({
 
 export function ABPreview({
   preview,
-  activeAudition,
+  activeAudition: controlledAudition,
   onSelectAudition,
-  isPlaying,
+  isPlaying: controlledIsPlaying,
   onTogglePlay,
-  isLoading,
-  currentTime = 0,
+  isLoading = false,
+  currentTime: controlledCurrentTime,
   duration,
-  onSeek,
+  onSeek: controlledOnSeek,
   error,
 }: ABPreviewProps): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Internal state for self-contained, robust DOM-driven audio
+  const [internalAudition, setInternalAudition] = useState<"original" | "boosted">("boosted");
+  const [internalIsPlaying, setInternalIsPlaying] = useState(false);
+  const [internalCurrentTime, setInternalCurrentTime] = useState(0);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+
+  const activeAudition = controlledAudition ?? internalAudition;
   const isBoosted = activeAudition === "boosted";
+  const isPlaying = controlledIsPlaying !== undefined ? controlledIsPlaying : internalIsPlaying;
+  const currentTime = controlledCurrentTime !== undefined ? controlledCurrentTime : internalCurrentTime;
 
   const effectiveDuration = preview?.snippetDurationSecs || duration || 15;
+
+  const handleSelectAudition = (mode: "original" | "boosted") => {
+    setInternalAudition(mode);
+    onSelectAudition?.(mode);
+  };
+
+  // Convert current path to streamable asset URL
+  useEffect(() => {
+    if (!preview) {
+      setAudioSrc(null);
+      setInternalIsPlaying(false);
+      setInternalCurrentTime(0);
+      return;
+    }
+
+    const path = isBoosted ? preview.boostedPath : preview.originalPath;
+    let cancelled = false;
+
+    void api.fileToAssetUrl(path).then((url) => {
+      if (cancelled) return;
+      const audio = audioRef.current;
+      if (audio && audio.src !== url) {
+        const wasPlaying = !audio.paused && audio.currentTime > 0;
+        const prevTime = audio.currentTime || 0;
+
+        setAudioSrc(url);
+
+        // Preserve current playhead position across A/B toggles
+        if (wasPlaying) {
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = prevTime;
+              audioRef.current.play().catch(() => setInternalIsPlaying(false));
+            }
+          }, 50);
+        }
+      } else if (!audioSrc) {
+        setAudioSrc(url);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preview, isBoosted, audioSrc]);
+
+  // Audio Play/Pause Toggle
+  const handleTogglePlay = () => {
+    if (onTogglePlay) {
+      onTogglePlay();
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio || !audioSrc) return;
+
+    if (!audio.paused) {
+      audio.pause();
+      setInternalIsPlaying(false);
+    } else {
+      if (audio.currentTime >= effectiveDuration - 0.1) {
+        audio.currentTime = 0;
+        setInternalCurrentTime(0);
+      }
+      audio
+        .play()
+        .then(() => setInternalIsPlaying(true))
+        .catch(() => setInternalIsPlaying(false));
+    }
+  };
+
+  // Waveform seek handler
+  const handleSeek = (timeSecs: number) => {
+    const clamped = Math.max(0, Math.min(effectiveDuration, timeSecs));
+    setInternalCurrentTime(clamped);
+    if (audioRef.current) {
+      audioRef.current.currentTime = clamped;
+    }
+    controlledOnSeek?.(clamped);
+  };
 
   return (
     <div
       dir="ltr"
       className="flex flex-col gap-3 rounded-2xl border border-black/[0.08] bg-black/[0.02] p-3.5 dark:border-white/[0.08] dark:bg-white/[0.02]"
     >
+      {/* Hidden DOM Audio element ensures continuous playback and lifecycle attachment on mobile & desktop */}
+      {audioSrc && (
+        <audio
+          ref={audioRef}
+          src={audioSrc}
+          preload="auto"
+          onPlay={() => setInternalIsPlaying(true)}
+          onPause={() => setInternalIsPlaying(false)}
+          onEnded={() => {
+            setInternalIsPlaying(false);
+            setInternalCurrentTime(0);
+            if (audioRef.current) audioRef.current.currentTime = 0;
+          }}
+          onTimeUpdate={() => {
+            if (audioRef.current) {
+              const cur = audioRef.current.currentTime || 0;
+              setInternalCurrentTime(cur);
+              if (cur >= effectiveDuration) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+                setInternalCurrentTime(0);
+                setInternalIsPlaying(false);
+              }
+            }
+          }}
+          onError={() => {
+            setInternalIsPlaying(false);
+          }}
+        />
+      )}
+
       {/* Top Header: Segmented A/B Switcher */}
       <div className="flex items-center gap-1.5 rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.05]" dir="ltr">
         {/* Original Button */}
         <button
           type="button"
-          onClick={() => onSelectAudition("original")}
+          onClick={() => handleSelectAudition("original")}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all duration-200 ${
             !isBoosted
               ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
@@ -177,7 +300,7 @@ export function ABPreview({
         {/* Boosted Button */}
         <button
           type="button"
-          onClick={() => onSelectAudition("boosted")}
+          onClick={() => handleSelectAudition("boosted")}
           className={`group relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all duration-200 ${
             isBoosted
               ? "bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/25"
@@ -212,8 +335,9 @@ export function ABPreview({
           {/* Play/Pause Button (exact same h-10 as WaveformVisualizer) */}
           <button
             type="button"
-            onClick={onTogglePlay}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-150 active:scale-95 ${
+            onClick={handleTogglePlay}
+            disabled={!audioSrc}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-150 active:scale-95 disabled:opacity-40 ${
               isPlaying
                 ? "bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 ring-2 ring-orange-500/20"
                 : "bg-white text-zinc-800 shadow-sm hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
@@ -241,7 +365,7 @@ export function ABPreview({
               isPlaying={isPlaying}
               currentTime={currentTime}
               duration={effectiveDuration}
-              onSeek={onSeek}
+              onSeek={handleSeek}
             />
           </div>
         </div>

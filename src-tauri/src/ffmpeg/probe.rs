@@ -14,12 +14,17 @@ pub struct StreamInfo {
     pub codec_name: Option<String>,
     pub sample_rate: Option<String>,
     pub channels: Option<u32>,
+    pub bit_rate: Option<String>,
+    pub bits_per_raw_sample: Option<String>,
+    pub sample_fmt: Option<String>,
+    pub tags: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FormatInfo {
     pub duration: Option<String>,
     pub format_name: Option<String>,
+    pub bit_rate: Option<String>,
     pub tags: Option<std::collections::HashMap<String, String>>,
 }
 

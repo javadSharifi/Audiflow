@@ -142,6 +142,10 @@ pub fn generate_ab_preview(
         "44100".into(),
         "-ac".into(),
         "2".into(),
+        "-write_xing".into(),
+        "1".into(),
+        "-id3v2_version".into(),
+        "3".into(),
         orig_file.to_string_lossy().into_owned(),
     ];
 
@@ -181,6 +185,10 @@ pub fn generate_ab_preview(
         "44100".into(),
         "-ac".into(),
         "2".into(),
+        "-write_xing".into(),
+        "1".into(),
+        "-id3v2_version".into(),
+        "3".into(),
         boost_file.to_string_lossy().into_owned(),
     ];
 

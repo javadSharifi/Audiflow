@@ -284,6 +284,22 @@ pub struct LiveBoostStatus {
     pub is_supported: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BoosterStatus {
+    pub enabled: bool,
+    pub level: u8,
+    pub engine: BoosterEngine,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum BoosterEngine {
+    LoudnessEnhancer,
+    DynamicsProcessing,
+    None,
+}
+
 /// Emitted to frontend on every job state change.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

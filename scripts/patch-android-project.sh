@@ -82,7 +82,10 @@ if [ -f "$MANIFEST" ] && ! grep -q "READ_MEDIA_AUDIO" "$MANIFEST"; then
       "\n    <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" android:maxSdkVersion=\"28\" />" +
       "\n    <!-- Live Sound Booster AudioPlaybackCapture foreground service (No microphone permission needed) -->" +
       "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />" +
-      "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION\" />";
+      "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION\" />" +
+      "\n    <!-- Volume Booster (AudioEffect-based) foreground service -->" +
+      "\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\" />" +
+      "\n    <uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\" />";
     content = content.replace(/<manifest[^>]*>/, "$&" + perms);
     fs.writeFileSync(p, content);
   ' "$MANIFEST"
@@ -119,6 +122,46 @@ if [ -f "$MANIFEST" ] && ! grep -q "LiveSoundBoosterService" "$MANIFEST"; then
   ' "$MANIFEST"
 fi
 
+# VolumeBoosterService (AudioEffect-based) + AudioSessionReceiver
+if [ -f "$MANIFEST" ] && ! grep -q "VolumeBoosterService" "$MANIFEST"; then
+  node -e '
+    const fs = require("fs");
+    const p = process.argv[1];
+    let content = fs.readFileSync(p, "utf8");
+    const volumeBoosterTags =
+      "\n        <service" +
+      "\n            android:name=\".booster.VolumeBoosterService\"" +
+      "\n            android:foregroundServiceType=\"mediaPlayback\"" +
+      "\n            android:exported=\"false\" />" +
+      "\n\n        <receiver" +
+      "\n            android:name=\".booster.AudioSessionReceiver\"" +
+      "\n            android:enabled=\"true\"" +
+      "\n            android:exported=\"true\">" +
+      "\n            <intent-filter>" +
+      "\n                <action android:name=\"android.media.action.OPEN_AUDIO_EFFECT_CONTROL_SESSION\" />" +
+      "\n                <action android:name=\"android.media.action.CLOSE_AUDIO_EFFECT_CONTROL_SESSION\" />" +
+      "\n            </intent-filter>" +
+      "\n        </receiver>";
+    content = content.replace(/<\/application>/, volumeBoosterTags + "\n    $&");
+    fs.writeFileSync(p, content);
+  ' "$MANIFEST"
+fi
+
+# Music player background playback service (mediaPlayback FGS + MediaSession)
+if [ -f "$MANIFEST" ] && ! grep -q "PlaybackService\"" "$MANIFEST"; then
+  node -e '
+    const fs = require("fs");
+    const p = process.argv[1];
+    let content = fs.readFileSync(p, "utf8");
+    const tag = "\n        <service" +
+      "\n            android:name=\".PlaybackService\"" +
+      "\n            android:foregroundServiceType=\"mediaPlayback\"" +
+      "\n            android:exported=\"false\" />";
+    content = content.replace(/<\/application>/, tag + "\n    $&");
+    fs.writeFileSync(p, content);
+  ' "$MANIFEST"
+fi
+
 # --- 4. Custom Kotlin sources & ProGuard rules (JNI bridge preservation) ------
 mkdir -p "$GEN/app/src/main/java/com/audioconverter/app"
 if [ -f "$ROOT/src-tauri/android/MainActivity.kt" ]; then
@@ -126,6 +169,20 @@ if [ -f "$ROOT/src-tauri/android/MainActivity.kt" ]; then
 fi
 if [ -f "$ROOT/src-tauri/android/LiveSoundBoosterService.kt" ]; then
   cp -f "$ROOT/src-tauri/android/LiveSoundBoosterService.kt" "$GEN/app/src/main/java/com/audioconverter/app/LiveSoundBoosterService.kt"
+fi
+
+if [ -f "$ROOT/src-tauri/android/PlaybackService.kt" ]; then
+  cp -f "$ROOT/src-tauri/android/PlaybackService.kt" "$GEN/app/src/main/java/com/audioconverter/app/PlaybackService.kt"
+fi
+
+# Volume Booster (AudioEffect-based) Kotlin sources
+BOOSTER_SRC="$ROOT/src-tauri/android/booster"
+BOOSTER_DST="$GEN/app/src/main/java/com/audioconverter/app/booster"
+if [ -d "$BOOSTER_SRC" ]; then
+  mkdir -p "$BOOSTER_DST"
+  cp -f "$BOOSTER_SRC/AudioBoostManager.kt" "$BOOSTER_DST/"
+  cp -f "$BOOSTER_SRC/VolumeBoosterService.kt" "$BOOSTER_DST/"
+  cp -f "$BOOSTER_SRC/AudioSessionReceiver.kt" "$BOOSTER_DST/"
 fi
 
 cat > "$GEN/app/proguard-rules.pro" << 'EOF'
@@ -152,6 +209,18 @@ cat > "$GEN/app/proguard-rules.pro" << 'EOF'
 -keep class com.audioconverter.app.LiveSoundBoosterService$Companion {
     *;
 }
+-keep class com.audioconverter.app.PlaybackService {
+    *;
+}
+-keep class com.audioconverter.app.PlaybackService$Companion {
+    *;
+}
+-keep class com.audioconverter.app.booster.** {
+    *;
+}
+-keepclassmembers class com.audioconverter.app.booster.** {
+    *;
+}
 -keepclasseswithmembers class * {
     native <methods>;
 }
@@ -169,6 +238,6 @@ JNILIBS_TARGET="$GEN/app/src/main/jniLibs/$JNI_DIR"
 mkdir -p "$JNILIBS_TARGET"
 cp -f "$FFMPEG_BIN" "$JNILIBS_TARGET/libffmpeg.so"
 cp -f "$FFPROBE_BIN" "$JNILIBS_TARGET/libffprobe.so"
-chmod 755 "$JNILIBS_TARGET"/lib*.so
+chmod 755 "$JNILIBS_TARGET"/libffmpeg.so "$JNILIBS_TARGET"/libffprobe.so 2>/dev/null || true
 
 echo "Patched: strings, extractNativeLibs/useLegacyPackaging, media permissions, MainActivity.kt, jniLibs/$JNI_DIR"

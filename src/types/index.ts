@@ -41,6 +41,8 @@ export type AppSettings = GeneratedSettings & {
   theme: "light" | "dark" | "system";
 };
 
+export type AppMode = "converter" | "player";
+
 export const LOSSY_FORMATS: AudioFormat[] = ["mp3", "aac", "m4a", "opus"];
 export const LOSSLESS_FORMATS: AudioFormat[] = ["wav", "flac"];
 

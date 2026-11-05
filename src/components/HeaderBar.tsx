@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings as SettingsIcon, X, AudioLines, Sun, Moon, Languages } from "lucide-react";
+import { Settings as SettingsIcon, X, AudioLines, Disc3, Sun, Moon, Languages } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { resolveTheme } from "../hooks/useTheme";
+import { ModeSwitch } from "./ModeSwitch";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
   const lang = useAppStore((s) => s.lang);
   const theme = useAppStore((s) => s.theme);
+  const appMode = useAppStore((s) => s.appMode);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const persistSettings = useAppStore((s) => s.persistSettings);
   const settings = useAppStore((s) => s.settings);
@@ -38,21 +40,37 @@ export function HeaderBar(): React.JSX.Element {
   };
 
   const isDark = resolveTheme(theme) === "dark";
+  const isPlayer = appMode === "player";
 
   return (
-    <header className="relative z-30 flex items-center justify-between border-b border-black/[0.06] bg-white/95 backdrop-blur-md px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 md:px-6">
-      {/* Brand & App Title */}
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-md shadow-orange-500/20">
-          <AudioLines className="h-5 w-5" strokeWidth={2.4} />
+    <header className="relative z-30 flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/95 backdrop-blur-md px-3 py-2.5 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/95 sm:px-4 md:px-6">
+      {/* Brand & Dynamic App Title */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-md transition-all duration-300 ${
+            isPlayer
+              ? "bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-600 shadow-purple-500/25"
+              : "bg-gradient-to-tr from-orange-500 to-amber-400 shadow-orange-500/20"
+          }`}
+        >
+          {isPlayer ? (
+            <Disc3 className="h-5 w-5 animate-spin-slow" strokeWidth={2.4} />
+          ) : (
+            <AudioLines className="h-5 w-5" strokeWidth={2.4} />
+          )}
         </div>
-        <h1 className="text-sm font-bold tracking-tight md:text-base text-zinc-900 dark:text-zinc-100">
-          {translate(lang, "appTitle")}
+        <h1 className="text-xs sm:text-sm font-black tracking-tight md:text-base text-zinc-900 dark:text-zinc-100 transition-colors">
+          {isPlayer ? translate(lang, "playerTitle") : translate(lang, "appTitle")}
         </h1>
       </div>
 
+      {/* App Mode Switcher */}
+      <div className="flex items-center justify-center">
+        <ModeSwitch size="sm" className="w-[155px] sm:w-[175px]" />
+      </div>
+
       {/* Main Header Action: Settings Button */}
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2 text-xs shrink-0">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

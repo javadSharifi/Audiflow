@@ -24,11 +24,7 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
   const [preview, setPreview] = useState<AbPreviewResult | null>(null);
   const [isPreviewGenerating, setIsPreviewGenerating] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [activeAudition, setActiveAudition] = useState<"original" | "boosted">("boosted");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqSeqRef = useRef(0);
 
@@ -81,100 +77,6 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
     };
   }, [file.path, isBoostEnabled, currentPreset, currentGain, requestPreview]);
 
-  // Manage audition audio playback seamlessly
-  useEffect(() => {
-    if (!preview) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
-      setIsPlaying(false);
-      setCurrentTime(0);
-      return;
-    }
-
-    const currentPath =
-      activeAudition === "original" ? preview.originalPath : preview.boostedPath;
-
-    let cancelled = false;
-    void api.fileToAssetUrl(currentPath).then((url) => {
-      if (cancelled) return;
-
-      if (!audioRef.current) {
-        const audio = new Audio();
-        audio.onended = () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        };
-        audio.onerror = () => setIsPlaying(false);
-        audio.ontimeupdate = () => {
-          if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime || 0);
-          }
-        };
-        audioRef.current = audio;
-      }
-
-      const audio = audioRef.current;
-      if (audio.src !== url) {
-        const wasPlaying = !audio.paused && audio.currentTime > 0;
-        const prevTime = audio.currentTime || 0;
-        audio.src = url;
-        if (wasPlaying) {
-          audio.currentTime = prevTime;
-          audio.play().catch(() => setIsPlaying(false));
-        } else {
-          audio.currentTime = 0;
-          setCurrentTime(0);
-        }
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preview, activeAudition]);
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  const togglePlay = () => {
-    if (!audioRef.current || !preview) return;
-    const maxDur = preview.snippetDurationSecs || 12;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      // If at end of track, reset to beginning
-      if (audioRef.current.currentTime >= maxDur - 0.1) {
-        audioRef.current.currentTime = 0;
-        setCurrentTime(0);
-      }
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setIsPlaying(false));
-    }
-  };
-
-  const handleSeek = (timeSecs: number) => {
-    if (audioRef.current && preview) {
-      const maxDur = preview.snippetDurationSecs || 12;
-      const clamped = Math.max(0, Math.min(maxDur, timeSecs));
-      audioRef.current.currentTime = clamped;
-      setCurrentTime(clamped);
-    }
-  };
-
   const handleToggleEnable = (enabled: boolean) => {
     updateFileMeta(file.path, {
       boostEnabled: enabled,
@@ -204,7 +106,6 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
       boostManualGainPercent: 100,
     });
     setPreview(null);
-    setCurrentTime(0);
   };
 
   if (!file.hasAudio) return null;
@@ -276,14 +177,7 @@ export function FileBoosterInline({ file }: FileBoosterInlineProps): React.JSX.E
             </label>
             <ABPreview
               preview={preview}
-              activeAudition={activeAudition}
-              onSelectAudition={setActiveAudition}
-              isPlaying={isPlaying}
-              onTogglePlay={togglePlay}
               isLoading={isPreviewGenerating}
-              currentTime={currentTime}
-              duration={preview?.snippetDurationSecs || 15}
-              onSeek={handleSeek}
               error={previewError}
             />
           </div>

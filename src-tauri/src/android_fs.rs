@@ -257,7 +257,7 @@ fn stage_uri_via_jni(uri: &str) -> Result<String, String> {
 /// from the Java-invoked context (background threads cannot FindClass app
 /// classes — system classloader only).
 #[cfg(target_os = "android")]
-fn main_activity_class<'a>(
+pub fn main_activity_class<'a>(
     env: &mut jni::JNIEnv<'a>,
 ) -> Result<jni::objects::JClass<'a>, String> {
     if let Some(class) = MAIN_ACTIVITY_CLASS.get() {
@@ -272,7 +272,7 @@ fn main_activity_class<'a>(
 /// on this (pooled) thread — a leftover exception aborts the whole app on the
 /// thread's next JNI use.
 #[cfg(target_os = "android")]
-fn with_jni_env<T>(f: impl FnOnce(&mut jni::JNIEnv) -> Result<T, String>) -> Result<T, String> {
+pub fn with_jni_env<T>(f: impl FnOnce(&mut jni::JNIEnv) -> Result<T, String>) -> Result<T, String> {
     let vm = get_java_vm()?;
     let mut env = vm
         .attach_current_thread()
