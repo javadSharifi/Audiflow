@@ -220,3 +220,63 @@ pub fn android_player_get_state() -> String {
     crate::android_fs::call_static_string_no_arg("nativePlayerGetState")
         .unwrap_or_else(|_| "{}".to_string())
 }
+
+/// Lyrics for a track: a sidecar `<name>.lrc` next to the file, else the
+/// embedded lyrics tag. `None` when neither exists (the UI may try online).
+#[tauri::command]
+#[specta::specta]
+pub async fn track_lyrics(path: String) -> Result<Option<String>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = crate::android_fs::ensure_local_path(&path);
+        if let Ok(text) = std::fs::read_to_string(std::path::Path::new(&path).with_extension("lrc")) {
+            if !text.trim().is_empty() {
+                return Ok(Some(text));
+            }
+        }
+        let Ok(ffprobe) = crate::ffmpeg::locate::locate("ffprobe") else {
+            return Ok(None);
+        };
+        Ok(crate::ffmpeg::probe::probe_file(&ffprobe, &path)
+            .ok()
+            .as_ref()
+            .and_then(embedded_lyrics))
+    })
+    .await
+    .map_err(|e| AppError::Other(format!("Task failed: {e}")))?
+}
+
+fn embedded_lyrics(p: &crate::ffmpeg::probe::ProbeResult) -> Option<String> {
+    // ID3 USLT surfaces as "lyrics-eng" etc.; Vorbis/MP4 as LYRICS / UNSYNCEDLYRICS.
+    let is_lyrics = |k: &str| {
+        let k = k.to_ascii_lowercase();
+        k == "lyrics" || k == "unsyncedlyrics" || k.starts_with("lyrics-")
+    };
+    p.format
+        .as_ref()
+        .and_then(|f| f.tags.as_ref())
+        .and_then(|t| {
+            t.iter()
+                .find(|(k, v)| is_lyrics(k) && !v.trim().is_empty())
+                .map(|(_, v)| v.clone())
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn probe_with_tags(tags: &str) -> crate::ffmpeg::probe::ProbeResult {
+        let json = format!(r#"{{"format":{{"tags":{tags}}}}}"#);
+        crate::ffmpeg::probe::parse_probe_json(&json).unwrap()
+    }
+
+    #[test]
+    fn embedded_lyrics_finds_id3_and_vorbis_keys() {
+        let id3 = probe_with_tags(r#"{"lyrics-eng":"[00:01.00]hi"}"#);
+        assert_eq!(embedded_lyrics(&id3).as_deref(), Some("[00:01.00]hi"));
+        let ogg = probe_with_tags(r#"{"LYRICS":"la"}"#);
+        assert_eq!(embedded_lyrics(&ogg).as_deref(), Some("la"));
+        let none = probe_with_tags("{}");
+        assert!(embedded_lyrics(&none).is_none());
+    }
+}

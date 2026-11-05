@@ -135,6 +135,11 @@ export const commands = {
 	androidApplyReduceHurt: () => typedError<string, AppError>(__TAURI_INVOKE("android_apply_reduce_hurt")),
 	/**  Stop playback via native Jetpack Media3. */
 	androidPlayerStop: () => typedError<string, AppError>(__TAURI_INVOKE("android_player_stop")),
+	/**
+	 *  Lyrics for a track: a sidecar `<name>.lrc` next to the file, else the
+	 *  embedded lyrics tag. `None` when neither exists (the UI may try online).
+	 */
+	trackLyrics: (path: string) => typedError<string | null, AppError>(__TAURI_INVOKE("track_lyrics", { path })),
 	/**  Query live playback state from native Jetpack Media3. */
 	androidPlayerGetState: () => __TAURI_INVOKE<string>("android_player_get_state"),
 	/**  Query and drain any files/URIs opened by the OS (e.g. cold-start or before frontend event listeners registered). */

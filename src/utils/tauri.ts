@@ -87,6 +87,13 @@ export async function waveformPeaks(path: string, buckets = 1000): Promise<[numb
   return res.data.map(([mn, mx]) => [mn ?? 0, mx ?? 0]);
 }
 
+/** Lyrics for a track: sidecar `.lrc`, else the embedded lyrics tag; null if neither. */
+export async function trackLyrics(path: string): Promise<string | null> {
+  const res = await commands.trackLyrics(path);
+  if (res.status === "error") throw new Error(formatAppError(res.error));
+  return res.data;
+}
+
 /** Convert a local path into a streamable asset:// URL (Tauri built-in). */
 export function fileToAssetUrl(filePath: string): Promise<string> {
   return Promise.resolve(convertFileSrc(filePath));

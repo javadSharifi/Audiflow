@@ -26,8 +26,10 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/components/music-player/NowPlayingArtworkCarousel.tsx` | Swipeable album cover with physics tilt/slide animation; exports `NowPlayingArtworkCarousel`. |
 | `src/components/music-player/NowPlayingDesktopQueue.tsx` | Now Playing desktop queue sidebar drawer; exports `NowPlayingDesktopQueue`. |
 | `src/components/music-player/NowPlayingMobileQueue.tsx` | Now Playing mobile queue bottom sheet drawer; exports `NowPlayingMobileQueue`. |
+| `src/components/music-player/NowPlayingEqModal.tsx` | 10-band EQ modal: enable toggle, 5 presets, reset; desktop-only message on Android; exports `NowPlayingEqModal`. |
+| `src/components/music-player/NowPlayingLyricsSheet.tsx` | Lyrics bottom sheet: `trackLyrics` → LRCLIB fallback, auto-scroll, word-level highlight; exports `NowPlayingLyricsSheet`. |
 | `src/components/music-player/NowPlayingSpeedModal.tsx` | Now Playing playback rate selection modal; exports `NowPlayingSpeedModal`. |
-| `src/components/music-player/NowPlayingToolbar.tsx` | Now Playing header toolbar with dismiss/queue/options; exports `NowPlayingToolbar`. |
+| `src/components/music-player/NowPlayingToolbar.tsx` | Now Playing header toolbar with dismiss/queue/options plus lyrics and EQ toggles; exports `NowPlayingToolbar`. |
 | `src/components/music-player/NowPlayingTransportControls.tsx` | Playback control buttons (play/pause/prev/next/shuffle/repeat); exports `NowPlayingTransportControls`. |
 | `src/components/music-player/NowPlayingView.tsx` | Fullscreen player with drag-to-dismiss and swipeable artwork; exports `NowPlayingView`. |
 | `src/components/music-player/PermissionGate.tsx` | Fullscreen Android media-permission gate; exports `PermissionGate`. |
@@ -70,8 +72,9 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/stores/musicPlayer/__tests__/audioEngine.test.ts` | Vitest for unified audio engine play/pause/seek (whole-second currentTime contract). |
 | `src/stores/musicPlayer/__tests__/perfCaching.test.ts` | Vitest for artwork cache persistence/negative caching, O(n) albums, playingKey stability. |
 | `src/stores/musicPlayer/__tests__/autoAdvance.test.ts` | Vitest for autoAdvance guard/resolver/skip-set (pure). |
+| `src/stores/musicPlayer/__tests__/eqPresets.test.ts` | Vitest: every EQ preset spans `EQ_FREQS` with |gain| ≤ 12 dB, flat all-zero. |
 | `src/stores/musicPlayer/__tests__/autoAdvanceEngine.test.ts` | Vitest for guarded end wiring, queue boundaries, failure skip, manual/auto race. |
-| `src/stores/musicPlayer/audioEngine.ts` | Unified desktop HTMLAudio+WebAudio-gain / Android native bridge; exports `bindMusicStore`, `unified*`, guarded auto-advance (`requestGuardedAutoAdvance`, `cancelArmedAutoAdvance`, `publishStoppedMediaState`). |
+| `src/stores/musicPlayer/audioEngine.ts` | Unified desktop HTMLAudio+WebAudio graph (`globalGain → 10-band EQ → destination`) / Android native bridge; exports `bindMusicStore`, `unified*`, `EQ_FREQS`, `EQ_PRESETS`, `setEq`, `applyEqToBands`, guarded auto-advance (`requestGuardedAutoAdvance`, `cancelArmedAutoAdvance`, `publishStoppedMediaState`). |
 | `src/stores/musicPlayer/autoAdvance.ts` | Auto-advance core: generation-token guard, `resolveNextTrack` (aligned id/uri/path identity), session skip-set; exports `createAdvanceGuard`, `findTrackIndex`, `snapshotUnplayableKeys`. |
 | `src/stores/musicPlayer/linuxAssetAudio.ts` | Linux-only audio source: fetch `asset://` bytes → `blob:` URL (WebKitGTK custom-scheme media block, WebKit bug 146351); single live URL revoked on next resolve/stop; fallback to asset URL on fetch failure; plus scoped `resolveScopedBlobAudioSrc` handles for preview/audition elements (trim, booster A/B, ringtone) that never touch the player slot. |
 | `src/stores/musicPlayer/__tests__/linuxAssetAudio.test.ts` | Vitest for blob-URL resolution, prev-URL revocation, and asset-URL fallback. |
@@ -81,7 +84,7 @@ Domain: Music library / player UI + player stores. Part of `PROJECT_GRAPH.md` do
 | `src/stores/musicPlayer/trackUtils.ts` | Track key/liked/filter-sort helpers; exports `getTrackKey`, `filterAndSortTracks`. |
 | `src/stores/musicPlayer/types.ts` | Type definitions for playback, queue, library, favorites, albums, selection slices and combined `MusicPlayerState`. |
 | `src/stores/musicPlayer/selectors.ts` | Granular selector hooks with `useShallow` for zero-re-render component subscriptions. |
-| `src/stores/musicPlayer/slices/playbackSlice.ts` | Playback transport, seek debouncer, gain glider, repeat/shuffle mode slice. |
+| `src/stores/musicPlayer/slices/playbackSlice.ts` | Playback transport, seek debouncer, gain glider, repeat/shuffle mode, EQ enable/preset slice. |
 | `src/stores/musicPlayer/slices/queueSlice.ts` | Playlist queue management, track progression and unplayable skip slice. |
 | `src/stores/musicPlayer/slices/librarySlice.ts` | Library scanning, permissions, custom folders, and artwork pre-warming slice. |
 | `src/stores/musicPlayer/slices/favoritesSlice.ts` | Liked paths management, toggles, queries slice. |

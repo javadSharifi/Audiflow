@@ -14,6 +14,7 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/types/index.ts` | Hand aliases `ConversionOptions`/`TrimSpec`/`FileMeta`/`QueueItem`; exports `isLossy`. |
 | `src/utils/__tests__/artwork.test.ts` | Vitest for artwork cache resolver. |
 | `src/utils/__tests__/dialog.test.ts` | Vitest for dialog picker wrappers. |
+| `src/utils/__tests__/lyrics.test.ts` | Vitest for LRC/Enhanced-LRC parsing, offset, active-line lookup, LRCLIB fetch. |
 | `src/utils/__tests__/mediaSession.test.ts` | Vitest for MediaSession sync. |
 | `src/utils/__tests__/openWith.test.ts` | Vitest for incoming-file routing. |
 | `src/utils/androidBack.ts` | Cooperative hardware-back flag/event; exports `markBackConsumed`, `ANDROID_BACK_EVENT`. |
@@ -31,6 +32,7 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/utils/githubUpdate.test.ts` | Vitest for version compare + release fetch fail-soft. |
 | `src/utils/githubUpdate.ts` | GitHub latest-release check (normalize/compare/fetch, fail-soft); exports `fetchLatestRelease`, `isNewerVersion`, `normalizeVersion`, `GITHUB_REPO`. |
 | `src/utils/mediaSession.ts` | MediaSession metadata/actions; exports `initMediaSession`, `syncMediaSession`. |
+| `src/utils/lyrics.ts` | Zero-dep LRC parser (multi-timestamp, `[offset:]`, Enhanced `<mm:ss.xx>` words, unsynced) + active-line lookup + LRCLIB fetch; exports `parseLrc`, `activeLineIndex`, `fetchOnlineLyrics`. |
 | `src/utils/openWith.ts` | Open-with routing to player/converter; exports `handleIncomingFiles`, `isAudioPath`. |
 | `src/utils/platform.ts` | UA-based OS detection; exports `isAndroid/Mobile/Desktop/...`. |
 | `src/utils/tauri.ts` | SOLE typed IPC facade over `generated.ts`; exports probe/queue/waveform/disk/booster/library/player/transcribe wrappers + `formatAppError`. |

@@ -1,6 +1,6 @@
 # Project Graph
 
-_Last updated: 2026-09-28_
+_Last updated: 2026-11-05_
 
 ## Architecture overview
 
@@ -90,6 +90,9 @@ git status --short  # workdir changes since sync
 - branch: main
 - date: 2026-09-16
 - workdir_clean_at_sync: false (2 unstaged entries: shared-memory only; next sync must include workdir diff)
+
+Workdir drift since sync (2026-11-05, Lyrics + 10-band EQ):
+Added `track_lyrics` Rust command (`src-tauri/src/commands/player.rs`) reading a sidecar `.lrc` then embedded ID3/Vorbis tags via ffprobe. Frontend: `src/utils/lyrics.ts` (LRC / Enhanced-LRC parser, active-line lookup, LRCLIB fetch), `NowPlayingLyricsSheet.tsx`, `NowPlayingEqModal.tsx`, toolbar toggles in `NowPlayingToolbar.tsx`/`NowPlayingView.tsx`, and a WebAudio 10-band BiquadFilter EQ chain (`EQ_FREQS`, `EQ_PRESETS`, `setEq`) in `audioEngine.ts` with `eqEnabled`/`eqPreset` in `playbackSlice.ts`. Tests: `src/utils/__tests__/lyrics.test.ts`, `src/stores/musicPlayer/__tests__/eqPresets.test.ts`.
 
 Workdir drift since sync (2026-09-28, Internet Music Search, Preview, and Download):
 Added production-ready Internet Music Search and Downloader subsystem. Rust sidecar manager (`src-tauri/src/downloader/ytdlp.rs`) with multi-tier binary resolution (app data, YTDLP_PATH, next-to-exe, ancestor tree, compile-time baked manifest path, cwd, runtime CARGO_MANIFEST_DIR, system PATH), search extraction service (`service.rs`), local HTTP streaming proxy for WebAudio CORS playback (`proxy.rs`), download queue manager and worker (`queue.rs`, `worker.rs`), and IPC commands (`src-tauri/src/commands/downloader.rs`). Frontend Zustand store (`src/stores/useDownloaderStore.ts`), UI modal and components (`src/components/internet-search/`), English and Persian localization, and integration with `TrackListView.tsx` and `MusicPlayerView.tsx`. All files <= 300 lines ceiling.

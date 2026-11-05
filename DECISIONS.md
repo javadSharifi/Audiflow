@@ -270,3 +270,11 @@ The validation fires before any `fs::remove_file` call. `content://` Android URI
 **Alternatives considered:** Directory allowlist (rejected — breaks external drives and custom folders), symlink canonicalization (rejected — breaks some valid external-drive paths on macOS), no validation (status quo — insufficient defence in depth).
 
 **Implication:** 20 new Rust unit tests cover the guard (valid audio, non-audio, no extension, file:// URI, percent-encoded URI, nonexistent path, path traversal, uppercase extension). Total Rust tests: 141 lib + 9 e2e = 150.
+
+## Lyrics + 10-band EQ (2026-11-05)
+
+**Decision:** Lyrics resolve in Rust (`track_lyrics`) — sidecar `<track>.lrc` first, then embedded ID3/Vorbis `lyrics`/`unsyncedlyrics` tags through ffprobe — and the frontend falls back to LRCLIB (`lrclib.net/api/get`) only when both are empty. Parsing stays in a zero-dependency `src/utils/lyrics.ts` that also understands Enhanced LRC `<mm:ss.xx>` word tags.
+
+**Decision:** EQ is a WebAudio `BiquadFilterNode` chain inserted after `globalGainNode`, driven by `EQ_FREQS`/`EQ_PRESETS` in `audioEngine.ts` and `eqEnabled`/`eqPreset` in `playbackSlice`. Desktop only — Android keeps using the native Media3 player, which has no EQ bridge.
+
+**Rationale:** No new dependencies, no Android main-thread bridge work, and the same HTMLAudio element keeps powering crossfade/seek.

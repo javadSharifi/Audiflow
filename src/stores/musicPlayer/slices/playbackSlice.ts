@@ -4,6 +4,7 @@ import { loadSavedBoosterGain, persistSavedBoosterGain } from "../persistence";
 import {
   applyGainPercent,
   getGlobalGainNode,
+  setEq,
   unifiedPlayTrack,
   unifiedPause,
   unifiedResume,
@@ -73,6 +74,8 @@ export const createPlaybackSlice: StateCreator<
   fullscreenOpen: false,
   playbackRate: 1.0,
   volumeGainPercent: loadSavedBoosterGain(),
+  eqEnabled: false,
+  eqPreset: "flat" as const,
 
   async playTrack(track, playlist) {
     if (playlist) {
@@ -216,5 +219,15 @@ export const createPlaybackSlice: StateCreator<
     // persisted value always matches an applied (heard) value.
     set({ volumeGainPercent: clamped });
     gainGlider.request(clamped);
+  },
+
+  setEqEnabled(enabled) {
+    set({ eqEnabled: enabled });
+    setEq(enabled, get().eqPreset);
+  },
+
+  setEqPreset(preset) {
+    set({ eqPreset: preset });
+    setEq(get().eqEnabled, preset);
   },
 });

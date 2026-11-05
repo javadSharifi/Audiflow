@@ -17,7 +17,7 @@ Domain: Tauri app root, commands, queues, settings/secrets. Part of `PROJECT_GRA
 | `src-tauri/src/commands/android.rs` | Android staging, permissions, app settings, cold-start file queue, and exit handlers. |
 | `src-tauri/src/commands/audio.rs` | Audio analysis IPC: ffprobe metadata inspection, waveform peak decoding, volume detection, and A/B preview. |
 | `src-tauri/src/commands/library.rs` | Music library scanner triggers, cache stats, track deletion/ringtone/share, and path/artwork resolution. |
-| `src-tauri/src/commands/player.rs` | Native Android Media3 player controls and stream volume management (19 IPC commands). |
+| `src-tauri/src/commands/player.rs` | Native Android Media3 player controls, stream volume management, and `track_lyrics` (sidecar `.lrc` → ffprobe embedded tags); 20 IPC commands. |
 | `src-tauri/src/commands/queue.rs` | Audio conversion and sound boost enqueueing, job cancellation, and queue inspection. |
 | `src-tauri/src/commands/system.rs` | Disk space query (`disk_free`), application settings load/save, and frontend logger bridge. |
 | `src-tauri/src/commands/transcribe.rs` | Gemini cloud transcription API key management, transcription jobs, queue inspection, and export. |

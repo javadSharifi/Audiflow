@@ -119,6 +119,7 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::android_set_stream_volume,
         commands::android_apply_reduce_hurt,
         commands::android_player_stop,
+        commands::track_lyrics,
         commands::android_player_get_state,
         commands::get_pending_open_files,
         commands::resolve_audio_track,

@@ -15,6 +15,8 @@ import { NowPlayingSpeedModal } from "./NowPlayingSpeedModal";
 import { NowPlayingMobileQueue } from "./NowPlayingMobileQueue";
 import { NowPlayingDesktopQueue } from "./NowPlayingDesktopQueue";
 import { NowPlayingTransportControls } from "./NowPlayingTransportControls";
+import { NowPlayingLyricsSheet } from "./NowPlayingLyricsSheet";
+import { NowPlayingEqModal } from "./NowPlayingEqModal";
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -53,6 +55,8 @@ export function NowPlayingView(): React.JSX.Element | null {
   const [queueOpen, setQueueOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [boosterOpen, setBoosterOpen] = useState(false);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [eqOpen, setEqOpen] = useState(false);
 
   const {
     containerRef,
@@ -86,11 +90,13 @@ export function NowPlayingView(): React.JSX.Element | null {
     const onBack = () => {
       if (wasBackConsumed()) return;
       if (!fullscreenOpen) return;
-      if (optionsOpen || queueOpen || speedOpen || boosterOpen) {
+      if (optionsOpen || queueOpen || speedOpen || boosterOpen || lyricsOpen || eqOpen) {
         setOptionsOpen(false);
         setQueueOpen(false);
         setSpeedOpen(false);
         setBoosterOpen(false);
+        setLyricsOpen(false);
+        setEqOpen(false);
         markBackConsumed();
         return;
       }
@@ -99,7 +105,7 @@ export function NowPlayingView(): React.JSX.Element | null {
     };
     window.addEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
     return () => window.removeEventListener(ANDROID_BACK_EVENT, onBack as EventListener);
-  }, [fullscreenOpen, optionsOpen, queueOpen, speedOpen, boosterOpen, setFullscreenOpen]);
+  }, [fullscreenOpen, optionsOpen, queueOpen, speedOpen, boosterOpen, lyricsOpen, eqOpen, setFullscreenOpen]);
 
   const activeList = useMemo(() => {
     return currentPlaylist.length > 0 ? currentPlaylist : tracks;
@@ -205,6 +211,24 @@ export function NowPlayingView(): React.JSX.Element | null {
               setQueueOpen(!queueOpen);
               setSpeedOpen(false);
               setBoosterOpen(false);
+              setLyricsOpen(false);
+              setEqOpen(false);
+            }}
+            lyricsOpen={lyricsOpen}
+            eqOpen={eqOpen}
+            onToggleLyrics={() => {
+              setLyricsOpen(!lyricsOpen);
+              setQueueOpen(false);
+              setSpeedOpen(false);
+              setBoosterOpen(false);
+              setEqOpen(false);
+            }}
+            onToggleEq={() => {
+              setEqOpen(!eqOpen);
+              setQueueOpen(false);
+              setSpeedOpen(false);
+              setBoosterOpen(false);
+              setLyricsOpen(false);
             }}
             lang={lang}
           />
@@ -275,6 +299,18 @@ export function NowPlayingView(): React.JSX.Element | null {
         onSelectRate={setPlaybackRate}
         lang={lang}
       />
+
+      {/* Lyrics Sheet */}
+      <NowPlayingLyricsSheet
+        isOpen={lyricsOpen}
+        onClose={() => setLyricsOpen(false)}
+        track={currentTrack}
+        currentTime={currentTime}
+        lang={lang}
+      />
+
+      {/* Equalizer Modal */}
+      <NowPlayingEqModal isOpen={eqOpen} onClose={() => setEqOpen(false)} lang={lang} />
 
       {/* Sound Booster Sheet */}
       <TrackBoosterSheet isOpen={boosterOpen} onClose={() => setBoosterOpen(false)} />

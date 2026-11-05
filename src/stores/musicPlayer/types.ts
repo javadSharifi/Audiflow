@@ -4,6 +4,7 @@ import type {
   LibraryPermissionStatus,
   CustomAlbum,
 } from "../../types";
+import type { EqPreset } from "./audioEngine";
 
 /** Combined shuffle/repeat playback mode cycled by a single Now-Playing button. */
 export type PlaybackMode = "normal" | "shuffle" | "repeatAll" | "repeatOne";
@@ -35,6 +36,8 @@ export interface PlaybackSlice {
   fullscreenOpen: boolean;
   playbackRate: number;
   volumeGainPercent: number;
+  eqEnabled: boolean;
+  eqPreset: EqPreset;
 
   playTrack: (track: AudioTrackInfo, playlist?: AudioTrackInfo[]) => Promise<void>;
   pauseTrack: () => void;
@@ -48,6 +51,8 @@ export interface PlaybackSlice {
   setFullscreenOpen: (open: boolean) => void;
   setPlaybackRate: (rate: number) => void;
   setVolumeGainPercent: (gain: number) => void;
+  setEqEnabled: (enabled: boolean) => void;
+  setEqPreset: (preset: EqPreset) => void;
 }
 
 export interface QueueSlice {

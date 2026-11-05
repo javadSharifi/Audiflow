@@ -21,7 +21,19 @@ export function bindMusicStore(store: MusicStore): void {
 let globalAudio: HTMLAudioElement | null = null;
 let globalAudioContext: AudioContext | null = null;
 let globalGainNode: GainNode | null = null;
+let globalEqBands: BiquadFilterNode[] = [];
 let graphInitFailed = false;
+
+export const EQ_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;
+
+export const EQ_PRESETS = {
+  flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  bass: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0],
+  vocal: [-2, -2, -1, 0, 2, 4, 4, 2, 0, -1],
+  treble: [0, 0, 0, 0, 0, 1, 2, 4, 5, 6],
+  loudness: [5, 4, 2, 0, -1, 0, 0, 2, 4, 5],
+} as const satisfies Record<string, readonly number[]>;
+export type EqPreset = keyof typeof EQ_PRESETS;
 
 // Single-fire guard for track-end auto-advance (see autoAdvance.ts): every
 // real track start (`play`) arms a fresh generation; each end signal consumes
@@ -92,7 +104,22 @@ function ensureAudioGraph(): GainNode | null {
       globalGainNode.gain.value = 1;
     }
     source.connect(globalGainNode);
-    globalGainNode.connect(globalAudioContext.destination);
+    // Gain → EQ bands → destination. Bands stay at 0 dB until a preset is set,
+    // so the chain is inaudible by default.
+    globalEqBands = EQ_FREQS.map((f, i) => {
+      const b = globalAudioContext!.createBiquadFilter();
+      b.type = i === 0 ? "lowshelf" : i === EQ_FREQS.length - 1 ? "highshelf" : "peaking";
+      b.frequency.value = f;
+      b.Q.value = 1.1;
+      return b;
+    });
+    for (let i = 1; i < globalEqBands.length; i++) globalEqBands[i - 1].connect(globalEqBands[i]);
+    globalGainNode.connect(globalEqBands[0]);
+    globalEqBands[globalEqBands.length - 1].connect(globalAudioContext.destination);
+    if (boundStore) {
+      const { eqEnabled, eqPreset } = boundStore.getState();
+      applyEqToBands(eqEnabled, eqPreset);
+    }
     // Keep element volume at max — loudness is driven by the GainNode.
     try {
       audio.volume = 1;
@@ -116,6 +143,21 @@ export function getGlobalGainNode(): GainNode | null {
     void globalAudioContext.resume().catch(() => {});
   }
   return node;
+}
+
+/** Push the selected preset into the live bands (creates the graph on demand). */
+function applyEqToBands(enabled: boolean, preset: EqPreset): void {
+  const gains = EQ_PRESETS[preset] ?? EQ_PRESETS.flat;
+  globalEqBands.forEach((b, i) => {
+    b.gain.value = enabled ? (gains[i] ?? 0) : 0;
+  });
+}
+
+/** Set EQ from settings. Desktop only — Android uses the native engine. */
+export function setEq(enabled: boolean, preset: EqPreset): void {
+  if (isAndroid()) return;
+  ensureAudioGraph();
+  applyEqToBands(enabled, preset);
 }
 
 /**

@@ -8,6 +8,8 @@ import {
   Gauge,
   Flame,
   ListMusic,
+  Mic2,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export interface NowPlayingToolbarProps {
@@ -15,6 +17,10 @@ export interface NowPlayingToolbarProps {
   volumeGainPercent: number;
   playbackMode: PlaybackMode;
   queueOpen: boolean;
+  lyricsOpen: boolean;
+  eqOpen: boolean;
+  onToggleLyrics: () => void;
+  onToggleEq: () => void;
   onOpenConverter: () => void;
   onToggleSpeed: () => void;
   onToggleBooster: () => void;
@@ -28,6 +34,10 @@ export function NowPlayingToolbar({
   volumeGainPercent,
   playbackMode,
   queueOpen,
+  lyricsOpen,
+  eqOpen,
+  onToggleLyrics,
+  onToggleEq,
   onOpenConverter,
   onToggleSpeed,
   onToggleBooster,
@@ -50,6 +60,36 @@ export function NowPlayingToolbar({
 
       {/* Right: Speed, Sound Booster, Repeat, Shuffle, Queue */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Lyrics */}
+        <button
+          type="button"
+          onClick={onToggleLyrics}
+          title={translate(lang, "lyrics")}
+          aria-label={translate(lang, "lyrics")}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
+            lyricsOpen
+              ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
+              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+          }`}
+        >
+          <Mic2 className="h-4 w-4" />
+        </button>
+
+        {/* Equalizer */}
+        <button
+          type="button"
+          onClick={onToggleEq}
+          title={translate(lang, "equalizer")}
+          aria-label={translate(lang, "equalizer")}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors cursor-pointer active:scale-90 ${
+            eqOpen
+              ? "text-orange-600 dark:text-orange-400 bg-orange-500/15 border border-orange-500/30"
+              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+          }`}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
+
         {/* Playback Speed Controller */}
         <div className="relative">
           <button

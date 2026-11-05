@@ -35,3 +35,7 @@ Rhythm-main/
 .mcp.json
 **/.kotlin/
 
+
+# build caches
+.vite/
+tsconfig.tsbuildinfo
