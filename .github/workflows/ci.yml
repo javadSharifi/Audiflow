@@ -20,7 +20,7 @@ jobs:
         include:
           - os: ubuntu-22.04
             install-packages: true
-          - os: macos-14
+          - os: macos-15
           - os: windows-latest
 
     runs-on: ${{ matrix.os }}
