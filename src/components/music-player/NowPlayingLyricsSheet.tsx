@@ -29,6 +29,8 @@ export function NowPlayingLyricsSheet({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    // Reset on open/track change; the effect owns this state for the current key.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setLines(null);
 

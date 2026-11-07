@@ -4,6 +4,9 @@
  * The app has no Tauri updater plugin — releases ship as store/bundle
  * artifacts via `.github/workflows/release.yml` — so the frontend polls the
  * public GitHub Releases API and deep-links to the release page.
+ *
+ * Android builds skip this: the store owns updates there, and pointing users
+ * at a downloadable APK from inside the app breaks store publishing rules.
  */
 
 export const GITHUB_REPO = "javadSharifi/Audiflow";

@@ -91,23 +91,8 @@ S = {
 "src/features/sound-booster/file-booster/GainSlider.tsx": "Manual gain slider with dB + high-boost flag; exports `GainSlider`.",
 "src/features/sound-booster/file-booster/hooks/useFileBooster.ts": "Page hook pick/analyze/preview/export + events; exports `useFileBooster`.",
 "src/features/sound-booster/file-booster/__tests__/PresetSelector.test.tsx": "Vitest for preset render + select.",
-"src/features/transcribe/TranscribePage.tsx": "Transcribe flow key-gate/options/result/usage; exports `TranscribePage`.",
-"src/features/transcribe/TranscribeConsentSheet.tsx": "Upload-consent bottom sheet; exports `TranscribeConsentSheet`.",
-"src/features/transcribe/TranscriptResultView.tsx": "Transcript display + copy/export; exports `TranscriptResultView`.",
-"src/features/transcribe/UsageDashboard.tsx": "Daily-minutes + quota dashboard; exports `UsageDashboard`.",
-"src/features/transcribe/OnboardingCard.tsx": "Gemini API-key onboarding + verify; exports `OnboardingCard`.",
-"src/features/transcribe/ErrorBanner.tsx": "Localized Gemini error banner + tech toggle; exports `ErrorBanner`.",
-"src/features/transcribe/LanguageSelect.tsx": "Transcription language dropdown; exports `LanguageSelect`.",
-"src/features/transcribe/ModeToggle.tsx": "Verbatim/smart segmented control; exports `ModeToggle`.",
-"src/features/transcribe/FastModeToggle.tsx": "Fast-mode switch; exports `FastModeToggle`.",
-"src/features/transcribe/TimestampToggle.tsx": "Word-timestamps switch; exports `TimestampToggle`.",
-"src/features/transcribe/DiarizationToggle.tsx": "Speaker-diarization switch; exports `DiarizationToggle`, `Switch`.",
-"src/features/transcribe/CustomVocabularyInput.tsx": "Custom vocab input capped 100 terms; exports `CustomVocabularyInput`.",
-"src/features/transcribe/hooks/useTranscribe.ts": "Orchestration key/usage/pick/events/export; exports `useTranscribe`.",
-"src/features/transcribe/stores/useTranscribeStore.ts": "Zustand options/job/result/usage; exports `useTranscribeStore`.",
-"src/features/transcribe/stores/__tests__/useTranscribeStore.test.ts": "Vitest for fast-mode coupling/vocab cap/reset.",
 # frontend-infra
-"src/utils/tauri.ts": "SOLE typed IPC facade over `generated.ts`; exports probe/queue/waveform/disk/booster/library/player/transcribe wrappers + `formatAppError`.",
+"src/utils/tauri.ts": "SOLE typed IPC facade over `generated.ts`; exports probe/queue/waveform/disk/booster/library/player wrappers + `formatAppError`.",
 "src/utils/platform.ts": "UA-based OS detection; exports `isAndroid/Mobile/Desktop/...`.",
 "src/utils/openWith.ts": "Open-with routing to player/converter; exports `handleIncomingFiles`, `isAudioPath`.",
 "src/utils/androidBack.ts": "Cooperative hardware-back flag/event; exports `markBackConsumed`, `ANDROID_BACK_EVENT`.",
@@ -134,16 +119,14 @@ S = {
 # backend-core
 "src-tauri/src/lib.rs": "App root: `specta_builder` ~50 commands, setup (settings/queues/open-file), single-instance, kill ffmpeg on exit; exports `run`.",
 "src-tauri/src/main.rs": "Binary entry calling `audio_converter::run`.",
-"src-tauri/src/commands/mod.rs": "All `#[tauri::command]` handlers 1000+ lines: resolve/stat/probe/start/waveform/cancel/disk/booster/library/player/transcribe; no raw ffmpeg in frontend.",
+"src-tauri/src/commands/mod.rs": "All `#[tauri::command]` handlers: resolve/stat/probe/start/waveform/cancel/disk/booster/library/player; no raw ffmpeg in frontend.",
 "src-tauri/src/types.rs": "Shared IPC contracts; `AudioFormat`/`QualityPreset`/`ConversionOptions`/`TrimSpec`/`JobEvent`.",
-"src-tauri/src/error.rs": "Error taxonomy; `AppError` + `GeminiErrorKind::i18n_key`.",
+"src-tauri/src/error.rs": "Error taxonomy; `AppError` + `i18n_key`.",
 "src-tauri/src/settings.rs": "`settings.json` load/save/validate + concurrency clamp 1..32; atomic tmp-rename.",
-"src-tauri/src/secrets.rs": "OS keychain Gemini key only; `save/load/delete/require_gemini_api_key`, `mask_key`.",
 "src-tauri/src/logger.rs": "File+console logger with 5MB rotation `app.log`.",
 "src-tauri/src/disk.rs": "Free-space preflight + size estimate; `free_bytes`, `estimate_output_bytes`.",
 "src-tauri/src/android_fs.rs": "Android Content-URI staging + MediaStore publish + JNI bridge; `ensure_local_path`.",
 "src-tauri/src/queue/mod.rs": "`QueueManager`: FIFO, per-job options snapshot, CancelToken map, job-event emit, 605 lines.",
-"src-tauri/src/transcribe_queue.rs": "`TranscribeQueueManager` mirroring queue lifecycle; emits `transcription-event`.",
 "src-tauri/build.rs": "Tauri build hook `tauri_build::build`.",
 "src-tauri/examples/export_types.rs": "Specta exporter to `src/types/generated.ts`; run via `generate:types`.",
 "src-tauri/tests/e2e.rs": "Live-FFmpeg e2e: generated tone/silence video, trim/silence/unicode asserts; skips without binaries.",
@@ -153,7 +136,7 @@ S = {
 "src-tauri/capabilities/default.json": "Capability for `main` window: core/event/dialog/opener.",
 "src-tauri/.cargo/config.toml": "16KB max-page-size linker flags for Android SDK35/NDK-r26+.",
 # backend-processing
-"src-tauri/src/processing/mod.rs": "Processing module index: naming/pipeline/silence/split/sound_booster/transcribe.",
+"src-tauri/src/processing/mod.rs": "Processing module index: naming/pipeline/silence/split/sound_booster.",
 "src-tauri/src/processing/naming.rs": "Collision-safe `(1)/(2)` naming + sanitize; `unique_path`, `output_directory`.",
 "src-tauri/src/processing/pipeline.rs": "Single-pass `filter_complex` builder + `run_job` (probe-plan-ffmpeg-rename); `encoder_args`; one lossy encode max.",
 "src-tauri/src/processing/silence.rs": "Silence detect/remove math; `parse_silencedetect`, `kept_ranges`, `total_kept`.",
@@ -170,13 +153,6 @@ S = {
 "src-tauri/src/processing/sound_booster/analyze.rs": "`volumedetect` gain analysis; `VolumeAnalysis`, `analyze_volume`.",
 "src-tauri/src/processing/sound_booster/preview.rs": "10-15s A/B audition clips + peaks; `generate_ab_preview`.",
 "src-tauri/src/processing/sound_booster/pipeline.rs": "Offline boost job runner; `run_boost_job`.",
-"src-tauri/src/processing/transcribe/mod.rs": "Transcribe orchestration: preprocess/chunk/upload/stitch; `run_transcription` (Rust-side only).",
-"src-tauri/src/processing/transcribe/types.rs": "Transcribe contracts/limits; `TranscriptionRequestConfig`, `TranscriptionResult`.",
-"src-tauri/src/processing/transcribe/gemini_client.rs": "Gemini Files+generateContent client; upload/transcribe/validate-key.",
-"src-tauri/src/processing/transcribe/preprocess.rs": "Mono 16kHz Opus 32k compress + optional atempo 1.5x; `build_preprocess_args`.",
-"src-tauri/src/processing/transcribe/stitch.rs": "Chunk merge + export render; `stitch_chunks`, `render_transcript`.",
-"src-tauri/src/processing/transcribe/usage_tracker.rs": "Pacific-day local ledger `transcribe_usage.json`; `UsageStats`.",
-"src-tauri/src/processing/transcribe/error_classify.rs": "HTTP to `GeminiErrorKind` mapper; `classify_gemini_error`.",
 # backend-library
 "src-tauri/src/music_library/mod.rs": "Library scan dispatcher; `scan_music_library`, permission status.",
 "src-tauri/src/music_library/models.rs": "Library contracts; `AudioTrackInfo`, `LibraryPermissionStatus`.",
@@ -364,10 +340,10 @@ GROUP_SUMMARY = {
 TITLES = {
 "frontend-converter": "Converter shell + queue UI + converter stores",
 "frontend-player": "Music library / player UI + player stores",
-"frontend-features": "Sound Booster + Transcribe Studio UI",
+"frontend-features": "Sound Booster UI",
 "frontend-infra": "IPC facade, utils, i18n, types, styles",
 "backend-core": "Tauri app root, commands, queues, settings/secrets",
-"backend-processing": "Single-pass DSP pipeline, FFmpeg, booster, transcribe engine",
+"backend-processing": "Single-pass DSP pipeline, FFmpeg, booster",
 "backend-library": "Music library scanner + artwork (per-platform)",
 "platform-android": "Android Kotlin + generated project + icons",
 "tooling-docs-assets": "Scripts, CI, configs, specs, docs, skills, fonts",
@@ -439,7 +415,7 @@ pg.append("Audiflow (audio-converter v1.4.3) is an offline-first Tauri 2 + React
 "(`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline "
 "(`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, "
 "every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` "
-"(library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.")
+"(library/playback); the app is fully local (no account, no cloud, no telemetry); Android uses JNI/MediaStore bridges.")
 pg.append("")
 pg.append("## Folder structure")
 pg.append("")
@@ -448,13 +424,12 @@ pg.append("| ---- | ---- |")
 pg.append("| `src/` | React 19 SPA (Tailwind v4, Zustand 5); never invokes ffmpeg/raw `invoke` |")
 pg.append("| `src/components/` | Converter presentation + `music-player/` library UI |")
 pg.append("| `src/features/sound-booster/` | File booster UI + store |")
-pg.append("| `src/features/transcribe/` | Transcribe Studio UI (opt-in Gemini) + store |")
 pg.append("| `src/stores/` | `useAppStore` converter slices + `useMusicPlayerStore` + `musicPlayer/` engine |")
 pg.append("| `src/utils/tauri.ts` | SOLE typed IPC facade; all commands funnel here |")
 pg.append("| `src/types/generated.ts` | Specta OUTPUT, CI-pinned; do not edit |")
 pg.append("| `src/i18n/` | en/fa dictionaries + `translate()`; RTL discipline |")
 pg.append("| `src-tauri/src/` | Rust backend: lib/commands/queue/processing/ffmpeg/music_library |")
-pg.append("| `src-tauri/src/processing/` | Single-pass pipeline, naming/silence/split, booster, transcribe |")
+pg.append("| `src-tauri/src/processing/` | Single-pass pipeline, naming/silence/split, booster |")
 pg.append("| `src-tauri/src/ffmpeg/` | locate/probe/run/progress/waveform sidecars |")
 pg.append("| `src-tauri/src/music_library/` | Scanner + artwork + per-OS platform |")
 pg.append("| `src-tauri/android/` + `src-tauri/gen/android/` | Kotlin sources + generated Android project |")
@@ -502,7 +477,6 @@ for _cp in [
     "src-tauri/src/processing/pipeline.rs",
     "src-tauri/src/commands/mod.rs",
     "src/types/generated.ts",
-    "src-tauri/src/secrets.rs",
     "src-tauri/src/lib.rs",
     "src-tauri/src/queue/mod.rs",
     "src/utils/tauri.ts",
@@ -537,13 +511,12 @@ pg.append("")
 pg.append("| If you want to... | Start here | Also inspect | Usually avoid |")
 pg.append("| --- | --- | --- | --- |")
 pg.append("| Convert/trim/split/silence behavior | `src-tauri/src/processing/pipeline.rs` | `processing/silence.rs`, `processing/split.rs`, `processing/naming.rs`, `ffmpeg/` | player UI |")
-pg.append("| Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | transcribe queue |")
+pg.append("| Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | downloader queue |")
 pg.append("| Converter UI/options | `src/components/OptionsPanel.tsx`, `src/components/FileList.tsx` | `src/stores/slices/fileSlice.ts`, `settingsSlice.ts`, `utils/estimate.ts` | Rust internals |")
 pg.append("| Waveform trimmer | `src/components/TrimEditor.tsx` | `src-tauri/src/ffmpeg/waveform.rs` | icons |")
 pg.append("| Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src-tauri/src/music_library/`, `src/stores/musicPlayer/` | converter DSP |")
-pg.append("| Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |")
-pg.append("| File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | transcribe |")
-pg.append("| Transcribe Studio | `src/features/transcribe/` | `src-tauri/src/processing/transcribe/`, `transcribe_queue.rs`, `secrets.rs` | DSP presets |")
+pg.append("| Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | converter DSP |")
+pg.append("| File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |")
 pg.append("| Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |")
 pg.append("| Settings/secrets | `src-tauri/src/settings.rs`, `src-tauri/src/secrets.rs` | `src/stores/slices/settingsSlice.ts`, `utils/bootPrefs.ts` | fonts |")
 pg.append("| Android build/run | `scripts/build-android-local.sh`, `scripts/dev-android.sh` | `src-tauri/android/`, `utils/platform.ts`, `utils/androidBack.ts` | desktop bundling |")
@@ -556,7 +529,6 @@ pg.append("```text")
 pg.append("components/* + features/*  -->  stores/*  -->  utils/tauri.ts  -->  types/generated.ts")
 pg.append("                                                          -->  commands/mod.rs  -->  queue / processing / music_library / ffmpeg")
 pg.append("processing/pipeline.rs  -->  naming + silence + split + ffmpeg/{locate,probe,run,progress} + sound_booster/*")
-pg.append("processing/transcribe/* -->  gemini_client + preprocess + stitch + usage_tracker + secrets.rs (keychain)")
 pg.append("music_library/*  -->  platform/{android,linux,macos,windows} + artwork")
 pg.append("android Kotlin (PlaybackService/BoostEngine/...)  <-->  android_fs.rs (JNI)  <-->  commands/*android_player*")
 pg.append("```")
@@ -569,7 +541,7 @@ pg.append("- `src/utils/tauri.ts` is the only frontend module importing `types/g
 pg.append("- `generated.ts` is Specta output: never hand-edit; regenerate via `generate:types`, gated by `check:types` in CI.")
 pg.append("- Backend `commands/` may depend on `queue`, `processing`, `music_library`, `ffmpeg`, `settings`/`secrets`/`disk`/`logger`.")
 pg.append("- `processing/` submodules never depend on `commands/`; DSP stays UI-agnostic.")
-pg.append("- Cloud code is isolated to `processing/transcribe/` + `transcribe_queue.rs` + `secrets.rs`; core convert/enhance/library require no network.")
+pg.append("- No cloud code: the whole app runs locally. The only optional network calls are the LRCLIB lyric lookup (`src/utils/lyrics.ts`) and the desktop-only GitHub update check (`src/utils/githubUpdate.ts`, skipped on Android).")
 pg.append("- Android Kotlin talks to Rust only via `android_fs.rs` JNI bridge; frontend detects platform via `utils/platform.ts`.")
 pg.append("- Generated code (`gen/`, `icons/`, `generated.ts`, lockfiles) is never hand-edited.")
 pg.append("")
@@ -578,7 +550,7 @@ pg.append("")
 pg.append("- Single-pass FFmpeg DSP (`processing/pipeline.rs`): one filter graph, at most one lossy encode; post-silence split timeline.")
 pg.append("- Mandatory terminal `alimiter` in every booster chain (`sound_booster/presets.rs`).")
 pg.append("- IPC type-safety: Specta builder ↔ `generated.ts` ↔ `tauri.ts` (CI `check:types` gate).")
-pg.append("- Secrets: Gemini key in OS keychain only (`secrets.rs`); never in settings/localStorage.")
+pg.append("- Store builds: Android never self-updates (`useGithubUpdate` returns early on Android); publishing metadata in `THIRD_PARTY_LICENSES.md` + `MYKET_REVIEW_NOTES.md`.")
 pg.append("- Atomic non-destructive writes: `.tmp`/`.part` + rename, `(1)/(2)` suffixes (`naming.rs`), kill ffmpeg children on cancel/exit.")
 pg.append("- Android scoped storage/MediaStore + single active audio stream (player vs preview mutual pause).")
 pg.append("- Disk-space preflight with safety headroom (`disk.rs`, `pipeline.rs`).")

@@ -254,8 +254,10 @@ Audiflow is designed around local-first audio processing.
 - No audio uploads
 - No cloud conversion
 - No server-side audio processing
-- No dependence on an online converter
 - Audio processing happens locally on your device
+
+The only network calls are an optional lyric lookup (artist, title and
+duration only) and the update check; both can be avoided by staying offline.
 
 ---
 

@@ -35,7 +35,6 @@ Domain: IPC facade, utils, i18n, types, styles. Part of `PROJECT_GRAPH.md` domai
 | `src/utils/lyrics.ts` | Zero-dep LRC parser (multi-timestamp, `[offset:]`, Enhanced `<mm:ss.xx>` words, unsynced) + active-line lookup + LRCLIB fetch; exports `parseLrc`, `activeLineIndex`, `fetchOnlineLyrics`. |
 | `src/utils/openWith.ts` | Open-with routing to player/converter; exports `handleIncomingFiles`, `isAudioPath`. |
 | `src/utils/platform.ts` | UA-based OS detection; exports `isAndroid/Mobile/Desktop/...`. |
-| `src/utils/tauri.ts` | SOLE typed IPC facade over `generated.ts`; exports probe/queue/waveform/disk/booster/library/player/transcribe wrappers + `formatAppError`. |
 | `src/utils/themeTransition.test.ts` | Vitest for reveal radius/origin/fallback/guard. |
 | `src/utils/themeTransition.ts` | Circular-reveal theme switching via View Transitions API; exports `revealThemeChange`, `revealOrigin`, `computeRevealRadius`. |
 | `src/components/waveform/index.ts` | Barrel export for shared waveform UI components, hooks, and geometry helpers. |

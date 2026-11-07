@@ -172,7 +172,7 @@ pub fn get_track_artwork(path_or_uri: &str) -> Option<String> {
         let out_str = out_path.to_string_lossy().into_owned();
         // Attached-picture-only extract: no audio decode, fails fast when
         // the file has no video/picture stream attached.
-        let status = std::process::Command::new(&ffmpeg)
+        let status = crate::ffmpeg::create_hidden_command(&ffmpeg)
             .args([
                 "-y",
                 "-v",

@@ -311,9 +311,9 @@ if [ $SKIP_SIGN -eq 0 ]; then
       KS_PATH="$ROOT/$KS_PATH"
     fi
 
-    KS_PASS="${KEYSTORE_PASSWORD:-audioconverter123}"
-    K_ALIAS="${KEY_ALIAS:-audioconverter}"
-    K_PASS="${KEY_PASSWORD:-audioconverter123}"
+    KS_PASS="${KEYSTORE_PASSWORD:-}"
+    K_ALIAS="${KEY_ALIAS:-audiflow}"
+    K_PASS="${KEY_PASSWORD:-$KS_PASS}"
 
     if [ -n "${KEYSTORE_BASE64:-}" ]; then
       echo "Decoding KEYSTORE_BASE64 to $KS_PATH..."
@@ -321,8 +321,15 @@ if [ $SKIP_SIGN -eq 0 ]; then
     elif [ -f "$KS_PATH" ]; then
       echo -e "${GREEN}✔ Using existing persistent release keystore at: $KS_PATH${NC}"
     else
-      echo -e "${YELLOW}No keystore found at $KS_PATH. Generating permanent local release keystore...${NC}"
-      echo -e "${YELLOW}⚠ WARNING: default password in use (audioconverter123) — set KEYSTORE_PASSWORD/KEY_PASSWORD for real distribution.${NC}"
+      # A published keystore is permanent: the store only accepts updates signed
+      # with the same key, so it must never be generated from a throwaway password.
+      if [ -z "$KS_PASS" ]; then
+        echo -e "${RED}✘ No keystore at $KS_PATH and KEYSTORE_PASSWORD is not set.${NC}"
+        echo -e "${RED}  Generate it once with a strong password and keep it safe:${NC}"
+        echo -e "  KEYSTORE_PASSWORD='...' KEY_PASSWORD='...' $0 --release"
+        exit 1
+      fi
+      echo -e "${YELLOW}No keystore found at $KS_PATH. Generating permanent release keystore...${NC}"
       keytool -genkeypair -v \
         -keystore "$KS_PATH" \
         -alias "$K_ALIAS" \
@@ -331,7 +338,7 @@ if [ $SKIP_SIGN -eq 0 ]; then
         -validity 10000 \
         -storepass "$KS_PASS" \
         -keypass "$K_PASS" \
-        -dname "CN=Audio Converter, OU=App, O=AudioConverter, L=Local, C=IR"
+        -dname "CN=Audiflow, OU=App, O=Audiflow, L=Tehran, C=IR"
     fi
 
     # Find the unsigned or raw release APK to sign

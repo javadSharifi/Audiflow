@@ -1,10 +1,10 @@
 # Project Graph
 
-_Last updated: 2026-11-05_
+_Last updated: 2026-11-07_
 
 ## Architecture overview
 
-Audiflow (audio-converter v1.6.3) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); secrets live only in the OS keychain; Android uses JNI/MediaStore bridges.
+Audiflow (audio-converter v1.6.3) is an offline-first Tauri 2 + React 19 + Rust desktop/Android app. React presentation (`src/components`, `src/features`) talks to Rust only through the typed IPC facade (`src/utils/tauri.ts` over Specta-generated `src/types/generated.ts`) into `#[tauri::command]` handlers (`src-tauri/src/commands/mod.rs`), which drive a single-pass FFmpeg `filter_complex` pipeline (`src-tauri/src/processing/pipeline.rs`: trim + silence + split + encode in one invocation, at most one lossy encode, every booster chain ending in `alimiter`). State is split: `useAppStore` (converter slices) vs `useMusicPlayerStore` (library/playback); the app is fully local (no account, no cloud, no telemetry); Android uses JNI/MediaStore bridges.
 
 ## Folder structure
 
@@ -16,11 +16,12 @@ Audiflow (audio-converter v1.6.3) is an offline-first Tauri 2 + React 19 + Rust 
 | `src/features/sound-booster/` | File booster UI + store |
 | `src/stores/` | `useAppStore` converter slices + `useMusicPlayerStore` + `useDownloaderStore` |
 | `src/utils/tauri.ts` | SOLE typed IPC facade; all commands funnel here |
+| `src/components/PrivacyPolicyModal.tsx` | In-app bilingual privacy policy, opened from HeaderBar settings |
 | `src/types/generated.ts` | Specta OUTPUT, CI-pinned; do not edit |
 | `src/i18n/` | en/fa dictionaries + `translate()`; RTL discipline |
 | `src-tauri/src/` | Rust backend: lib/commands/queue/downloader/processing/ffmpeg/music_library |
 | `src-tauri/src/downloader/` | yt-dlp sidecar manager, search service, local CORS streaming proxy, download queue & worker |
-| `src-tauri/src/processing/` | Single-pass pipeline, naming/silence/split, booster, transcribe |
+| `src-tauri/src/processing/` | Single-pass pipeline, naming/silence/split, booster |
 | `src-tauri/src/ffmpeg/` | locate/probe/run/progress/waveform sidecars |
 | `src-tauri/src/music_library/` | Scanner + artwork + per-OS platform |
 | `src-tauri/android/` + `src-tauri/gen/android/` | Kotlin sources + generated Android project |
@@ -39,10 +40,10 @@ Audiflow (audio-converter v1.6.3) is an offline-first Tauri 2 + React 19 + Rust 
 | ---- | ---- | ----- |
 | Converter shell + queue UI + converter stores | `.agents/references/frontend-converter.md` | 35 |
 | Music library / player UI + player stores | `.agents/references/frontend-player.md` | 50 |
-| Sound Booster + Transcribe Studio UI | `.agents/references/frontend-features.md` | 34 |
+| Sound Booster UI | `.agents/references/frontend-features.md` | 34 |
 | IPC facade, utils, i18n, types, styles | `.agents/references/frontend-infra.md` | 24 |
-| Tauri app root, commands, queues, settings/secrets | `.agents/references/backend-core.md` | 20 |
-| Single-pass DSP pipeline, FFmpeg, booster, transcribe engine | `.agents/references/backend-processing.md` | 24 |
+| Tauri app root, commands, queues, settings | `.agents/references/backend-core.md` | 20 |
+| Single-pass DSP pipeline, FFmpeg, booster | `.agents/references/backend-processing.md` | 24 |
 | Music library scanner + artwork (per-platform) | `.agents/references/backend-library.md` | 9 |
 | Android Kotlin + generated project + icons | `.agents/references/platform-android.md` | 129 |
 | Scripts, CI, configs, specs, docs, skills, fonts | `.agents/references/tooling-docs-assets.md` | 134 |
@@ -131,7 +132,6 @@ Critical files (blob hashes at sync commit; re-verify these explicitly on each s
 - `src-tauri/src/processing/pipeline.rs` `9145b41ce6184dd6ff66ad3a1916d95a94148a48`
 - `src-tauri/src/commands/mod.rs` `6041dac354c41e8adaac4e590fc3b33a752638a9`
 - `src/types/generated.ts` `405a591fca8791a8a755466ff8ea5e7028409773`
-- `src-tauri/src/secrets.rs` `ce0223cff57ca6112bffc2586d6b14833b8f7823`
 - `src-tauri/src/lib.rs` `17a0656a85d66536d29db07743966d7f4b6cc144`
 - `src-tauri/src/queue/mod.rs` `44fc75643cef02dac32579dda0b41df08dc8c30d`
 - `src/utils/tauri.ts` `c24a909ebc355deda0d8e21be4971c05ef459f63`
@@ -169,17 +169,17 @@ hand-written sources an agent would actually navigate to or edit.
 | --- | --- | --- | --- |
 | First-run onboarding | `src/components/onboarding/OnboardingGate.tsx` | `OnboardingGate.tsx`, `PermissionSection.tsx`, `ThemeSection.tsx`, `LanguageSection.tsx`, `PerformanceSection.tsx`, `utils/bootPrefs.ts` | player internals |
 | Convert/trim/split/silence behavior | `src-tauri/src/processing/pipeline.rs` | `processing/silence.rs`, `processing/split.rs`, `processing/naming.rs`, `ffmpeg/` | player UI |
-| Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | transcribe queue |
+| Queue progress/cancel | `src-tauri/src/queue/mod.rs` | `src/stores/slices/queueSlice.ts`, `src/components/JobsPanel.tsx` | downloader queue |
 | Converter UI/options | `src/components/converter-wizard/ConverterWizard.tsx` (4-step wizard: upload/configs/progress/result) | `converter-wizard/Wizard*Step.tsx`, `OptionsPanel.tsx`, `FileList.tsx`, `JobsPanel.tsx` (bare), `ConverterResultSection.tsx` | Rust internals |
 | Waveform trimmer / Ringtone modal | `src/components/TrimEditor.tsx`, `src/components/music-player/SetRingtoneModal.tsx` | `src/components/waveform/`, `src-tauri/src/ffmpeg/waveform.rs` | icons |
 | Player/library/scan | `src/components/music-player/TrackListView.tsx` | `src/stores/musicPlayer/slices/`, `src/stores/useMusicPlayerStore.ts`, `src-tauri/src/music_library/` | converter DSP |
 | Mac add-folder button (018) | `src/components/music-player/AddFolderButton.tsx` + `useAddFolderPick.ts` (pick→dedupe→batch add→one scan→toast outcomes; mac-only render) | `useMusicPlayerStore.addCustomFolders` (batched, N+1 avoided), `utils/dialog.pickDirectories`, i18n keys `addFolder*` | picker UI changes |
 | Internet Search / Preview / Download | `src/components/internet-search/InternetSearchView.tsx` | `src/stores/useDownloaderStore.ts`, `src-tauri/src/downloader/`, `src-tauri/src/commands/downloader.rs` | converter DSP |
 | Drag-drop / OS open playback (019) | `src/hooks/useAppDragDrop.ts` + `src/components/music-player/PlayerDropOverlay.tsx` | `src/utils/openWith.ts`, `src-tauri/src/music_library/resolver.rs`, `src/App.tsx` | DSP internals |
-| Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | transcribe |
+| Playback engine | `src/stores/musicPlayer/audioEngine.ts` | `utils/mediaSession.ts`, `utils/artwork.ts` | converter DSP |
 | File booster | `src/features/sound-booster/` | `src-tauri/src/processing/sound_booster/` | converter DSP |
 | Add IPC command | `src-tauri/src/commands/mod.rs` | `src-tauri/src/lib.rs` specta_builder, `examples/export_types.rs`, `src/types/generated.ts`, `src/utils/tauri.ts` | direct `invoke` in components |
-| Settings/secrets | `src-tauri/src/settings.rs`, `src-tauri/src/secrets.rs` | `src/stores/slices/settingsSlice.ts`, `utils/bootPrefs.ts` | fonts |
+| Settings / privacy policy | `src-tauri/src/settings.rs`, `src/components/PrivacyPolicyModal.tsx` | `src/components/HeaderBar.tsx` (settings sheet), `src/stores/slices/settingsSlice.ts`, `utils/bootPrefs.ts` | fonts |
 | Android build/run | `scripts/build-android-local.sh`, `scripts/dev-android.sh`, `scripts/patch-android-project.sh` | `src-tauri/android/`, `utils/platform.ts`, `utils/androidBack.ts` | desktop bundling |
 | Icons/assets | `scripts/gen-icons.py`, `src-tauri/icons/` | `public/` | Rust logic |
 | CI/release | `.github/workflows/ci.yml` | `check:types` gate, `fetch-ffmpeg.mjs` | app code |
@@ -190,7 +190,6 @@ hand-written sources an agent would actually navigate to or edit.
 components/* + features/*  -->  stores/*  -->  utils/tauri.ts  -->  types/generated.ts
                                                           -->  commands/mod.rs  -->  queue / processing / music_library / ffmpeg
 processing/pipeline.rs  -->  naming + silence + split + ffmpeg/{locate,probe,run,progress} + sound_booster/*
-processing/transcribe/* -->  gemini_client + preprocess + stitch + usage_tracker + secrets.rs (keychain)
 music_library/*  -->  platform/{android,linux,macos,windows} + artwork
 android Kotlin (PlaybackService/BoostEngine/...)  <-->  android_fs.rs (JNI)  <-->  commands/*android_player*
 ```
@@ -201,9 +200,9 @@ android Kotlin (PlaybackService/BoostEngine/...)  <-->  android_fs.rs (JNI)  <--
 - Stores may depend on `utils/tauri.ts` and `types`; converter store (`useAppStore`) and player store (`useMusicPlayerStore`) stay isolated.
 - `src/utils/tauri.ts` is the only frontend module importing `types/generated.ts` for invocation.
 - `generated.ts` is Specta output: never hand-edit; regenerate via `generate:types`, gated by `check:types` in CI.
-- Backend `commands/` may depend on `queue`, `processing`, `music_library`, `ffmpeg`, `settings`/`secrets`/`disk`/`logger`.
+- Backend `commands/` may depend on `queue`, `processing`, `music_library`, `ffmpeg`, `settings`/`disk`/`logger`.
 - `processing/` submodules never depend on `commands/`; DSP stays UI-agnostic.
-- Cloud code is isolated to `processing/transcribe/` + `transcribe_queue.rs` + `secrets.rs`; core convert/enhance/library require no network.
+- No cloud code: the entire app runs locally. The only optional network calls are the LRCLIB lyric lookup (`src/utils/lyrics.ts`) and the desktop-only GitHub update check (`src/utils/githubUpdate.ts`, skipped on Android).
 - Android Kotlin talks to Rust only via `android_fs.rs` JNI bridge; frontend detects platform via `utils/platform.ts`.
 - Generated code (`gen/`, `icons/`, `generated.ts`, lockfiles) is never hand-edited.
 
@@ -212,7 +211,7 @@ android Kotlin (PlaybackService/BoostEngine/...)  <-->  android_fs.rs (JNI)  <--
 - Single-pass FFmpeg DSP (`processing/pipeline.rs`): one filter graph, at most one lossy encode; post-silence split timeline.
 - Mandatory terminal `alimiter` in every booster chain (`sound_booster/presets.rs`).
 - IPC type-safety: Specta builder ↔ `generated.ts` ↔ `tauri.ts` (CI `check:types` gate).
-- Secrets: Gemini key in OS keychain only (`secrets.rs`); never in settings/localStorage.
+- Store builds: Android never self-updates (`useGithubUpdate` returns early on Android); publishing metadata lives in `THIRD_PARTY_LICENSES.md` + `MYKET_REVIEW_NOTES.md`.
 - Atomic non-destructive writes: `.tmp`/`.part` + rename, `(1)/(2)` suffixes (`naming.rs`), kill ffmpeg children on cancel/exit.
 - Android scoped storage/MediaStore + single active audio stream (player vs preview mutual pause).
 - Disk-space preflight with safety headroom (`disk.rs`, `pipeline.rs`).

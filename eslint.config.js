@@ -7,6 +7,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      '.vite/**',
       'src-tauri/**',
       'src/types/generated.ts',
       'scripts/**',

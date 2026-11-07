@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap, Download } from "lucide-react";
+import { Settings as SettingsIcon, X, AudioLines, Music, Sun, Moon, Languages, Zap, Download, ShieldCheck, ChevronRight } from "lucide-react";
 import { useAppStore } from "../stores/useAppStore";
 import { translate } from "../i18n";
 import { applyResolvedTheme, resolveTheme } from "../hooks/useTheme";
 import { revealOrigin, revealThemeChange } from "../utils/themeTransition";
 import { useGithubUpdate } from "../hooks/useGithubUpdate";
 import { UpdateModal } from "./UpdateModal";
+import { PrivacyPolicyModal } from "./PrivacyPolicyModal";
 import type { AppSettings } from "../types";
 
 export function HeaderBar(): React.JSX.Element {
@@ -21,6 +22,7 @@ export function HeaderBar(): React.JSX.Element {
   const setReducedBlur = useAppStore((s) => s.setReducedBlur);
   const [open, setOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [version, setVersion] = useState("");
   const { latest, updateAvailable } = useGithubUpdate();
 
@@ -200,6 +202,28 @@ export function HeaderBar(): React.JSX.Element {
                   />
                 </label>
 
+                {/* Privacy Policy — required to be reachable inside the app */}
+                <button
+                  type="button"
+                  onClick={() => setPrivacyOpen(true)}
+                  className="flex w-full items-center justify-between rounded-2xl bg-black/[0.03] p-3 text-start transition-colors hover:bg-black/[0.05] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block font-semibold text-zinc-800 dark:text-zinc-200">
+                        {translate(lang, "privacyPolicy")}
+                      </span>
+                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {translate(lang, "privacyPolicyDesc")}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 rtl:rotate-180" />
+                </button>
+
                 {/* App Version Info inside Settings */}
                 {version && (
                   <div className="flex items-center justify-between px-2 pt-1 text-xs text-zinc-400 dark:text-zinc-500">
@@ -242,6 +266,10 @@ export function HeaderBar(): React.JSX.Element {
           latest={latest}
           onClose={() => setUpdateOpen(false)}
         />
+      )}
+
+      {privacyOpen && (
+        <PrivacyPolicyModal lang={lang} onClose={() => setPrivacyOpen(false)} />
       )}
     </header>
   );

@@ -8,9 +8,7 @@ pub mod logger;
 pub mod music_library;
 pub mod processing;
 pub mod queue;
-pub mod secrets;
 pub mod settings;
-pub mod transcribe_queue;
 pub mod types;
 
 #[cfg(target_os = "android")]
@@ -127,16 +125,6 @@ pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::get_track_artwork,
         commands::get_notification_permission_status,
         commands::exit_app,
-        commands::save_gemini_api_key,
-        commands::validate_gemini_api_key,
-        commands::has_gemini_api_key,
-        commands::clear_gemini_api_key,
-        commands::start_transcription,
-        commands::cancel_transcription,
-        commands::get_transcription_queue,
-        commands::clear_finished_transcriptions,
-        commands::get_usage_stats,
-        commands::export_transcript,
         commands::search_internet_music,
         commands::get_internet_preview_url,
         commands::start_internet_download,
@@ -223,9 +211,6 @@ pub fn run() {
                 .unwrap_or_else(|_| std::env::temp_dir().join("audiflow"));
             settings::init_app_data_dir(data_dir);
             app.manage(queue::QueueManager::new(app.handle().clone()));
-            app.manage(transcribe_queue::TranscribeQueueManager::new(
-                app.handle().clone(),
-            ));
             app.manage(downloader::DownloadQueueManager::new(app.handle().clone()));
             tauri::async_runtime::spawn(async {
                 let _ = downloader::StreamProxy::start().await;
@@ -277,9 +262,6 @@ pub fn run() {
             // otherwise they outlive the process as orphans.
             if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
                 app_handle.state::<queue::QueueManager>().cancel_all();
-                app_handle
-                    .state::<transcribe_queue::TranscribeQueueManager>()
-                    .cancel_all();
                 app_handle
                     .state::<downloader::DownloadQueueManager>()
                     .cancel_all();

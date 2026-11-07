@@ -278,3 +278,50 @@ The validation fires before any `fs::remove_file` call. `content://` Android URI
 **Decision:** EQ is a WebAudio `BiquadFilterNode` chain inserted after `globalGainNode`, driven by `EQ_FREQS`/`EQ_PRESETS` in `audioEngine.ts` and `eqEnabled`/`eqPreset` in `playbackSlice`. Desktop only — Android keeps using the native Media3 player, which has no EQ bridge.
 
 **Rationale:** No new dependencies, no Android main-thread bridge work, and the same HTMLAudio element keeps powering crossfade/seek.
+
+## Myket compliance + removal of cloud transcription (2026-11-07)
+
+**Decision:** The Gemini speech-to-text feature was deleted end to end rather than
+hidden behind consent UI. Removed: `src-tauri/src/processing/transcribe/`,
+`commands/transcribe.rs`, `transcribe_queue.rs`, `secrets.rs`, the `keyring` crate,
+the `multipart` reqwest feature, `TranscribeSettings` from `settings.rs`, the
+`AppError::Gemini` variant, both `tx*` i18n blocks, and the corresponding specta
+commands/types. Rationale: shipping audio to a third-party API requires an explicit
+in-app consent flow that did not exist, and an unused backend surface is dead weight
+(`specs/`-style dead commands also trip store review).
+
+**Decision:** Privacy policy is an in-app modal (`src/components/PrivacyPolicyModal.tsx`)
+opened from the HeaderBar settings sheet, bilingual, with no server dependency. Myket
+requires the policy text to be reachable *inside* the app; a URL in the store listing
+is not sufficient.
+
+**Decision:** Android builds never self-update. `useGithubUpdate` returns early and
+`updateAvailable` is forced false under `isAndroid()`. Sideloading an APK from inside a
+store-distributed app violates publishing rules; the store owns updates there.
+
+**Decision:** `WRITE_SETTINGS` is declared in the manifest. It is an app-op permission,
+not a runtime one: `RingtoneHelper.setAsRingtone` already opens
+`Settings.ACTION_MANAGE_WRITE_SETTINGS` when `canWrite` is false, so no runtime request
+code is needed.
+
+**Decision:** Android version identity comes from `package.json` through
+`scripts/patch-android-project.sh` (step 0b), encoding `major*1e6 + minor*1e4 + patch`
+into `tauri.properties`. The checked-in file had drifted to 1.2.13/1002013 and stores
+reject a download whose versionCode is lower than the published one.
+
+**Decision:** The release keystore is never auto-generated with a default password.
+`scripts/build-android-local.sh` now fails fast when no keystore exists and
+`KEYSTORE_PASSWORD` is unset, and new keys use `CN=Audiflow, O=Audiflow, L=Tehran, C=IR`.
+A store-published certificate is permanent, so a throwaway password written in the
+repo would have locked the app into an unusable key.
+
+**Decision:** README and FAQ claims were corrected from "100% offline / fully offline"
+to "offline processing" with an explicit note about the two optional network calls
+(LRCLIB lyrics, update check). Misstating network behavior in store copy is a
+"misleading information" violation.
+
+**Consequence:** `THIRD_PARTY_LICENSES.md` and `MYKET_REVIEW_NOTES.md` were added at the
+repo root: FFmpeg is LGPL-2.1+ (built `--disable-gpl --disable-nonfree`) and needs
+attribution plus a source offer; the review notes justify every declared permission,
+chiefly `READ_MEDIA_VIDEO` (video files are accepted only to extract their audio; ffmpeg
+always runs with `-vn`) and `WRITE_SETTINGS`.

@@ -118,6 +118,17 @@ describe("HeaderBar Simplified Settings Dialog", () => {
     expect(screen.queryByText("Theme")).toBeNull();
   });
 
+  it("opens the in-app privacy policy from the settings dialog", async () => {
+    useAppStore.setState({ activeTool: "converter", lang: "en" });
+    render(<HeaderBar />);
+
+    fireEvent.click(screen.getByTitle("Settings"));
+    fireEvent.click(screen.getByText("Privacy Policy"));
+
+    const dialog = screen.getByRole("dialog", { name: "Privacy Policy" });
+    expect(dialog.textContent).toContain("Your audio never leaves the device");
+  });
+
   it("renders Settings dialog without theme and auto-open-folder rows (Persian)", async () => {
     useAppStore.setState({ activeTool: "converter", lang: "fa" });
     render(<HeaderBar />);

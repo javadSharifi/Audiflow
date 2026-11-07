@@ -5,6 +5,7 @@ import {
   isNewerVersion,
   type GithubReleaseInfo,
 } from "../utils/githubUpdate";
+import { isAndroid } from "../utils/platform";
 
 const CACHE_KEY = "audiflow:update-cache";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // revalidate at most once a day
@@ -48,6 +49,8 @@ export function useGithubUpdate(): GithubUpdateState {
   const [latest, setLatest] = useState<GithubReleaseInfo | null>(() => readCache()?.release ?? null);
 
   useEffect(() => {
+    // Store builds (Android) are updated by the store, never by a sideloaded APK.
+    if (isAndroid()) return;
     let cancelled = false;
     const controller = new AbortController();
 
@@ -88,7 +91,10 @@ export function useGithubUpdate(): GithubUpdateState {
   }, []);
 
   const updateAvailable =
-    latest !== null && currentVersion !== "" && isNewerVersion(latest.version, currentVersion);
+    !isAndroid() &&
+    latest !== null &&
+    currentVersion !== "" &&
+    isNewerVersion(latest.version, currentVersion);
 
   return { currentVersion, latest, updateAvailable };
 }
